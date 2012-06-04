@@ -1,0 +1,124 @@
+require 'Vector'
+require 'Graph'
+
+graphgen = {}
+
+local function _contains( circle, point )
+	return Vector.toLength(circle, point) < circle.radius
+end
+
+-- This is a simple but horrendously slow implementation O(n^3).
+function graphgen.gabriel( points )
+	local vertices = {}
+	local edges = {}
+
+	for _, point in ipairs(points) do
+		vertices[point] = {}
+	end
+
+	local count = 0
+
+	for i = 1, #points do
+		local source = points[i]
+
+		for j = i + 1, #points do
+			local target = points[j]
+
+			local dst = Vector.toLength(source, target)
+
+			local circle = {
+				source[1] + (target[1] - source[1]) / 2,
+				source[2] + (target[2] - source[2]) / 2,
+				radius = dst / 2
+			}
+
+			local accepted = true
+
+			for k = 1, #points do
+				count = count + 1
+
+				if k ~= i and k ~= j then
+					local other = points[k]
+
+					if _contains(circle, other) then
+						accepted = false
+
+						break
+					end
+				end
+			end
+
+			if accepted then
+				local edge = { length = dst }
+				
+				vertices[source][target] = edge
+				vertices[target][source] = edge
+				
+				edges[edge] = { source, target }
+			end
+		end
+	end
+
+	-- print('gabriel', count)
+
+	local result = Graph.new(vertices, edges)
+
+	return result, count
+end
+
+-- This is a simple but horrendously slow implementation O(n^3).
+-- Relative Neighbourhood Graph.
+function graphgen.rng( points )
+	local vertices = {}
+	local edges = {}
+
+	for _, point in ipairs(points) do
+		vertices[point] = {}
+	end
+
+	local count = 0
+
+	for i = 1, #points do
+		local source = points[i]
+		for j = i + 1, #points do
+			local target = points[j]
+
+			local dst = source:toLength(target)
+
+			local accepted = true
+
+			for k = 1, #points do
+				count = count + 1
+
+				if k ~= i and k ~= j then
+					local other = points[k]
+
+					local dso = source:toLength(other)
+					local dto = target:toLength(other)
+
+					if dso < dst and dto < dst then
+						accepted = false
+
+						break
+					end
+				end
+			end
+
+			if accepted then
+				local edge = { length = dst }
+				
+				vertices[source][target] = edge
+				vertices[target][source] = edge
+				
+				edges[edge] = { source, target }
+			end
+		end
+	end
+
+	local result = Graph.new(vertices, edges)
+
+	return result, count
+end
+
+
+

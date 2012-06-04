@@ -1,0 +1,8 @@
+#! /bin/bash
+pushd src
+zip -r ../demirogue.love *.lua resources/*
+popd 
+
+pushd metaline
+zip -r ../metaline.love *.lua
+popd 
