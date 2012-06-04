@@ -1,7 +1,15 @@
+--
+-- action.lua
+--
+-- NOTE: - The return plan func MUST be called at least once and until it returns false.
+--
+
 require 'Actor'
 require 'Vector'
 
 action = {}
+
+
 
 function action.search( level, actor )
 	local duration = 1

@@ -273,4 +273,6 @@ function Level.new( params )
 	return result
 end
 
-
+function Level:distanceMap( source, maxdepth )
+	return self.graph:distanceMap(source, maxdepth)
+end

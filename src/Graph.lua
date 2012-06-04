@@ -1,7 +1,8 @@
 --
 -- Graph.lua
 --
--- An incidence list based data structure.
+-- An incidence list based graph data structure.
+-- There should be nothing game specific in here if possible.
 --
 -- Graph = {
 --     vertices = {
@@ -89,6 +90,34 @@ function Graph:merge( other )
 	end
 end
 
+function Graph:distanceMap( source, maxdepth )
+	maxdepth = maxdepth or math.huge
+
+	local vertices = self.vertices
+	assert(vertices[source])
+
+	local result = { [source] = 0 }
+	local frontier = { [source] = true }
+	local depth = 0
+
+	while depth < maxdepth and next(frontier) do
+		depth = depth + 1
+		local newFrontier = {}
+
+		for vertex, _ in pairs(frontier) do
+			for peer, _ in pairs(vertices[vertex]) do
+				if not frontier[peer] and not result[peer] then
+					result[peer] = depth
+					newFrontier[peer] = true
+				end
+			end
+		end
+
+		frontier = newFrontier
+	end
+
+	return result
+end
 
 
 

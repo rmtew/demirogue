@@ -91,6 +91,7 @@ end
 
 local level, actors, scheduler = _gen()
 local actions = {}
+local warp = 1
 
 gamemode = {}
 
@@ -100,7 +101,7 @@ function gamemode.update()
 	local camdx = (isDown('left') and -1 or 0) + (isDown('right') and 1 or 0)
 	local camdy = (isDown('up') and -1 or 0) + (isDown('down') and 1 or 0)
 
-	local dt = love.timer.getDelta()
+	local dt = warp * love.timer.getDelta()
 	
 	camx = camx + (500 * dt * camdx)
 	camy = camy + (500 * dt * camdy)
@@ -124,7 +125,7 @@ function gamemode.update()
 			-- print('sync', running)
 
 			if running then
-				action.time = action.time + love.timer.getDelta()
+				action.time = action.time + dt
 			else
 				table.remove(actions, 1)
 			end
@@ -140,7 +141,7 @@ function gamemode.update()
 				if running then
 					index = index + 1
 
-					action.time = action.time + love.timer.getDelta()
+					action.time = action.time + dt
 				else
 					table.remove(actions, index)
 				end
@@ -151,6 +152,9 @@ end
 
 local zoomed = true
 local boxes = false
+
+local unknown = { 0, 0, 0, 255 }
+local known = { 0, 45, 0, 255 }
 
 function gamemode.draw()
 	love.graphics.push()
@@ -166,23 +170,50 @@ function gamemode.draw()
 		love.graphics.translate(-camx, -camy)
 	end
 
+	local maxdepth = 3
+	local distances = level:distanceMap(actors[1].vertex, maxdepth)
+
 	local linewidth = 6
 	love.graphics.setLineWidth(linewidth)
-
-	love.graphics.setColor(128, 128, 128)
 
 	for edge, verts  in pairs(level.graph.edges) do
 		local vertex1 = verts[1]
 		local vertex2 = verts[2]
 
-		love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
+		if vertex1.known and vertex2.known then
+			local distance1 = distances[vertex1] or maxdepth + 1
+			local distance2 = distances[vertex2] or maxdepth + 1
+			local distance = math.max(distance1, distance2)
+
+			local bias = (maxdepth - distance) / maxdepth
+			local luminance = 100 + math.round(100 * bias)
+			love.graphics.setColor(luminance, luminance, luminance)
+
+			love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
+		end
 	end
 
-	love.graphics.setColor(191, 191, 191)
 
-	for point, _ in pairs(level.graph.vertices) do
-		local radius = (point.subdivide) and linewidth * 1.5 or linewidth * 1.25
-		love.graphics.circle('fill', point[1], point[2], radius)
+	-- printf('#distances:%d', table.count(distances))
+
+	for vertex, distance in pairs(distances) do
+		vertex.known = true
+	end
+
+	for vertex, _ in pairs(level.graph.vertices) do
+		-- local radius = (vertex.subdivide) and linewidth * 1.5 or linewidth * 1.25
+		local distance = distances[vertex]
+		
+		if distance then
+			local bias = (maxdepth - distance) / maxdepth
+			local luminance = 100 + math.round(100 * bias)
+			love.graphics.setColor(luminance, luminance, luminance)
+		else
+			love.graphics.setColor(vertex.known and known or unknown)
+		end
+
+		local radius = linewidth
+		love.graphics.circle('fill', vertex[1], vertex[2], radius)
 	end
 
 	love.graphics.setColor(255, 255, 255)
@@ -196,23 +227,27 @@ function gamemode.draw()
 
 
 	for _, actor in ipairs(actors) do
-		local vx, vy = actor[1], actor[2]
-		local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
-		local x, y = vx - dx, vy - dy
+		if distances[actor.vertex] then
+			local vx, vy = actor[1], actor[2]
+			local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
+			local x, y = vx - dx, vy - dy
 
-		love.graphics.setColor(0, 0, 0)
+			love.graphics.setColor(0, 0, 0)
 
-		love.graphics.print(actor.symbol, x - 1, y - 1)
-		love.graphics.print(actor.symbol, x - 1, y + 1)
-		love.graphics.print(actor.symbol, x + 1, y - 1)
-		love.graphics.print(actor.symbol, x + 1, y + 1)
+			love.graphics.print(actor.symbol, x - 1, y - 1)
+			love.graphics.print(actor.symbol, x - 1, y + 1)
+			love.graphics.print(actor.symbol, x + 1, y - 1)
+			love.graphics.print(actor.symbol, x + 1, y + 1)
 
-		love.graphics.setColor(255, 255, 255)
+			love.graphics.setColor(255, 255, 255)
 
-		love.graphics.print(actor.symbol, x, y)
+			love.graphics.print(actor.symbol, x, y)
+		end
 	end
 
 	love.graphics.pop()
+
+	love.graphics.print(string.format('warp:%.2f', warp), 10, 10)
 end
 
 function gamemode.mousepressed( x, y, button )
@@ -256,6 +291,14 @@ function gamemode.keypressed( key )
 		end
 	elseif key == 't' then
 		track = not track
+	elseif key == 'right' then
+		warp = math.min(warp * 2, 1024)
+	elseif key == 'left' then
+		warp = math.max(warp * 0.5, 1 / 1024)
+	elseif key == 'f' then
+		for vertex, _ in pairs(level.graph.vertices) do
+			vertex.known = true
+		end
 	elseif not playerAction then
 		local dir = _keydir[key]
 		local player = actors[1]
