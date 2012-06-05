@@ -66,3 +66,23 @@ function texture.bandedCLUT( bands, w, h )
 	return love.graphics.newImage(result)
 end
 
+function texture.mound( w, h )
+	local result = love.image.newImageData(w, h)
+
+	local cx = w * 0.5
+	local cy = h * 0.5
+	local edge = cx * 0.99
+
+	for y = 0, h-1 do
+		for x = 0, w-1 do
+			local dx, dy = cx - x, cy - y
+			local d = math.sqrt((dx * dx) + (dy * dy))
+			local v = (1 - _smootherstep(d, 0, cx))^2 * 255
+			-- local v = 255 * (1 - _clamp(d / cx, 0, 1))^3
+			result:setPixel(x, y, v, v, v, 255)
+		end
+	end
+
+	return love.graphics.newImage(result)
+end
+

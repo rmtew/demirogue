@@ -156,7 +156,7 @@ function gamemode.update()
 end
 
 local zoomed = true
-local boxes = false
+local drawBoxes = false
 
 local unknown = { 0, 0, 0, 255 }
 local known = { 0, 45, 0, 255 }
@@ -207,10 +207,10 @@ local clut =
 		local sandysoil = { 178, 104, 31, 255 }
 
 		local blur = 5
-		local b1 = 10
-		local b2 = 25
-		local b3 = 45
-		local b4 = 65
+		local b1 = 25
+		local b2 = 35
+		local b3 = 50
+		local b4 = 80
 
 		local bands = {
 			[1] = lilac,
@@ -228,9 +228,24 @@ local clut =
 		return texture.bandedCLUT(bands, 256, 256)
 	end)()
 
+local mound = texture.mound(256, 256)
+
+local moundEffect = love.graphics.newPixelEffect [[
+	extern Image clut;
+
+	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
+	{
+		vec2 p = Texel(tex, tc).yx;
+
+		return Texel(clut, p);
+	}
+]]
+
 local drawEdges = true
 local drawVertices = false
-local drawMetalines = true
+local drawMetalines = false
+local drawMounds = true
+local drawHeightfield = false
 
 function gamemode.draw()
 	love.graphics.push()
@@ -262,6 +277,8 @@ function gamemode.draw()
 		vertex.known = true
 	end
 
+	local width = 50
+
 	-- Metalines
 	local count = 0
 
@@ -292,13 +309,75 @@ function gamemode.draw()
 			intensities[#intensities+1] = { intensity1, intensity2 }
 		end
 
-		count = metalines.draw(canvas, xform, w, h, point1s, point2s, intensities, 50, clut)
+		count = metalines.draw(canvas, xform, w, h, point1s, point2s, intensities, width, clut)
+	end
+
+	if drawMounds then
+		local oldBlendMode = love.graphics.getBlendMode()
+		
+		canvas:clear()
+		love.graphics.setCanvas(canvas)
+		
+		love.graphics.setBlendMode('additive')
+		love.graphics.setColor(255, 255, 255, 255)
+		-- love.graphics.setColorMode('modulate')
+
+		local colour = { 255, 255, 255, 255 }
+
+		for vertex, peers in pairs(level.graph.vertices) do
+			local maxEdgeLength = 0
+
+			for peer, edge in pairs(peers) do
+				maxEdgeLength = math.max(edge.length, maxEdgeLength)
+			end
+
+			local intensity = vertex.known and 0.25 or 0
+			local distance = distances[vertex]
+		
+			if distance then
+				-- intensity = 0.5 + (maxdepth - distance) / (maxdepth * 2)
+				intensity = 1
+			end
+
+			colour[2] = math.round(intensity * 255)
+
+			love.graphics.setColor(colour)
+
+			local scale = (1.75 * maxEdgeLength) / 256
+			love.graphics.draw(mound, vertex[1] - 128 * scale, vertex[2] - 128 * scale, 0, scale, scale)
+			
+			count = count + 1
+		end
+
+		love.graphics.setCanvas()
+
+		local vpx = -xform.translate[1]
+		local vpy = -xform.translate[2]
+		local vpsx = 1/xform.scale[1]
+		local vpsy = 1/xform.scale[2]
+
+		if not drawHeightfield then
+			moundEffect:send('clut', clut)
+			love.graphics.setPixelEffect(moundEffect)
+		end
+
+		-- love.graphics.setBlendMode('alpha')
+		love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
+
+		if not drawHeightfield then
+			love.graphics.setPixelEffect()
+		end
+
+		love.graphics.setBlendMode(oldBlendMode)
 	end
 
 	local linewidth = 2
 
 	if drawEdges then
-		love.graphics.setLineWidth(linewidth)
+		love.graphics.setColor(128, 128, 128)
+		love.graphics.setLine(linewidth, 'rough')
+
+		-- local lines = {}
 
 		for edge, verts  in pairs(level.graph.edges) do
 			local vertex1 = verts[1]
@@ -312,10 +391,16 @@ function gamemode.draw()
 				local bias = (maxdepth - distance) / maxdepth
 				local luminance = 100 + math.round(100 * bias)
 				love.graphics.setColor(luminance, luminance, luminance)
-
+				
 				love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
+				-- lines[#lines+1] = vertex1[1]
+				-- lines[#lines+1] = vertex1[2]
+				-- lines[#lines+1] = vertex2[1]
+				-- lines[#lines+1] = vertex2[2]
 			end
 		end
+
+		-- love.graphics.line(lines)
 	end
 
 
@@ -340,8 +425,8 @@ function gamemode.draw()
 
 	love.graphics.setColor(255, 255, 255)
 
-	if boxes then
-		love.graphics.setLineWidth(1)
+	if drawBoxes then
+		love.graphics.setLineWidth(3)
 		for _, bbox in ipairs(level.boxes) do
 			love.graphics.rectangle('line', bbox.xmin, bbox.ymin, bbox:width(), bbox:height())
 		end
@@ -420,11 +505,13 @@ local _keydir = {
 	kp9 = Dir.NE,
 }
 
+local known = false
+
 function gamemode.keypressed( key )
 	if key == 'z' then
 		zoomed = not zoomed
 	elseif key == 'a' then
-		boxes = not boxes
+		drawBoxes = not drawBoxes
 	elseif key == ' ' then
 		level, actors, scheduler = _gen()
 		actions = {}
@@ -441,6 +528,10 @@ function gamemode.keypressed( key )
 		drawEdges = not drawEdges
 	elseif key == 'm' then
 		drawMetalines = not drawMetalines
+	elseif key == 'x' then
+		drawMounds = not drawMounds
+	elseif key == 'd' then
+		drawHeightfield = not drawHeightfield
 	elseif key == 't' then
 		track = not track
 	elseif key == 'right' then
@@ -448,8 +539,10 @@ function gamemode.keypressed( key )
 	elseif key == 'left' then
 		warp = math.max(warp * 0.5, 1 / 1024)
 	elseif key == 'f' then
+		known = not known
+
 		for vertex, _ in pairs(level.graph.vertices) do
-			vertex.known = true
+			vertex.known = known
 		end
 	elseif not playerAction and #actions == 0 then
 		local dir = _keydir[key]
