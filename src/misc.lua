@@ -56,3 +56,36 @@ function printf( ... )
 	print(string.format(...))
 end
 
+-------------------------------------------------------------------------------
+
+function newgrid( width, height, value )
+	local data = {}
+
+	for i = 1, width * height do
+		data[i] = value
+	end
+
+	return {
+		width = width,
+		height = height,
+		set = 
+			function ( x, y, value )
+				data[((y-1) * width) + x] = value
+			end,
+		get =
+			function ( x, y )
+				return data[((y-1) * width) + x]
+			end,
+		print =
+			function ()
+				for y = 1, height do
+					local line = {}
+					for x = 1, width do
+						line[x] = data[((y-1) * width) + x] and 'x' or '.'
+					end
+					print(table.concat(line))
+				end
+			end,
+	}
+end
+

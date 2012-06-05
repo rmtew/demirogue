@@ -4,6 +4,8 @@
 -- An incidence list based graph data structure.
 -- There should be nothing game specific in here if possible.
 --
+-- Simple loops (vertex with an edge to itself) are not allowed.
+--
 -- Graph = {
 --     vertices = {
 --         [vertex] = { [vertex] = edge }*
@@ -26,7 +28,33 @@ function Graph.new( vertices, edges )
 
 	setmetatable(result, Graph)
 
+	result:_invariant()
+
 	return result
+end
+
+function Graph:_invariant()
+	local vertices = self.vertices
+	local edges = self.edges
+
+	-- 1. Vertices are connected to other vertices by edges.
+	for vertex, peers in pairs(vertices) do
+		for peer, edge in pairs(peers) do
+			assert(vertices[peer])
+			assert(edges[edge])
+		end
+	end
+
+	-- 2. Edges are connected to two distinct vertices.
+	for edge, endverts in pairs(edges) do
+		local vertex1, vertex2 = endverts[1], endverts[2]
+
+		assert(vertex1)
+		assert(vertex2)
+		assert(vertex1 ~= vertex2)
+		assert(vertices[vertex1])
+		assert(vertices[vertex2])
+	end
 end
 
 function Graph:addVertex( vertex )
@@ -57,6 +85,7 @@ function Graph:addEdge( edge, vertex1, vertex2 )
 	local peers2 = self.vertices[vertex2]
 
 	assert(self.edges[edge] == nil)
+	assert(vertex1 ~= vertex2) -- No loops.
 	assert(peers1 ~= nil and peers1[vertex2] == nil)
 	assert(peers2 ~= nil and peers2[vertex1] == nil)
 	

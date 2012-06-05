@@ -18,6 +18,8 @@ function graphgen.gabriel( points )
 
 	local count = 0
 
+	local circle = { 0, 0, radius = 0 }
+
 	for i = 1, #points do
 		local source = points[i]
 
@@ -26,11 +28,9 @@ function graphgen.gabriel( points )
 
 			local dst = Vector.toLength(source, target)
 
-			local circle = {
-				source[1] + (target[1] - source[1]) / 2,
-				source[2] + (target[2] - source[2]) / 2,
-				radius = dst / 2
-			}
+			circle[1] = source[1] + (target[1] - source[1]) / 2
+			circle[2] = source[2] + (target[2] - source[2]) / 2
+			circle.radius = dst / 2
 
 			local accepted = true
 

@@ -216,6 +216,80 @@ local function _subdivide( graph, margin )
 	end
 end
 
+local function _enclose( graph, aabb, margin )
+	print('_enclose()')
+
+	local width = math.ceil(aabb:width() / margin)
+	local height = math.ceil(aabb:height() / margin)
+
+	margin = aabb:width() / width
+
+	local grid = newgrid(width, height, false)
+
+	for vertex, _ in pairs(graph.vertices) do
+		local x = math.round((vertex[1] - aabb.xmin) / margin)
+		local y = math.round((vertex[2] - aabb.ymin) / margin)
+
+		local cell = grid.get(x, y)
+
+		if cell then
+			cell[#cell+1] = vertex
+		else
+			grid.set(x, y, { vertex })
+		end
+	end
+
+	grid.print()
+
+	local dirs = {
+		{ -1, -1 },
+		{  0, -1 },
+		{  1, -1 },
+		{ -1,  0 },
+		{  1,  0 },
+		{ -1,  1 },
+		{  0,  1 },
+		{  1,  1 },
+	}
+
+	for x= 1, width do
+		for y = 1, height do
+			if not grid.get(x, y) then
+				-- local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
+				-- local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
+
+				local rx = aabb.xmin + ((x-1) * margin) + (margin * 0.5) + (margin * math.random() * 0.25)
+				local ry = aabb.ymin + ((y-1) * margin) + (margin * 0.5) + (margin * math.random() * 0.25)
+
+				local candidate = { rx, ry, wall = true }
+				local empty = {}
+				local accepted = true
+
+				for _, dir in ipairs(dirs) do
+					local dx, dy = x + dir[1], y + dir[2]
+					
+					if 1 <= dx and dx <= width and 1 <= dy and dy <= height then
+						for _, vertex in ipairs(grid.get(dx, dy) or empty) do
+							if Vector.toLength(vertex, candidate) < margin then
+								accepted = false
+								break
+							end
+						end
+					end
+
+					if not accepted then
+						break
+					end
+				end
+
+				if accepted then
+					graph:addVertex(candidate)
+				end
+			end
+		end
+	end
+end
+
 
 -- aabb - the size of the level
 -- margin - the minimum distance between vertices
@@ -224,7 +298,8 @@ end
 -- graphgen - graphgen function
 
 function Level.new( params )
-	local aabb = AABB.new(params.aabb)
+	-- local aabb = AABB.new(params.aabb)
+	local aabb = params.aabb:shrink(params.margin)
 	local margin = params.margin
 	local layout = params.layout
 	local roomgen = params.roomgen
@@ -235,6 +310,8 @@ function Level.new( params )
 		minheight = 100,
 		margin = margin,
 		maxboxes = 45,
+		point1s = nil,
+		point2s = nil,
 	}
 
 	local boxes = layout(aabb, limits)
@@ -260,6 +337,7 @@ function Level.new( params )
 	_connect(graph, rooms)
 	_subdivide(graph, margin)
 	_edgecheck(graph)
+	-- _enclose(graph, aabb, margin)
 
 	local result = {
 		aabb = aabb,
@@ -275,4 +353,20 @@ end
 
 function Level:distanceMap( source, maxdepth )
 	return self.graph:distanceMap(source, maxdepth)
+end
+
+function Level:points()
+	if not self.point1s then
+		local point1s, point2s = {}, {}
+
+		for edge, endverts in pairs(self.graph.edges) do
+			local vertex1, vertex2 = endverts[1], endverts[2]
+			point1s[#point1s+1] = { vertex1[1], vertex1[2] }
+			point2s[#point2s+1] = { vertex2[1], vertex2[2] }
+		end
+
+		self.point1s, self.point2s = point1s, point2s
+	end
+
+	return self.point1s, self.point2s
 end

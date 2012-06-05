@@ -31,9 +31,7 @@ end
 function love.keypressed( key )
 	print('love.keypressed', key)
 
-	if key == 'm' then
-		mode = glyphmode
-	elseif key == 'escape' then
+	if key == 'escape' then
 		love.event.push('quit')
 	else
 		mode.keypressed(key)

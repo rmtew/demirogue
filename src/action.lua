@@ -12,7 +12,7 @@ action = {}
 
 
 function action.search( level, actor )
-	local duration = 1
+	local duration = 0.25
 	local radius = 10
 	local origin = Vector.new(actor)
 
@@ -24,8 +24,10 @@ function action.search( level, actor )
 				return false
 			end
 
-			actor[1] = origin[1] + (radius * math.cos(time * math.pi * 2))
-			actor[2] = origin[2] + (radius * math.sin(time * math.pi * 2))
+			local disp = radius * math.sin(math.pi * (time / duration))
+
+			actor[1] = origin[1] + (disp * math.cos(time * math.pi * 2))
+			actor[2] = origin[2] + (disp * math.sin(time * math.pi * 2))
 
 			return true
 		end

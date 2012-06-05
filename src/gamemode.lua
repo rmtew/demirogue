@@ -8,12 +8,16 @@ require 'Level'
 require 'Actor'
 require 'Scheduler'
 require 'action'
+require 'KDtree'
+require 'metalines'
+require 'texture'
 
 local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 local camx, camy = 0, 0
 local track = false
 local actions = {}
 local playerAction = nil
+
 
 local function _gen()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
@@ -39,6 +43,7 @@ local function _gen()
 			ymax = 2 * h,
 		},
 		margin = 50,
+		-- margin = 100,
 		layout = layoutgen.splat,
 		roomgen = rgen,
 		graphgen = graphgen.gabriel,
@@ -156,64 +161,181 @@ local boxes = false
 local unknown = { 0, 0, 0, 255 }
 local known = { 0, 45, 0, 255 }
 
+local function _drawKDTree( kdtree, aabb )
+	if kdtree.horz then
+		love.graphics.line(kdtree.axis, aabb.ymin, kdtree.axis, aabb.ymax)
+	else
+		love.graphics.line(aabb.xmin, kdtree.axis, aabb.xmax, kdtree.axis)
+	end
+
+	local branch1 = kdtree[1]
+	local branch2 = kdtree[2]
+
+	if branch1 and branch1.horz ~= nil then
+		local aabb = AABB.new(aabb)
+
+		if kdtree.horz then
+			aabb.xmax = kdtree.axis
+		else
+			aabb.ymax = kdtree.axis
+		end
+
+		_drawKDTree(branch1, aabb)
+	end
+
+	if branch2 and branch2.horz ~= nil then
+		local aabb = AABB.new(aabb)
+
+		if kdtree.horz then
+			aabb.xmin = kdtree.axis
+		else
+			aabb.ymin = kdtree.axis
+		end
+
+		_drawKDTree(branch2, aabb)
+	end
+end
+
+local canvas = love.graphics.newCanvas()
+local clut =
+	(function ()
+		-- No official colour names.
+		local lilac = { 132, 83, 255, 255 }
+		local verdant = { 22, 178, 39, 255 }
+		local drygrass = { 57, 255, 79, 255 }
+		local clay = { 204, 114, 25, 255 }
+		local sandysoil = { 178, 104, 31, 255 }
+
+		local blur = 5
+		local b1 = 10
+		local b2 = 25
+		local b3 = 45
+		local b4 = 65
+
+		local bands = {
+			[1] = lilac,
+			[b1-blur] = lilac,
+			[b1+blur] = verdant,
+			[b2-blur] = verdant,
+			[b2+blur] = drygrass,
+			[b3-blur] = drygrass,
+			[b3+blur] = clay,
+			[b4-blur] = clay,
+			[b4+blur] = sandysoil,
+			[100] = sandysoil,
+		}
+
+		return texture.bandedCLUT(bands, 256, 256)
+	end)()
+
+local drawEdges = true
+local drawVertices = false
+local drawMetalines = true
+
 function gamemode.draw()
 	love.graphics.push()
 	
+	local xform = {
+		scale = { 1, 1 },
+		translate = { 0, 0 },
+	}
+
 	if zoomed then
-		love.graphics.scale(1/3, 1/3)
-		love.graphics.translate(800, 600)
+		xform.scale = { 1/3, 1/3 }
+		xform.translate = { 800, 600 }
 	else
 		if track then
 			camx, camy = actors[1][1] - (w * 0.5), actors[1][2] - (h * 0.5)
 		end
 
-		love.graphics.translate(-camx, -camy)
+		xform.translate = { -camx, -camy }
 	end
 
+	love.graphics.scale(xform.scale[1], xform.scale[2])
+	love.graphics.translate(xform.translate[1], xform.translate[2])
+
+	-- LoS and FoW
 	local maxdepth = 3
 	local distances = level:distanceMap(actors[1].vertex, maxdepth)
-
-	local linewidth = 6
-	love.graphics.setLineWidth(linewidth)
-
-	for edge, verts  in pairs(level.graph.edges) do
-		local vertex1 = verts[1]
-		local vertex2 = verts[2]
-
-		if vertex1.known and vertex2.known then
-			local distance1 = distances[vertex1] or maxdepth + 1
-			local distance2 = distances[vertex2] or maxdepth + 1
-			local distance = math.max(distance1, distance2)
-
-			local bias = (maxdepth - distance) / maxdepth
-			local luminance = 100 + math.round(100 * bias)
-			love.graphics.setColor(luminance, luminance, luminance)
-
-			love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
-		end
-	end
-
-
-	-- printf('#distances:%d', table.count(distances))
 
 	for vertex, distance in pairs(distances) do
 		vertex.known = true
 	end
 
-	for vertex, _ in pairs(level.graph.vertices) do
-		-- local radius = (vertex.subdivide) and linewidth * 1.5 or linewidth * 1.25
-		local distance = distances[vertex]
+	-- Metalines
+	local count = 0
+
+	if drawMetalines then
+		local point1s, point2s = level:points()
 		
-		if distance then
-			local bias = (maxdepth - distance) / maxdepth
-			local luminance = 100 + math.round(100 * bias)
-			love.graphics.setColor(luminance, luminance, luminance)
-		else
-			love.graphics.setColor(vertex.known and known or unknown)
+		local intensities = {}
+
+		for edge, endverts in pairs(level.graph.edges) do
+			local vertex1, vertex2 = endverts[1], endverts[2]
+
+			local intensity1 = vertex1.known and 0.05 or 0
+			local intensity2 = vertex2.known and 0.05 or 0
+
+			local distance1 = distances[vertex1]
+			local distance2 = distances[vertex2]
+
+			if distance1 then
+				intensity1 = 0.5 + (maxdepth - distance1) / (maxdepth * 2)
+				-- intensity1 = 1
+			end
+
+			if distance2 then
+				intensity2 = 0.25 + (maxdepth - distance2) / (maxdepth * 2.5)
+				-- intensity2 = 1
+			end
+
+			intensities[#intensities+1] = { intensity1, intensity2 }
 		end
 
-		local radius = linewidth
-		love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		count = metalines.draw(canvas, xform, w, h, point1s, point2s, intensities, 50, clut)
+	end
+
+	local linewidth = 2
+
+	if drawEdges then
+		love.graphics.setLineWidth(linewidth)
+
+		for edge, verts  in pairs(level.graph.edges) do
+			local vertex1 = verts[1]
+			local vertex2 = verts[2]
+
+			if vertex1.known and vertex2.known then
+				local distance1 = distances[vertex1] or maxdepth + 1
+				local distance2 = distances[vertex2] or maxdepth + 1
+				local distance = math.max(distance1, distance2)
+
+				local bias = (maxdepth - distance) / maxdepth
+				local luminance = 100 + math.round(100 * bias)
+				love.graphics.setColor(luminance, luminance, luminance)
+
+				love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
+			end
+		end
+	end
+
+
+	-- printf('#distances:%d', table.count(distances))
+	if drawVertices then
+		for vertex, _ in pairs(level.graph.vertices) do
+			-- local radius = (vertex.subdivide) and linewidth * 1.5 or linewidth * 1.25
+			local distance = distances[vertex]
+			
+			if distance then
+				local bias = (maxdepth - distance) / maxdepth
+				local luminance = 100 + math.round(100 * bias)
+				love.graphics.setColor(luminance, luminance, luminance)
+			else
+				love.graphics.setColor(vertex.known and known or unknown)
+			end
+
+			local radius = linewidth
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		end
 	end
 
 	love.graphics.setColor(255, 255, 255)
@@ -245,9 +367,32 @@ function gamemode.draw()
 		end
 	end
 
+	local points = {}
+
+	for vertex, _ in pairs(level.graph.vertices) do
+		points[#points+1] = Vector.new(vertex)
+	end
+
+	local kdtree = KDTree.new(points)
+
+	love.graphics.setLineWidth(1)
+	love.graphics.setColor(0, 0, 255)
+
+	-- _drawKDTree(kdtree, level.aabb)
+
 	love.graphics.pop()
 
-	love.graphics.print(string.format('warp:%.2f', warp), 10, 10)
+	local numVertices = table.count(level.graph.vertices)
+	local numEdges = table.count(level.graph.edges)
+
+	local text = string.format('warp:%.2f fps:%.2f #v:%d #e:%d #ml:%d',
+		warp,
+		love.timer.getFPS(),
+		numVertices,
+		numEdges,
+		count)
+
+	love.graphics.print(text, 10, 10)
 end
 
 function gamemode.mousepressed( x, y, button )
@@ -283,12 +428,19 @@ function gamemode.keypressed( key )
 	elseif key == ' ' then
 		level, actors, scheduler = _gen()
 		actions = {}
-	elseif key == 's' then
-		for _, actor in ipairs(actors) do
-			local dir = table.random(actor.vertex.dirs)
+	elseif key == 's' and not playerAction and #actions == 0 then
+		local cost, action = action.search(level, actors[1])
 
-			local success = actor:move(dir)
-		end
+		playerAction = {
+			cost = cost,
+			action = action,
+		}
+	elseif key == 'v' then
+		drawVertices = not drawVertices
+	elseif key == 'e' then
+		drawEdges = not drawEdges
+	elseif key == 'm' then
+		drawMetalines = not drawMetalines
 	elseif key == 't' then
 		track = not track
 	elseif key == 'right' then
@@ -299,7 +451,7 @@ function gamemode.keypressed( key )
 		for vertex, _ in pairs(level.graph.vertices) do
 			vertex.known = true
 		end
-	elseif not playerAction then
+	elseif not playerAction and #actions == 0 then
 		local dir = _keydir[key]
 		local player = actors[1]
 		local target = player.vertex.dirs[dir]

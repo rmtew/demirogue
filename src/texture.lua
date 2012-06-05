@@ -10,13 +10,16 @@ local function _clamp( x, xmin, xmax )
 	return x
 end
 
-function smootherstep( x, xmin, xmax )
+local function _smootherstep( x, xmin, xmax )
 	local t =  _clamp((x - xmin)/(xmax - xmin), 0, 1);
    
     return t*t*t*(t*(t*6 - 15) + 10)
 end
 
-function texture.clut( bands, w, h )
+-- bands = {
+--     [percentage] = { r, g, b, a } -- r,g,b,a : [0..255]
+-- }*
+function texture.bandedCLUT( bands, w, h )
 	assert(bands[1] and bands[100])
 
 	local result = love.image.newImageData(w, h)
@@ -46,7 +49,7 @@ function texture.clut( bands, w, h )
 			local lower = bands[lowerpc]
 			local upper = bands[upperpc]
 
-			local bias = smootherstep(probe, lowerpc, upperpc)
+			local bias = _smootherstep(probe, lowerpc, upperpc)
 			
 			r = (1 - bias) * lower[1] + bias * upper[1]
 			g = (1 - bias) * lower[2] + bias * upper[2]
@@ -55,7 +58,8 @@ function texture.clut( bands, w, h )
 		end
 
 		for x = 0, w-1 do
-			result:setPixel(x, y, r, g, b, a)
+			local bias = x / (w-1)
+			result:setPixel(x, y, bias * r, bias * g, bias * b, a)
 		end
 	end
 

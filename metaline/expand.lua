@@ -1,4 +1,6 @@
--- This is a modified version of the 'Simple Lua Preprocessor' at http://lua-users.org/wiki/SimpleLuaPreprocessor
+-- This is a modified version of the 'Simple Lua Preprocessor'
+-- at http://lua-users.org/wiki/SimpleLuaPreprocessor
+
 function expand( src, args )
     local parts = {
         'local _parts = {}\n',
