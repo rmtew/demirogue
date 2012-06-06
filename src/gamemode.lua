@@ -197,6 +197,7 @@ local function _drawKDTree( kdtree, aabb )
 end
 
 local canvas = love.graphics.newCanvas()
+local lightCanvas = love.graphics.newCanvas()
 local clut =
 	(function ()
 		-- No official colour names.
@@ -229,6 +230,10 @@ local clut =
 	end)()
 
 local mound = texture.mound(256, 256)
+local blobs = love.graphics.newImage('resources/blobs.png')
+local backlight = texture.circle(256, 256, 0, 255, 0, 255)
+backlight:setFilter('nearest', 'nearest')
+local forelight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0)
 
 local moundEffect = love.graphics.newPixelEffect [[
 	extern Image clut;
@@ -246,6 +251,29 @@ local drawVertices = false
 local drawMetalines = false
 local drawMounds = true
 local drawHeightfield = false
+
+local _spriteBatches = {}
+
+local function _getSpriteBatches( batches )
+	local result = {}
+
+	for name, params in pairs(batches) do
+		local spriteBatch = _spriteBatches[name]
+
+		if not spriteBatch or spriteBatch.size < params.size then
+			spriteBatch = {
+				batch = love.graphics.newSpriteBatch(params.image, params.size),
+				size = params.size
+			}
+
+			_spriteBatches[name] = spriteBatch
+		end
+
+		result[name] = spriteBatch
+	end
+
+	return result
+end
 
 function gamemode.draw()
 	love.graphics.push()
@@ -324,16 +352,36 @@ function gamemode.draw()
 		--   2.1 modulate via (0, x, 0, 0) where x is set according to distance.
 		-- 4. Use r and g as lookups into the clut texture and render canvas to screen.
 
-		local oldBlendMode = love.graphics.getBlendMode()
+		local numVertices = table.count(level.graph.vertices)
+		local numSeenVertices = table.count(distances)
 		
-		canvas:clear()
-		love.graphics.setCanvas(canvas)
-		
-		love.graphics.setBlendMode('additive')
-		love.graphics.setColor(255, 255, 255, 255)
-		-- love.graphics.setColorMode('modulate')
+		local batches = _getSpriteBatches {
+			height = {
+				image = blobs,
+				-- image = mound,
+				size = numVertices,
+			},
+			backlight = {
+				image = backlight,
+				size = numVertices,
+			},
+			forelight = {
+				image = forelight,
+				size = numVertices,
+			},
+		}
 
-		local colour = { 255, 255, 255, 255 }
+		local heightBatch = batches.height.batch
+		local backlightBatch = batches.backlight.batch
+		local forelightBatch = batches.forelight.batch
+
+		heightBatch:clear()
+		backlightBatch:clear()
+		forelightBatch:clear()
+
+		heightBatch:bind()
+		backlightBatch:bind()
+		forelightBatch:bind()
 
 		for vertex, peers in pairs(level.graph.vertices) do
 			local maxEdgeLength = 0
@@ -342,37 +390,83 @@ function gamemode.draw()
 				maxEdgeLength = math.max(edge.length, maxEdgeLength)
 			end
 
-			local intensity = vertex.known and 0.25 or 0
+			-- TThe first number here is a bit of a magic number I've arrived
+			-- at by trial and error. It's specific to the height texture being
+			-- used.
+			local scale = (1.75 * maxEdgeLength) / 256
+			local x = vertex[1]
+			local y = vertex[2]
+			local rot = vertex.rot
+
+			if not rot then
+				rot = math.random() * math.pi * 2
+				vertex.rot = rot
+			end
+
+			heightBatch:add(x, y, rot, scale, scale, 128, 128)
+
+			-- Height textures aren't required to fit with a circle like the
+			-- light texture does so enlarging by sqrt(2) should be enough to
+			-- contain them.
+			local scale = scale * math.sqrt(2)
+
+			if vertex.known then
+				backlightBatch:add(x, y, 0, scale, scale, 128, 128)
+			end
+
 			local distance = distances[vertex]
 		
 			if distance then
-				-- intensity = 0.5 + (maxdepth - distance) / (maxdepth * 2)
-				intensity = 1
+				intensity = 0.5 + (maxdepth - distance) / (maxdepth * 2)
+				
+				forelightBatch:setColor(0, intensity * 255, 0, 255)
+				forelightBatch:add(x, y, 0, scale, scale, 128, 128)
 			end
-
-			colour[2] = math.round(intensity * 255)
-
-			love.graphics.setColor(colour)
-
-			local scale = (1.75 * maxEdgeLength) / 256
-			love.graphics.draw(mound, vertex[1] - 128 * scale, vertex[2] - 128 * scale, 0, scale, scale)
 			
 			count = count + 1
 		end
 
-		love.graphics.setCanvas()
+		heightBatch:unbind()
+		backlightBatch:unbind()
+		forelightBatch:unbind()
 
+		local oldBlendMode = love.graphics.getBlendMode()
+		
+		canvas:clear()
+		love.graphics.setCanvas(canvas)
+		
+		love.graphics.setBlendMode('alpha')
+		-- Lights are rendered to the g component.
+		love.graphics.setColor(0, 128, 0, 255)
+		love.graphics.draw(backlightBatch, 0, 0)
+		
+		love.graphics.setBlendMode('additive')
+
+		love.graphics.setColor(0, 255, 0, 255)
+		love.graphics.draw(forelightBatch, 0, 0)
+
+		-- Heights are rendered to the r component.
+		love.graphics.setColor(255, 0, 0, 255)
+		love.graphics.draw(heightBatch, 0, 0)
+		
 		local vpx = -xform.translate[1]
 		local vpy = -xform.translate[2]
 		local vpsx = 1/xform.scale[1]
 		local vpsy = 1/xform.scale[2]
 
+		-- love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
+
+		love.graphics.setCanvas()
+
 		if not drawHeightfield then
 			moundEffect:send('clut', clut)
 			love.graphics.setPixelEffect(moundEffect)
 		end
+		
 
+		love.graphics.setColor(255, 255, 255, 255)
 		-- love.graphics.setBlendMode('alpha')
+		-- love.graphics.draw(lightCanvas, vpx, vpy, 0, vpsx, vpsy)
 		love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
 
 		if not drawHeightfield then

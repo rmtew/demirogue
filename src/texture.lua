@@ -59,15 +59,15 @@ function texture.bandedCLUT( bands, w, h )
 
 		for x = 0, w-1 do
 			local bias = x / (w-1)
-			-- result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+			result:setPixel(x, y, bias * r, bias * g, bias * b, a)
 
-			local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
+			-- local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
 
-			r = r * bias + grey * (1 - bias)
-			g = g * bias + grey * (1 - bias)
-			b = b * bias + grey * (1 - bias)
+			-- r = r * bias + grey * (1 - bias)
+			-- g = g * bias + grey * (1 - bias)
+			-- b = b * bias + grey * (1 - bias)
 
-			result:setPixel(x, y, r, g, b, a)
+			-- result:setPixel(x, y, r, g, b, a)
 		end
 	end
 
@@ -89,11 +89,62 @@ function texture.mound( w, h )
 			local dx, dy = cx - x, cy - y
 			local d = math.sqrt((dx * dx) + (dy * dy))
 			local v = (1 - _smootherstep(d, 0, cx))^2 * 255
-			local vl = 255 * (1 - _clamp(d / cx, 0, 1))
-			result:setPixel(x, y, v, vl, v, 255)
+			-- local vl = 255 * (1 - _clamp(d / cx, 0, 1))
+			result:setPixel(x, y, v, 0, 0, 255)
 		end
 	end
 
 	return love.graphics.newImage(result)
 end
 
+function texture.circle( w, h, r, g, b, a )
+	local result = love.image.newImageData(w, h)
+
+	local cx = w * 0.5
+	local cy = h * 0.5
+	local radius = math.min(cx, cy) * 0.99
+
+	result:mapPixel(
+		function ( x, y )
+			local dx, dy = cx - x, cy - y
+			local d = math.sqrt((dx * dx) + (dy * dy))
+
+			if d > radius then
+				return 0, 0, 0, 0
+			else
+				return r, g, b, a
+			end
+		end)
+
+	return love.graphics.newImage(result)
+end
+
+function texture.featheredCircle( w, h, r, g, b, a, feather )
+	feather = feather or 1
+	assert(0 <= feather and feather <= 1)
+
+	local result = love.image.newImageData(w, h)
+
+	local cx = w * 0.5
+	local cy = h * 0.5
+	local outerRadius = math.min(cx, cy) * 0.99
+	local innerRadius = outerRadius * feather
+
+	result:mapPixel(
+		function ( x, y )
+			local dx, dy = cx - x, cy - y
+			local d = math.sqrt((dx * dx) + (dy * dy))
+
+			if d > outerRadius then
+				return 0, 0, 0, 0
+			elseif d > innerRadius then
+				local f = 1 - ((d - innerRadius) / (outerRadius - innerRadius))
+
+				return f*r, f*g, f*b, f*a
+			else
+				return r, g, b, a
+			end
+		end)
+
+	return love.graphics.newImage(result)
+end
