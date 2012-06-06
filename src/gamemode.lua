@@ -313,6 +313,17 @@ function gamemode.draw()
 	end
 
 	if drawMounds then
+		-- TODO: Use a SpriteBatch
+		-- TODO: Render lighting properly:
+		--
+		-- 1. Render heightmap to the r component of the canvas addtively
+		--   1.1 modulate via (1, 0, 0, 0)
+		-- 2. Render known and not seen to the g component with alpha blended soft circle.
+		--   2.1 modulate via (0, 1, 0, 1)
+		-- 3. Render seen additively to g component.
+		--   2.1 modulate via (0, x, 0, 0) where x is set according to distance.
+		-- 4. Use r and g as lookups into the clut texture and render canvas to screen.
+
 		local oldBlendMode = love.graphics.getBlendMode()
 		
 		canvas:clear()

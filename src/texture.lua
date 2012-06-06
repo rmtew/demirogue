@@ -59,13 +59,24 @@ function texture.bandedCLUT( bands, w, h )
 
 		for x = 0, w-1 do
 			local bias = x / (w-1)
-			result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+			-- result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+
+			local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
+
+			r = r * bias + grey * (1 - bias)
+			g = g * bias + grey * (1 - bias)
+			b = b * bias + grey * (1 - bias)
+
+			result:setPixel(x, y, r, g, b, a)
 		end
 	end
 
 	return love.graphics.newImage(result)
 end
 
+-- TODO: We need different 'mounds' for different roles:
+-- 1. As base heightmap data.
+-- 2. As lights
 function texture.mound( w, h )
 	local result = love.image.newImageData(w, h)
 
@@ -78,8 +89,8 @@ function texture.mound( w, h )
 			local dx, dy = cx - x, cy - y
 			local d = math.sqrt((dx * dx) + (dy * dy))
 			local v = (1 - _smootherstep(d, 0, cx))^2 * 255
-			-- local v = 255 * (1 - _clamp(d / cx, 0, 1))^3
-			result:setPixel(x, y, v, v, v, 255)
+			local vl = 255 * (1 - _clamp(d / cx, 0, 1))
+			result:setPixel(x, y, v, vl, v, 255)
 		end
 	end
 
