@@ -42,8 +42,8 @@ local function _gen()
 			xmax = 2 * w,
 			ymax = 2 * h,
 		},
-		margin = 50,
-		-- margin = 100,
+		-- margin = 50,
+		margin = 100,
 		layout = layoutgen.splat,
 		roomgen = rgen,
 		graphgen = graphgen.gabriel,
@@ -231,6 +231,9 @@ local clut =
 
 local mound = texture.mound(256, 256)
 local blobs = love.graphics.newImage('resources/blobs.png')
+local bricks = love.graphics.newImage('resources/bricks.png')
+local crystal = love.graphics.newImage('resources/crystal.png')
+local triforce = love.graphics.newImage('resources/triforce.png')
 local backlight = texture.circle(256, 256, 0, 255, 0, 255)
 backlight:setFilter('nearest', 'nearest')
 local forelight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0)
@@ -341,22 +344,14 @@ function gamemode.draw()
 	end
 
 	if drawMounds then
-		-- TODO: Use a SpriteBatch
-		-- TODO: Render lighting properly:
-		--
-		-- 1. Render heightmap to the r component of the canvas addtively
-		--   1.1 modulate via (1, 0, 0, 0)
-		-- 2. Render known and not seen to the g component with alpha blended soft circle.
-		--   2.1 modulate via (0, 1, 0, 1)
-		-- 3. Render seen additively to g component.
-		--   2.1 modulate via (0, x, 0, 0) where x is set according to distance.
-		-- 4. Use r and g as lookups into the clut texture and render canvas to screen.
-
 		local numVertices = table.count(level.graph.vertices)
 		local numSeenVertices = table.count(distances)
 		
 		local batches = _getSpriteBatches {
 			height = {
+				-- image = triforce,
+				-- image = crystal,
+				-- image = bricks,
 				image = blobs,
 				-- image = mound,
 				size = numVertices,
@@ -393,7 +388,7 @@ function gamemode.draw()
 			-- TThe first number here is a bit of a magic number I've arrived
 			-- at by trial and error. It's specific to the height texture being
 			-- used.
-			local scale = (1.75 * maxEdgeLength) / 256
+			local scale = (1.5 * maxEdgeLength) / 256
 			local x = vertex[1]
 			local y = vertex[2]
 			local rot = vertex.rot
@@ -480,7 +475,7 @@ function gamemode.draw()
 
 	if drawEdges then
 		love.graphics.setColor(128, 128, 128)
-		love.graphics.setLine(linewidth, 'rough')
+		love.graphics.setLine(linewidth * 1/xform.scale[1], 'rough')
 
 		-- local lines = {}
 
@@ -495,7 +490,7 @@ function gamemode.draw()
 
 				local bias = (maxdepth - distance) / maxdepth
 				local luminance = 100 + math.round(100 * bias)
-				love.graphics.setColor(luminance, luminance, luminance)
+				love.graphics.setColor(luminance, 0, luminance, luminance)
 				
 				love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])
 				-- lines[#lines+1] = vertex1[1]
@@ -620,6 +615,7 @@ function gamemode.keypressed( key )
 	elseif key == ' ' then
 		level, actors, scheduler = _gen()
 		actions = {}
+		known = false
 	elseif key == 's' and not playerAction and #actions == 0 then
 		local cost, action = action.search(level, actors[1])
 

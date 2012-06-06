@@ -74,9 +74,6 @@ function texture.bandedCLUT( bands, w, h )
 	return love.graphics.newImage(result)
 end
 
--- TODO: We need different 'mounds' for different roles:
--- 1. As base heightmap data.
--- 2. As lights
 function texture.mound( w, h )
 	local result = love.image.newImageData(w, h)
 
