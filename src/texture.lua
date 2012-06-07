@@ -19,7 +19,7 @@ end
 -- bands = {
 --     [percentage] = { r, g, b, a } -- r,g,b,a : [0..255]
 -- }*
-function texture.bandedCLUT( bands, w, h )
+function texture.bandedCLUT( bands, w, h, option )
 	assert(bands[1] and bands[100])
 
 	local result = love.image.newImageData(w, h)
@@ -59,17 +59,23 @@ function texture.bandedCLUT( bands, w, h )
 
 		for x = 0, w-1 do
 			local bias = x / (w-1)
-			result:setPixel(x, y, bias * r, bias * g, bias * b, a)
 
-			-- local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
+			if option ~= 'grey' then
+				result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+			else
+				local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
 
-			-- r = r * bias + grey * (1 - bias)
-			-- g = g * bias + grey * (1 - bias)
-			-- b = b * bias + grey * (1 - bias)
+				local nr = (r * bias) + (grey * (1 - bias))
+				local ng = (g * bias) + (grey * (1 - bias))
+				local nb = (b * bias) + (grey * (1 - bias))
 
-			-- result:setPixel(x, y, r, g, b, a)
+				result:setPixel(x, y, bias * nr, bias * ng, bias * nb, a)
+				-- result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+			end
 		end
 	end
+
+	result:encode('clut.png')
 
 	return love.graphics.newImage(result)
 end
@@ -136,6 +142,37 @@ function texture.featheredCircle( w, h, r, g, b, a, feather )
 				return 0, 0, 0, 0
 			elseif d > innerRadius then
 				local f = 1 - ((d - innerRadius) / (outerRadius - innerRadius))
+				-- f = f * f
+
+				return f*r, f*g, f*b, f*a
+			else
+				return r, g, b, a
+			end
+		end)
+
+	return love.graphics.newImage(result)
+end
+
+function texture.smootherCircle( w, h, r, g, b, a, feather )
+	feather = feather or 1
+	assert(0 <= feather and feather <= 1)
+
+	local result = love.image.newImageData(w, h)
+
+	local cx = w * 0.5
+	local cy = h * 0.5
+	local outerRadius = math.min(cx, cy) * 0.99
+	local innerRadius = outerRadius * feather
+
+	result:mapPixel(
+		function ( x, y )
+			local dx, dy = cx - x, cy - y
+			local d = math.sqrt((dx * dx) + (dy * dy))
+
+			if d > outerRadius then
+				return 0, 0, 0, 0
+			elseif d > innerRadius then
+				local f = 1 - _smootherstep(d, innerRadius, outerRadius)
 
 				return f*r, f*g, f*b, f*a
 			else

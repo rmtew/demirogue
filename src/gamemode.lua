@@ -226,7 +226,7 @@ local clut =
 			[100] = sandysoil,
 		}
 
-		return texture.bandedCLUT(bands, 256, 256)
+		return texture.bandedCLUT(bands, 256, 256, 'grey')
 	end)()
 
 local mound = texture.mound(256, 256)
@@ -234,23 +234,28 @@ local blobs = love.graphics.newImage('resources/blobs.png')
 local bricks = love.graphics.newImage('resources/bricks.png')
 local crystal = love.graphics.newImage('resources/crystal.png')
 local triforce = love.graphics.newImage('resources/triforce.png')
-local backlight = texture.circle(256, 256, 0, 255, 0, 255)
-backlight:setFilter('nearest', 'nearest')
-local forelight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0)
+
+local backlight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0.85)
+local forelight = texture.smootherCircle(256, 256, 0, 0, 255, 255, 0.5)
+
+-- local backlight = love.graphics.newImage('resources/blobs-g.png')
+-- local forelight = love.graphics.newImage('resources/blobs-b.png')
 
 local moundEffect = love.graphics.newPixelEffect [[
 	extern Image clut;
 
 	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
 	{
-		vec2 p = Texel(tex, tc).yx;
+		vec3 p = Texel(tex, tc).xyz;
+		float h = p.x;
+		float l = (0.25 * p.g) + (0.75 * p.b);
 
-		return Texel(clut, p);
+		return Texel(clut, vec2(l, h));
 	}
 ]]
 
 local drawEdges = true
-local drawVertices = false
+local drawVertices = true
 local drawMetalines = false
 local drawMounds = true
 local drawHeightfield = false
@@ -263,6 +268,7 @@ local function _getSpriteBatches( batches )
 	for name, params in pairs(batches) do
 		local spriteBatch = _spriteBatches[name]
 
+		-- TODO: should also check whether the images are the same.
 		if not spriteBatch or spriteBatch.size < params.size then
 			spriteBatch = {
 				batch = love.graphics.newSpriteBatch(params.image, params.size),
@@ -301,7 +307,12 @@ function gamemode.draw()
 	love.graphics.translate(xform.translate[1], xform.translate[2])
 
 	-- LoS and FoW
+	--
+	-- Three state FoW unknown, known and not in LoS and known and in LoS.
+	-- The known flag is stored on the vertices as a boolean or nil and the
+	-- distances table is the LoS.
 	local maxdepth = 3
+	-- local maxdepth = math.min(4, table.count(actors[1].vertex.dirs) - 1)
 	local distances = level:distanceMap(actors[1].vertex, maxdepth)
 
 	for vertex, distance in pairs(distances) do
@@ -406,16 +417,19 @@ function gamemode.draw()
 			local scale = scale * math.sqrt(2)
 
 			if vertex.known then
-				backlightBatch:add(x, y, 0, scale, scale, 128, 128)
+				backlightBatch:add(x, y, rot, scale, scale, 128, 128)
 			end
 
 			local distance = distances[vertex]
 		
 			if distance then
-				intensity = 0.5 + (maxdepth - distance) / (maxdepth * 2)
+				-- distance [0..maxdepth] -> normed [1..0]
+				local normed = (maxdepth - distance) / maxdepth
+				local g = 255 * (0.75 + 0.25 * normed)
 				
-				forelightBatch:setColor(0, intensity * 255, 0, 255)
-				forelightBatch:add(x, y, 0, scale, scale, 128, 128)
+				-- The forelight is in the b component.
+				forelightBatch:setColor(0, 0, g, 255)
+				forelightBatch:add(x, y, rot, scale, scale, 128, 128)
 			end
 			
 			count = count + 1
@@ -430,27 +444,19 @@ function gamemode.draw()
 		canvas:clear()
 		love.graphics.setCanvas(canvas)
 		
-		love.graphics.setBlendMode('alpha')
-		-- Lights are rendered to the g component.
-		love.graphics.setColor(0, 128, 0, 255)
-		love.graphics.draw(backlightBatch, 0, 0)
-		
 		love.graphics.setBlendMode('additive')
-
+		-- The backlight is rendered to the g component at half strength.
 		love.graphics.setColor(0, 255, 0, 255)
+		love.graphics.draw(backlightBatch, 0, 0)
+
+		-- The forelight is rendered to the b component.
+		love.graphics.setColor(0, 0, 255, 255)
 		love.graphics.draw(forelightBatch, 0, 0)
 
 		-- Heights are rendered to the r component.
 		love.graphics.setColor(255, 0, 0, 255)
 		love.graphics.draw(heightBatch, 0, 0)
 		
-		local vpx = -xform.translate[1]
-		local vpy = -xform.translate[2]
-		local vpsx = 1/xform.scale[1]
-		local vpsy = 1/xform.scale[2]
-
-		-- love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
-
 		love.graphics.setCanvas()
 
 		if not drawHeightfield then
@@ -458,6 +464,11 @@ function gamemode.draw()
 			love.graphics.setPixelEffect(moundEffect)
 		end
 		
+		-- TODO: this is also used else where, refactor xfrom to create them.
+		local vpx = -xform.translate[1]
+		local vpy = -xform.translate[2]
+		local vpsx = 1/xform.scale[1]
+		local vpsy = 1/xform.scale[2]
 
 		love.graphics.setColor(255, 255, 255, 255)
 		-- love.graphics.setBlendMode('alpha')
@@ -513,12 +524,12 @@ function gamemode.draw()
 			if distance then
 				local bias = (maxdepth - distance) / maxdepth
 				local luminance = 100 + math.round(100 * bias)
-				love.graphics.setColor(luminance, luminance, luminance)
+				love.graphics.setColor(luminance, 0, luminance, luminance)
 			else
 				love.graphics.setColor(vertex.known and known or unknown)
 			end
 
-			local radius = linewidth
+			local radius = linewidth + 1
 			love.graphics.circle('fill', vertex[1], vertex[2], radius)
 		end
 	end
@@ -610,6 +621,10 @@ local known = false
 function gamemode.keypressed( key )
 	if key == 'z' then
 		zoomed = not zoomed
+
+		if not zoomed then
+			track = true
+		end
 	elseif key == 'a' then
 		drawBoxes = not drawBoxes
 	elseif key == ' ' then
