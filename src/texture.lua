@@ -22,6 +22,8 @@ end
 function texture.bandedCLUT( bands, w, h, option )
 	assert(bands[1] and bands[100])
 
+	local greyed = option == 'grey'
+
 	local result = love.image.newImageData(w, h)
 
 	for y = 0, h-1 do
@@ -60,17 +62,18 @@ function texture.bandedCLUT( bands, w, h, option )
 		for x = 0, w-1 do
 			local bias = x / (w-1)
 
-			if option ~= 'grey' then
+			if not greyed then
 				result:setPixel(x, y, bias * r, bias * g, bias * b, a)
 			else
 				local grey = (r * 0.3086) + (g * 0.6094) + (b * 0.0820)
+				-- local grey = (r + g + b) / 3
 
 				local nr = (r * bias) + (grey * (1 - bias))
 				local ng = (g * bias) + (grey * (1 - bias))
 				local nb = (b * bias) + (grey * (1 - bias))
 
 				result:setPixel(x, y, bias * nr, bias * ng, bias * nb, a)
-				-- result:setPixel(x, y, bias * r, bias * g, bias * b, a)
+				-- result:setPixel(x, y, nr, ng, nb, a)
 			end
 		end
 	end

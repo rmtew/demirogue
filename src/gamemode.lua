@@ -8,7 +8,7 @@ require 'Level'
 require 'Actor'
 require 'Scheduler'
 require 'action'
-require 'KDtree'
+require 'KDTree'
 require 'metalines'
 require 'texture'
 
@@ -197,10 +197,9 @@ local function _drawKDTree( kdtree, aabb )
 end
 
 local canvas = love.graphics.newCanvas()
-local lightCanvas = love.graphics.newCanvas()
 local clut =
 	(function ()
-		-- No official colour names.
+		-- Non official colour names.
 		local lilac = { 132, 83, 255, 255 }
 		local verdant = { 22, 178, 39, 255 }
 		local drygrass = { 57, 255, 79, 255 }
@@ -326,7 +325,7 @@ function gamemode.draw()
 	-- Three state FoW unknown, known and not in LoS and known and in LoS.
 	-- The known flag is stored on the vertices as a boolean or nil and the
 	-- distances table is the LoS.
-	local maxdepth = 3
+	local maxdepth = 2
 	-- local maxdepth = math.min(4, table.count(actors[1].vertex.dirs) - 1)
 	local distances = level:distanceMap(actors[1].vertex, maxdepth)
 
@@ -377,8 +376,8 @@ function gamemode.draw()
 			height = {
 				-- image = triforce,
 				-- image = crystal,
-				-- image = bricks,
-				image = blobs,
+				image = bricks,
+				-- image = blobs,
 				-- image = mound,
 				size = numVertices,
 			},
@@ -486,8 +485,7 @@ function gamemode.draw()
 		local vpsy = 1/xform.scale[2]
 
 		love.graphics.setColor(255, 255, 255, 255)
-		-- love.graphics.setBlendMode('alpha')
-		-- love.graphics.draw(lightCanvas, vpx, vpy, 0, vpsx, vpsy)
+	
 		love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
 
 		if not drawHeightfield then
