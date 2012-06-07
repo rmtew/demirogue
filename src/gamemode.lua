@@ -225,6 +225,23 @@ local clut =
 			[100] = sandysoil,
 		}
 
+		-- This is a test of black with a white edge for an old-school vibe.
+		--
+		-- local blur = 5
+		-- local b1 = 10
+		-- local b2 = 30
+	
+		-- local black = { 0, 0, 0, 255 }
+		-- local white = { 255, 255, 255, 255 }
+
+		-- local bands = {
+		-- 	[1] = black,
+		-- 	[b1-blur] = white,
+		-- 	[b1+blur] = white,
+		-- 	[b2-blur] = black,
+		-- 	[100] = black,
+		-- }
+
 		return texture.bandedCLUT(bands, 256, 256, 'grey')
 	end)()
 
@@ -376,8 +393,8 @@ function gamemode.draw()
 			height = {
 				-- image = triforce,
 				-- image = crystal,
-				image = bricks,
-				-- image = blobs,
+				-- image = bricks,
+				image = blobs,
 				-- image = mound,
 				size = numVertices,
 			},
