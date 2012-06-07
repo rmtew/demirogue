@@ -284,6 +284,21 @@ local function _getSpriteBatches( batches )
 	return result
 end
 
+function shadowf( x, y, ... )
+	love.graphics.setColor(0, 0, 0, 255)
+
+	local text = string.format(...)
+
+	love.graphics.print(text, x-1, y-1)
+	love.graphics.print(text, x-1, y+1)
+	love.graphics.print(text, x+1, y-1)
+	love.graphics.print(text, x+1, y+1)
+
+	love.graphics.setColor(192, 192, 192, 255)
+
+	love.graphics.print(text, x, y)
+end
+
 function gamemode.draw()
 	love.graphics.push()
 	
@@ -550,16 +565,7 @@ function gamemode.draw()
 			local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
 			local x, y = vx - dx, vy - dy
 
-			love.graphics.setColor(0, 0, 0)
-
-			love.graphics.print(actor.symbol, x - 1, y - 1)
-			love.graphics.print(actor.symbol, x - 1, y + 1)
-			love.graphics.print(actor.symbol, x + 1, y - 1)
-			love.graphics.print(actor.symbol, x + 1, y + 1)
-
-			love.graphics.setColor(255, 255, 255)
-
-			love.graphics.print(actor.symbol, x, y)
+			shadowf(x, y, actor.symbol)
 		end
 	end
 
@@ -581,14 +587,12 @@ function gamemode.draw()
 	local numVertices = table.count(level.graph.vertices)
 	local numEdges = table.count(level.graph.edges)
 
-	local text = string.format('warp:%.2f fps:%.2f #v:%d #e:%d #ml:%d',
+	shadowf(10, 10, 'warp:%.2f fps:%.2f #v:%d #e:%d #ml:%d',
 		warp,
 		love.timer.getFPS(),
 		numVertices,
 		numEdges,
 		count)
-
-	love.graphics.print(text, 10, 10)
 end
 
 function gamemode.mousepressed( x, y, button )
