@@ -155,12 +155,12 @@ function metalines.draw( canvas, xform, w, h, point1s, point2s, intensities, wid
 	assert(width > 0)
 
 	-- Viewport values.
-	local vpx = -xform.translate[1]
-	local vpy = -xform.translate[2]
-	local vpsx = 1/xform.scale[1]
-	local vpsy = 1/xform.scale[2]
-	local vpw = w * 1/xform.scale[1]
-	local vph = h * 1/xform.scale[2]
+	local vpx = -xform.origin[1]
+	local vpy = -xform.origin[2]
+	local vpsx = 1/xform.scale
+	local vpsy = 1/xform.scale
+	local vpw = w * 1/xform.scale
+	local vph = h * 1/xform.scale
 
 	-- print(vpx, vpy, vpw, vph)
 
@@ -197,13 +197,13 @@ function metalines.draw( canvas, xform, w, h, point1s, point2s, intensities, wid
 		local yoverlap = (vpy < y + lh) and (y < vpy + vph)
 
 		if xoverlap and yoverlap then
-			xformed1[1] = (point1[1] + xform.translate[1]) * xform.scale[1]
-			xformed1[2] = (point1[2] + xform.translate[2]) * xform.scale[2]
+			xformed1[1] = (point1[1] + xform.origin[1]) * xform.scale
+			xformed1[2] = (point1[2] + xform.origin[2]) * xform.scale
 			
-			xformed2[1] = (point2[1] + xform.translate[1]) * xform.scale[1]
-			xformed2[2] = (point2[2] + xform.translate[2]) * xform.scale[2]
+			xformed2[1] = (point2[1] + xform.origin[1]) * xform.scale
+			xformed2[2] = (point2[2] + xform.origin[2]) * xform.scale
 		
-			_prepareMetalineEffect(metalineEffect, h, width * xform.scale[1], xformed1, xformed2, intensities[i])
+			_prepareMetalineEffect(metalineEffect, h, width * xform.scale, xformed1, xformed2, intensities[i])
 
 			love.graphics.rectangle('fill', x, y, lw, lh)
 

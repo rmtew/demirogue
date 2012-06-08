@@ -13,7 +13,6 @@ require 'metalines'
 require 'texture'
 
 local w, h = love.graphics.getWidth(), love.graphics.getHeight()
-local camx, camy = 0, 0
 local track = false
 local actions = {}
 local playerAction = nil
@@ -37,13 +36,14 @@ local function _gen()
 
 	local level = Level.new {
 		aabb = AABB.new {
-			xmin = -w,
-			ymin = -h,
-			xmax = 2 * w,
-			ymax = 2 * h,
+			xmin = 0,
+			ymin = 0,
+			xmax = 3 * w,
+			ymax = 3 * h,
 		},
 		-- margin = 50,
-		margin = 100,
+		margin = 75,
+		-- margin = 100,
 		layout = layoutgen.splat,
 		roomgen = rgen,
 		graphgen = graphgen.gabriel,
@@ -97,19 +97,13 @@ end
 local level, actors, scheduler = _gen()
 local actions = {}
 local warp = 1
+local time = 0
 
 gamemode = {}
 
 function gamemode.update()
-	local isDown = love.keyboard.isDown
-
-	local camdx = (isDown('left') and -1 or 0) + (isDown('right') and 1 or 0)
-	local camdy = (isDown('up') and -1 or 0) + (isDown('down') and 1 or 0)
-
 	local dt = warp * love.timer.getDelta()
-	
-	camx = camx + (500 * dt * camdx)
-	camy = camy + (500 * dt * camdy)
+	time = time + dt
 
 	if #actions == 0 then
 		local complete, ticks = false, 0
@@ -155,7 +149,6 @@ function gamemode.update()
 	end
 end
 
-local zoomed = true
 local drawBoxes = false
 
 local unknown = { 0, 0, 0, 255 }
@@ -250,6 +243,7 @@ local blobs = love.graphics.newImage('resources/blobs.png')
 local bricks = love.graphics.newImage('resources/bricks.png')
 local crystal = love.graphics.newImage('resources/crystal.png')
 local triforce = love.graphics.newImage('resources/triforce.png')
+local grass = love.graphics.newImage('resources/grass.png')
 
 local backlight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0.85)
 local forelight = texture.smootherCircle(256, 256, 0, 0, 255, 255, 0.5)
@@ -257,7 +251,7 @@ local forelight = texture.smootherCircle(256, 256, 0, 0, 255, 255, 0.5)
 -- local backlight = love.graphics.newImage('resources/blobs-g.png')
 -- local forelight = love.graphics.newImage('resources/blobs-b.png')
 
-local moundEffect = love.graphics.newPixelEffect [[
+local heightEffect = love.graphics.newPixelEffect [[
 	extern Image clut;
 
 	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
@@ -270,11 +264,55 @@ local moundEffect = love.graphics.newPixelEffect [[
 	}
 ]]
 
+local coverEffect = love.graphics.newPixelEffect [[
+	// The height and light canvas.
+	extern Image height;
+	// The height band the cover will be drawn in.
+	extern float minHeight;
+	extern float maxHeight;
+
+	/*float smooth(float x, float minx, float maxx)
+	{
+		float n = clamp((x - minx) / (maxx - minx), 0, 1);
+
+		return n*n*n*(n*(n*6 - 15) + 10);
+	}*/
+
+	/*float smooth(float x, float minx, float maxx)
+	{
+		float n = clamp((x - minx) / (maxx - minx), 0, 1);
+		float ns = 2 * n - 1;
+
+		return -(ns*ns) + 1;
+	}*/
+
+	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
+	{
+		vec4 hl = Texel(height, pc / vec2(800.0, 600.0));
+		float h = hl.r;
+		float l = (0.25 * hl.g) + (0.75 * hl.b);
+		// This is 1 when minHeight <= h <= maxHeight and 0 otherwise.
+		// float band = (1 - step(h, minHeight)) * (1 - step(maxHeight, h));
+		// float band = smooth(h, minHeight, maxHeight);
+		float band = (1 - step(h, minHeight)) * (step(minHeight, maxHeight));
+		vec4 lv = vec4(l ,l ,l, band);
+
+		vec4 p = Texel(tex, tc);
+
+
+		// Light and band check the texel.
+		p *= lv;
+
+		return p;
+	}
+]]
+
 local drawEdges = true
 local drawVertices = true
 local drawMetalines = false
 local drawMounds = true
 local drawHeightfield = false
+local drawCover = true
 
 local _spriteBatches = {}
 
@@ -315,27 +353,26 @@ function shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
+local scale = 1/3
+
 function gamemode.draw()
 	love.graphics.push()
 	
 	local xform = {
-		scale = { 1, 1 },
-		translate = { 0, 0 },
+		scale = scale,
+		origin = { 0, 0 },
 	}
-
-	if zoomed then
-		xform.scale = { 1/3, 1/3 }
-		xform.translate = { 800, 600 }
-	else
-		if track then
-			camx, camy = actors[1][1] - (w * 0.5), actors[1][2] - (h * 0.5)
-		end
-
-		xform.translate = { -camx, -camy }
+	
+	if track then		
+		xform.origin = {
+			(actors[1][1] * xform.scale) - (0.5 * w),
+			(actors[1][2] * xform.scale) - (0.5 * h),
+		}
 	end
 
-	love.graphics.scale(xform.scale[1], xform.scale[2])
-	love.graphics.translate(xform.translate[1], xform.translate[2])
+	-- love.graphics.translate(xform.origin[1] + w * 0.5, xform.origin[2] + h * 0.5)
+	love.graphics.translate(-xform.origin[1], -xform.origin[2])
+	love.graphics.scale(xform.scale, xform.scale)
 
 	-- LoS and FoW
 	--
@@ -406,19 +443,21 @@ function gamemode.draw()
 				image = forelight,
 				size = numVertices,
 			},
+			grass = {
+				image = grass,
+				size = numVertices,
+			}
 		}
 
 		local heightBatch = batches.height.batch
 		local backlightBatch = batches.backlight.batch
 		local forelightBatch = batches.forelight.batch
+		local grassBatch = batches.grass.batch
 
-		heightBatch:clear()
-		backlightBatch:clear()
-		forelightBatch:clear()
-
-		heightBatch:bind()
-		backlightBatch:bind()
-		forelightBatch:bind()
+		for name, data in pairs(batches) do
+			data.batch:clear()
+			data.batch:bind()
+		end
 
 		for vertex, peers in pairs(level.graph.vertices) do
 			local maxEdgeLength = 0
@@ -434,13 +473,23 @@ function gamemode.draw()
 			local x = vertex[1]
 			local y = vertex[2]
 			local rot = vertex.rot
+			local grass = vertex.grass
 
 			if not rot then
 				rot = math.random() * math.pi * 2
 				vertex.rot = rot
 			end
 
+			if grass == nil then
+				grass = math.random(1, 3) == 1
+				vertex.grass = grass
+			end
+
 			heightBatch:add(x, y, rot, scale, scale, 128, 128)
+
+			if grass then
+				grassBatch:add(x, y, rot, scale, scale, 128, 128)
+			end
 
 			-- Height textures aren't required to fit with a circle like the
 			-- light texture does so enlarging by sqrt(2) should be enough to
@@ -466,9 +515,9 @@ function gamemode.draw()
 			count = count + 1
 		end
 
-		heightBatch:unbind()
-		backlightBatch:unbind()
-		forelightBatch:unbind()
+		for name, data in pairs(batches) do
+			data.batch:unbind()
+		end
 
 		local oldBlendMode = love.graphics.getBlendMode()
 		
@@ -491,21 +540,35 @@ function gamemode.draw()
 		love.graphics.setCanvas()
 
 		if not drawHeightfield then
-			moundEffect:send('clut', clut)
-			love.graphics.setPixelEffect(moundEffect)
+			heightEffect:send('clut', clut)
+			love.graphics.setPixelEffect(heightEffect)
 		end
 		
 		-- TODO: this is also used else where, refactor xfrom to create them.
-		local vpx = -xform.translate[1]
-		local vpy = -xform.translate[2]
-		local vpsx = 1/xform.scale[1]
-		local vpsy = 1/xform.scale[2]
+		local vpx = xform.origin[1] * 1/xform.scale
+		local vpy = xform.origin[2] * 1/xform.scale
+		local vpsx = 1/xform.scale
+		local vpsy = 1/xform.scale
 
 		love.graphics.setColor(255, 255, 255, 255)
 	
 		love.graphics.draw(canvas, vpx, vpy, 0, vpsx, vpsy)
 
 		if not drawHeightfield then
+			love.graphics.setPixelEffect()
+		end
+
+		if drawCover then
+			-- TODO: the min and max heights should be specified in a theme.
+			coverEffect:send('height', canvas)
+			coverEffect:send('minHeight', 0.8)
+			coverEffect:send('maxHeight', 1)
+
+			love.graphics.setPixelEffect(coverEffect)
+
+			love.graphics.setBlendMode('alpha')
+			love.graphics.draw(grassBatch, 0, 0)
+
 			love.graphics.setPixelEffect()
 		end
 
@@ -516,7 +579,7 @@ function gamemode.draw()
 
 	if drawEdges then
 		love.graphics.setColor(128, 128, 128)
-		love.graphics.setLine(linewidth * 1/xform.scale[1], 'rough')
+		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
 
 		-- local lines = {}
 
@@ -611,6 +674,13 @@ function gamemode.draw()
 end
 
 function gamemode.mousepressed( x, y, button )
+	if button == 'wu' then
+		scale = math.min(3, scale * 3)
+		printf('scale:%.2f', scale)
+	elseif button == 'wd' then
+		scale = math.max(1/3, scale * 1/3)
+		printf('scale:%.2f', scale)
+	end
 end
 
 local Dir = Level.Dir
@@ -639,9 +709,11 @@ local known = false
 
 function gamemode.keypressed( key )
 	if key == 'z' then
-		zoomed = not zoomed
-
-		if not zoomed then
+		if scale ~= 1/3 then
+			scale = 1/3
+			track = false
+		else
+			scale = 1
 			track = true
 		end
 	elseif key == 'a' then
@@ -667,6 +739,8 @@ function gamemode.keypressed( key )
 		drawMounds = not drawMounds
 	elseif key == 'd' then
 		drawHeightfield = not drawHeightfield
+	elseif key == 'c' then
+		drawCover = not drawCover
 	elseif key == 't' then
 		track = not track
 	elseif key == 'right' then
