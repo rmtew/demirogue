@@ -148,5 +148,127 @@ function Graph:distanceMap( source, maxdepth )
 	return result
 end
 
+function Graph:allPairsShortestPaths()
+	local result = {}
+
+	local vertices = self.vertices
+
+	for vertex1, peers in pairs(vertices) do
+		local weights = {}
+
+		for vertex2, _ in pairs(vertices) do
+			if vertex1 == vertex2 then
+				weights[vertex2] = 0
+			elseif peers[vertex2] then
+				weights[vertex2] = 1
+			else
+				weights[vertex2] = math.huge
+			end
+		end
+
+		result[vertex1] = weights
+	end
+
+	for k in pairs(vertices) do
+		for i in pairs(vertices) do
+			for j in pairs(vertices) do
+				result[i][j] = math.min(result[i][j], result[i][k] + result[k][j])
+			end
+		end
+	end
+
+	return result
+end
+
+-- TODO: Brandes algorithm would probably be better.
+function Graph:betweenness()
+	local paths = self:allPairsShortestPaths()
+	local vertices = self.vertices
+
+	local result = {}
+	local eccentricities = {}
+	local radius = math.huge
+	local diameter = 0
+
+	local maxtotal = 0
+	local numVertices = table.count(vertices)
+	local norm = (numVertices - 1) * (numVertices - 2) * 0.5
+
+	for s in pairs(vertices) do
+		local total = 0
+		local eccentricity = 0
+
+		for t in pairs(vertices) do
+			for u in pairs(vertices) do
+				assert(paths[t][u] == paths[u][t])
+
+				if paths[t][u] == paths[t][s] + paths[s][u] and s ~= t and s ~= u and t ~= u then
+					total = total + 1
+				end
+			end
+			
+			eccentricity = math.max(paths[s][t], eccentricity)
+		end
+		
+		assert(total % 2 == 0)
+		total = total * 0.5
+
+		print(s, numVertices, norm, total)
+		assert(total <= norm)
+
+		result[s] = total / norm
+		eccentricities[s] = eccentricity
+		radius = math.min(radius, eccentricity)
+		diameter = math.max(diameter, eccentricity)
+		maxtotal = math.max(total, maxtotal)
+	end
+
+	-- print('maxtotal', maxtotal)
+
+	-- if maxtotal > 0 then
+	-- 	for vertex, value in pairs(result) do
+	-- 		result[vertex] = value / maxtotal
+	-- 	end
+	-- end
+
+	return result, eccentricities, radius, diameter
+end
+
+if arg then
+	local test = Graph.new()
+	test:addVertex(1)
+	test:addVertex(2)
+	test:addVertex(3)
+	test:addVertex(4)
+
+	test:addEdge({}, 1, 2)
+	test:addEdge({}, 1, 3)
+	test:addEdge({}, 1, 4)
+
+	local path = test:allPairsShortestPaths()
+
+	for i, weights in pairs(path) do
+		for j, distance in pairs(weights) do
+			print(i, j, distance)
+		end
+	end
+
+	print()
+
+	local betweenness = test:betweenness()
+
+	for vertex, centrality in pairs(betweenness) do
+		print(vertex, centrality)
+	end
+end
+
+
+
+
+
+
+
+
+
 
 

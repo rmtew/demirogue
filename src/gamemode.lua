@@ -41,8 +41,9 @@ local function _gen()
 			xmax = 3 * w,
 			ymax = 3 * h,
 		},
+		margin = 100,
 		-- margin = 50,
-		margin = 75,
+		-- margin = 75,
 		-- margin = 100,
 		layout = layoutgen.splat,
 		roomgen = rgen,
@@ -313,6 +314,7 @@ local drawMetalines = false
 local drawMounds = true
 local drawHeightfield = false
 local drawCover = true
+local drawBetweeness = false
 
 local _spriteBatches = {}
 
@@ -627,11 +629,56 @@ function gamemode.draw()
 		end
 	end
 
+	if drawBetweeness then
+		if not level.betweenness then
+			level.betweenness = level.graph:betweenness()
+			for vertex, value in pairs(level.betweenness) do
+				print(value)
+			end
+		end
+
+		love.graphics.setColor(255, 255, 255, 255)
+
+		for vertex, value in pairs(level.betweenness) do
+			love.graphics.setColor(255, 255, 255, 255)
+			local radius = 30
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+
+			love.graphics.setColor(0, 0, 0, 255)
+			love.graphics.arc('fill', vertex[1], vertex[2], radius * 0.9, 0, value * math.pi * 2)
+
+			if vertex.centrality then
+				love.graphics.setColor(255, 0, 255, 255)
+				love.graphics.arc('fill', vertex[1], vertex[2], radius * 0.6, 0, vertex.centrality * math.pi * 2)
+			end
+
+			love.graphics.setColor(128, 192, 128, 255)
+
+			if vertex.central then
+				love.graphics.setColor(255, 0, 0, 255)
+				love.graphics.arc('fill', vertex[1], vertex[2], radius * 0.3, 0, math.pi)
+			end
+
+			if vertex.peripheral then
+				love.graphics.setColor(0, 0, 255, 255)
+				love.graphics.arc('fill', vertex[1], vertex[2], radius * 0.3, math.pi, 2 * math.pi)
+			end
+		end
+	end
+
 	love.graphics.setColor(255, 255, 255)
 
 	if drawBoxes then
 		love.graphics.setLineWidth(3)
 		for _, bbox in ipairs(level.boxes) do
+			love.graphics.rectangle('line', bbox.xmin, bbox.ymin, bbox:width(), bbox:height())
+		end
+
+		local st = math.abs(math.sin(time))
+		local ct = math.abs(math.cos(time))
+		love.graphics.setColor(st * 255, ct * 255, 255, 255)
+
+		for _, bbox in ipairs(level.aabbs) do
 			love.graphics.rectangle('line', bbox.xmin, bbox.ymin, bbox:width(), bbox:height())
 		end
 	end
@@ -741,6 +788,8 @@ function gamemode.keypressed( key )
 		drawHeightfield = not drawHeightfield
 	elseif key == 'c' then
 		drawCover = not drawCover
+	elseif key == 'q' then
+		drawBetweeness = not drawBetweeness
 	elseif key == 't' then
 		track = not track
 	elseif key == 'right' then

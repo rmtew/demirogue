@@ -329,6 +329,20 @@ function Level.new( params )
 			assert(endverts[1] ~= endverts[2], string.format('%d', index))
 		end
 
+		local betweenness, eccentricities, radius, diameter = room:betweenness()
+
+		for vertex, value in pairs(betweenness) do
+			vertex.centrality = value
+
+			if eccentricities[vertex] == radius then
+				vertex.central = true
+			end
+
+			if eccentricities[vertex] == diameter then
+				vertex.peripheral = true
+			end
+		end
+
 		rooms[index] = room
 
 		graph:merge(room)
@@ -339,10 +353,35 @@ function Level.new( params )
 	_edgecheck(graph)
 	-- _enclose(graph, aabb, margin)
 
+	local aabbs = {}
+
+	for index, room in ipairs(rooms) do
+		local xmin = math.huge
+		local ymin = math.huge
+		local xmax = -math.huge
+		local ymax = -math.huge
+
+		for vertex, _ in pairs(room.vertices) do
+			local x, y = vertex[1], vertex[2]
+			xmin = math.min(x, xmin)
+			ymin = math.min(y, ymin)
+			xmax = math.max(x, xmax)
+			ymax = math.max(y, ymax)
+		end
+
+		aabbs[index] = AABB.new {
+			xmin = xmin,
+			ymin = ymin,
+			xmax = xmax,
+			ymax = ymax,
+		}
+	end
+
 	local result = {
 		aabb = aabb,
 		boxes = boxes,
 		rooms = rooms,
+		aabbs = aabbs,
 		graph = graph,
 	}
 
