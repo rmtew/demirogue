@@ -3,7 +3,7 @@ require 'Level'
 Actor = {}
 Actor.__index = Actor
 
-function Actor.new( level, vertex, symbol )
+function Actor.new( level, vertex, symbol, onDeath )
 	assert(level.graph.vertices[vertex])
 	assert(not vertex.actor)
 	assert(type(symbol) == 'string' and #symbol == 1)
@@ -11,9 +11,12 @@ function Actor.new( level, vertex, symbol )
 	local result = {
 		vertex[1],
 		vertex[2],
+		offset = { 0, 0 },
 		level = level,
 		vertex = vertex,
 		symbol = symbol,
+		job = nil,
+		onDeath = onDeath,
 	}
 
 	setmetatable(result, Actor)
@@ -25,6 +28,22 @@ end
 
 function Actor:dirs()
 	return self.vertex.dirs
+end
+
+function Actor:die()
+	local onDeath = self.onDeath
+
+	if onDeath then
+		onDeath(self)
+	end
+	
+	local job = self.job
+
+	if job then
+		job.remove()
+	end
+
+	self.vertex.actor = nil
 end
 
 function Actor:move( dir )

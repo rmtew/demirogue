@@ -58,7 +58,20 @@ local function _gen()
 		local vertex = table.random(room.vertices)
 		assert(vertex)
 
-		local actor = Actor.new(level, vertex, string.char(64 + #actors))
+		local onDeath =
+			function ( victim )
+				print('onDeath')
+				for index, actor in ipairs(actors) do
+					if actor == victim then
+						print('index', index)
+						table.remove(actors, index)
+
+						break
+					end
+				end
+			end
+
+		local actor = Actor.new(level, vertex, string.char(64 + #actors), onDeath)
 
 		actors[#actors+1] = actor
 	end
@@ -79,7 +92,7 @@ local function _gen()
 	for i = 2, #actors do
 		local actor = actors[i]
 
-		scheduler:add(
+		local job = scheduler:add(
 			function ()
 				local dir = table.random(Level.Dir)
 				local target = actor.vertex.dirs[dir]
@@ -90,6 +103,8 @@ local function _gen()
 					return action.move(level, actor, target)
 				end
 			end)
+
+		actor.job = job
 	end
 
 	return level, actors, scheduler
@@ -249,6 +264,49 @@ local grass = love.graphics.newImage('resources/grass.png')
 local backlight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0.85)
 local forelight = texture.smootherCircle(256, 256, 0, 0, 255, 255, 0.5)
 
+local lofi = love.graphics.newImage('resources/lofi_char-rgba-x8.png')
+
+function quads( x, y, width, height, numx, numy )
+	local result = {}
+	for xth = 0, numx-1 do
+		for yth = 0, numy-1 do
+			result[#result+1] = love.graphics.newQuad(
+				x + xth * width,
+				y + yth * height,
+				width,
+				height,
+				lofi:getWidth(),
+				lofi:getHeight())
+		end
+	end
+	return result
+end
+
+local t = 64
+local t2 = 128
+
+local heroes 	= quads(0, 0, t, t, 16, 1)
+local heroines 	= quads(0, 1 * t, t, t, 16, 1)
+local humanoids = quads(0, 2 * t, t, t, 16, 1)
+local elves 	= quads(0, 3 * t, t, t, 16, 1)
+local dwarves 	= quads(0, 4 * t, t, t, 16, 1)
+local goblins 	= quads(0, 5 * t, t, t, 16, 1)
+local undead 	= quads(0, 6 * t, t, t, 16, 1)
+local spirits 	= quads(0, 7 * t, t, t, 16, 1)
+local ogres 	= quads(0, 8 * t, t, t, 16, 1)
+local magical 	= quads(0, 9 * t, t, t, 16, 1)
+local golems 	= quads(0, 10 * t, t, t, 16, 1)
+local creatures = quads(0, 11 * t, t, t, 16, 1)
+local critters 	= quads(0, 12 * t, t, t, 16, 1)
+local animals 	= quads(0, 13 * t, t, t, 16, 1)
+local whelps 	= quads(0, 14 * t, t, t, 16, 1)
+local dragons 	= quads(0, 15 * t, t2, t, 8, 1)
+local legends 	= quads(0, 16 * t, t2, t2, 8, 3)
+
+local players = { heroes, heroines, humanoids, elves, dwarves }
+local monsters = { goblins, undead, spirits, ogres, magical, golems, creatures, critters, animals, whelps, dragons, legends }
+
+
 -- local backlight = love.graphics.newImage('resources/blobs-g.png')
 -- local forelight = love.graphics.newImage('resources/blobs-b.png')
 
@@ -315,6 +373,7 @@ local drawMounds = true
 local drawHeightfield = false
 local drawCover = true
 local drawBetweeness = false
+local drawOryx = false
 
 local _spriteBatches = {}
 
@@ -684,13 +743,30 @@ function gamemode.draw()
 	end
 
 
-	for _, actor in ipairs(actors) do
+	for index, actor in ipairs(actors) do
 		if distances[actor.vertex] then
 			local vx, vy = actor[1], actor[2]
-			local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
-			local x, y = vx - dx, vy - dy
+			local ox, oy = actor.offset[1], actor.offset[2]
+			
+			if not drawOryx then
+				local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
+				local x, y = (vx + ox) - dx, (vy + oy) - dy
 
-			shadowf(x, y, actor.symbol)
+				shadowf(x, y, actor.symbol)
+			else
+				local quad = actor.quad
+
+				if not quad then
+					local arrays = (index == 1) and players or monsters
+					local _, array = table.random(arrays)
+					local _, item = table.random(array)
+					actor.quad, quad = item, item
+				end
+
+				local _, _, w, h = quad:getViewport()
+
+				love.graphics.drawq(lofi, quad, vx + ox, vy + oy, 0, 0.5, 0.5, w*0.5, h*0.5)
+			end
 		end
 	end
 
@@ -790,6 +866,14 @@ function gamemode.keypressed( key )
 		drawCover = not drawCover
 	elseif key == 'q' then
 		drawBetweeness = not drawBetweeness
+	elseif key == 'o' then
+		drawOryx = not drawOryx
+
+		if not drawOryx then
+			for _, actor in ipairs(actors) do
+				actor.quad = nil
+			end
+		end
 	elseif key == 't' then
 		track = not track
 	elseif key == 'right' then
@@ -807,13 +891,22 @@ function gamemode.keypressed( key )
 		local player = actors[1]
 		local target = player.vertex.dirs[dir]
 
-		if dir and target and not target.actor then
-			local cost, action = action.move(level, player, target)
+		if dir and target then
+			if not target.actor then
+				local cost, action = action.move(level, player, target)
 
-			playerAction = {
-				cost = cost,
-				action = action,
-			}
+				playerAction = {
+					cost = cost,
+					action = action,
+				}
+			else
+				local cost, action = action.melee(level, player, target.actor)
+
+				playerAction = {
+					cost = cost,
+					action = action,
+				}
+			end
 		end
 	end
 end
