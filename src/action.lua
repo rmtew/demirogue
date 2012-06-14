@@ -83,8 +83,12 @@ function action.move( level, actor, target )
 end
 
 function action.melee( level, actor, target )
-	local duration = 0.25
+	local duration = 0.5
 	local impact = duration * 0.25
+	local recover = impact + (duration - impact) * 0.25
+
+	assert(impact < recover)
+	assert(recover < duration)
 
 	local to = Vector.to(actor, target)
 	local toLength = to:length()
@@ -93,22 +97,40 @@ function action.melee( level, actor, target )
 		function ( time )
 			if time >= duration then
 				actor.offset[1], actor.offset[2] = 0, 0
+				target.offset[1], target.offset[2] = 0, 0
 				
 				target:die()
 
 				return false
 			end
 
+
 			if time <= impact then
 				local bias = time / impact
 				bias = bias * bias
-				actor.offset[1] = to[1] * bias * 0.8
-				actor.offset[2] = to[2] * bias * 0.8
+				actor.offset[1] = to[1] * bias * 0.75
+				actor.offset[2] = to[2] * bias * 0.75
 			else
 				local bias = 1 - ((time - impact) / (duration - impact))
 				bias = bias * bias
-				actor.offset[1] = to[1] * bias * 0.8
-				actor.offset[2] = to[2] * bias * 0.8
+				actor.offset[1] = to[1] * bias * 0.75
+				actor.offset[2] = to[2] * bias * 0.75
+			end
+
+			if impact <= time then
+				if time <= recover then
+					local bias = (time - impact) / (recover - impact)
+					bias = math.sqrt(bias)
+
+					target.offset[1] = to[1] * bias * 0.2
+					target.offset[2] = to[2] * bias * 0.2
+				else
+					local bias = 1 - ((time - recover) / (duration - recover))
+					bias = bias * bias
+
+					target.offset[1] = to[1] * bias * 0.2
+					target.offset[2] = to[2] * bias * 0.2
+				end
 			end
 
 			return true
