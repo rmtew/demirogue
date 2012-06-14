@@ -765,7 +765,21 @@ function gamemode.draw()
 
 				local _, _, w, h = quad:getViewport()
 
-				love.graphics.drawq(lofi, quad, vx + ox, vy + oy, 0, 0.5, 0.5, w*0.5, h*0.5)
+				local x = vx + ox
+				local y = vy + oy
+				local sx = 0.5
+				local sy = 0.5
+				local offx = w * sx
+				local offy = h * sy
+
+				love.graphics.setColor(0, 0, 0, 255)
+				love.graphics.drawq(lofi, quad, x-2, y-2, 0, sx, sy, offx, offy)
+				love.graphics.drawq(lofi, quad, x-2, y+2, 0, sx, sy, offx, offy)
+				love.graphics.drawq(lofi, quad, x+2, y-2, 0, sx, sy, offx, offy)
+				love.graphics.drawq(lofi, quad, x+2, y+2, 0, sx, sy, offx, offy)
+
+				love.graphics.setColor(255, 255, 255, 255)
+				love.graphics.drawq(lofi, quad, x, y, 0, sx, sy, offx, offy)
 			end
 		end
 	end
