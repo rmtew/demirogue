@@ -70,9 +70,6 @@ function action.move( level, actor, target )
 			actor.offset[1] = 0
 			actor.offset[2] = -height * math.abs(math.sin(bias * math.pi * hops))
 
-			print('actor.offset[2]',actor.offset[2])
-
-
 			return true
 		end
 

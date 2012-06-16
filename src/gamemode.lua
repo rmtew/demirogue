@@ -73,6 +73,17 @@ local function _gen()
 
 		local actor = Actor.new(level, vertex, string.char(64 + #actors), onDeath)
 
+		if math.random() >= 0.5 then
+			actor.anim =
+				function ( time )
+					local x = 0
+					local y = 10 + (5 * math.sin(time * math.pi))
+
+					return x, -y
+				end
+			actor.shadow = true
+		end
+
 		actors[#actors+1] = actor
 	end
 
@@ -285,27 +296,127 @@ end
 local t = 64
 local t2 = 128
 
-local heroes 	= quads(0, 0, t, t, 16, 1)
-local heroines 	= quads(0, 1 * t, t, t, 16, 1)
-local humanoids = quads(0, 2 * t, t, t, 16, 1)
-local elves 	= quads(0, 3 * t, t, t, 16, 1)
-local dwarves 	= quads(0, 4 * t, t, t, 16, 1)
-local goblins 	= quads(0, 5 * t, t, t, 16, 1)
-local undead 	= quads(0, 6 * t, t, t, 16, 1)
-local spirits 	= quads(0, 7 * t, t, t, 16, 1)
-local ogres 	= quads(0, 8 * t, t, t, 16, 1)
-local magical 	= quads(0, 9 * t, t, t, 16, 1)
-local golems 	= quads(0, 10 * t, t, t, 16, 1)
-local creatures = quads(0, 11 * t, t, t, 16, 1)
-local critters 	= quads(0, 12 * t, t, t, 16, 1)
-local animals 	= quads(0, 13 * t, t, t, 16, 1)
-local whelps 	= quads(0, 14 * t, t, t, 16, 1)
-local dragons 	= quads(0, 15 * t, t2, t, 8, 1)
-local legends 	= quads(0, 16 * t, t2, t2, 8, 3)
+local players = {
+	heroes		= quads(0, 0, t, t, 16, 1),
+	heroines	= quads(0, 1 * t, t, t, 16, 1),
+	humanoids	= quads(0, 2 * t, t, t, 16, 1),
+	elves		= quads(0, 3 * t, t, t, 16, 1),
+	dwarves		= quads(0, 4 * t, t, t, 16, 1),
+}
 
-local players = { heroes, heroines, humanoids, elves, dwarves }
-local monsters = { goblins, undead, spirits, ogres, magical, golems, creatures, critters, animals, whelps, dragons, legends }
+local monsters = {
+	goblins		= quads(0, 5 * t, t, t, 16, 1),
+	undead		= quads(0, 6 * t, t, t, 16, 1),
+	spirits		= quads(0, 7 * t, t, t, 16, 1),
+	ogres		= quads(0, 8 * t, t, t, 16, 1),
+	magical		= quads(0, 9 * t, t, t, 16, 1),
+	golems		= quads(0, 10 * t, t, t, 16, 1),
+	creature	= quads(0, 11 * t, t, t, 16, 1),
+	critters	= quads(0, 12 * t, t, t, 16, 1),
+	animals		= quads(0, 13 * t, t, t, 16, 1),
+	whelps		= quads(0, 14 * t, t, t, 16, 1),
+	dragons		= quads(0, 15 * t, t2, t, 8, 1),
+	legends		= quads(0, 16 * t, t2, t2, 8, 3),
+}
 
+function export()
+	local base = love.image.newImageData('resources/lofi_char-rgba-x8.png')
+
+	local combined = {}
+
+	for name, quads in pairs(players) do
+		combined[name] = quads
+	end
+
+	for name, quads in pairs(monsters) do
+		combined[name] = quads
+	end
+
+	for name, quads in pairs(combined) do
+		for index, quad in ipairs(quads) do
+			local qx, qy, qw, qh = quad:getViewport()
+			local border = 4
+			local bw, bh = qw + 2 * border, qh + 2 * border
+
+			local image = love.image.newImageData(bw, bh)
+			local mask = {}
+
+			for i = 0, bw-1 do
+				local row = {}
+				for j = 0, bh-1 do
+					row[j] = false
+				end
+				mask[i] = row
+			end 
+
+			image:mapPixel(
+				function ( x, y )
+					local inx = border <= x and x < qw + border
+					local iny = border <= y and y < qh + border
+
+					if inx and iny then
+						local r, g, b, a = base:getPixel(qx + x - border, qy + y - border)
+
+						if a > 0 then
+							mask[x][y] = true
+						end
+
+						return r, g, b, a
+					else
+						return 0, 0, 0, 0
+					end
+				end)
+
+			--[[
+			image:mapPixel(
+				function ( x, y, r, g, b, a )
+					if x == 0 or x == bw-1 or y == 0 or y == bh-1 then
+						return 0, 0, 0, 255
+					end
+
+					return r, g, b, a
+				end)
+			--]]
+
+			---[[
+			image:mapPixel(
+				function ( x, y, r, g, b, a )
+					if r ~= 0 or g ~= 0 or b ~= 0 or a ~= 0 then
+						return r, g, b, a
+					end
+
+					for dx = math.max(0, x-2), math.min(bw-1, x+2) do
+						for dy = math.max(0, y-2), math.min(bh-1, y+2) do
+							if mask[dx][dy] then
+								return 0, 0, 0, 128
+							end
+						end
+					end
+
+					return 0, 0, 0, 0
+				end)
+			--]]
+
+			image:encode(string.format('%s-%02d.png', name, index))
+		end
+	end
+end
+
+export()
+
+for name, quads in pairs(players) do
+	for index, quad in ipairs(quads) do
+		local image = love.graphics.newImage(string.format('%s-%02d.png', name, index))
+		quads[index] = image
+	end
+end
+
+for name, quads in pairs(monsters) do
+	for index, quad in ipairs(quads) do
+		local image = love.graphics.newImage(string.format('%s-%02d.png', name, index))
+		quads[index] = image
+	end
+end
 
 -- local backlight = love.graphics.newImage('resources/blobs-g.png')
 -- local forelight = love.graphics.newImage('resources/blobs-b.png')
@@ -569,7 +680,7 @@ function gamemode.draw()
 				local g = 255 * (0.75 + 0.25 * normed)
 				
 				-- The forelight is in the b component.
-				forelightBatch:setColor(0, 0, g, 255)
+				-- forelightBatch:setColor(0, 0, g, 255)
 				forelightBatch:add(x, y, rot, scale, scale, 128, 128)
 			end
 			
@@ -742,11 +853,19 @@ function gamemode.draw()
 		end
 	end
 
+	local nullanim = function () return 0, 0 end
 
 	for index, actor in ipairs(actors) do
 		if distances[actor.vertex] then
 			local vx, vy = actor[1], actor[2]
 			local ox, oy = actor.offset[1], actor.offset[2]
+			local anix, aniy = 0, 0
+
+			if actor.anim then
+				anix, aniy = actor.anim(time)
+			end
+
+			local ax, ay = (actor.anim or nullanim)(time)
 			
 			if not drawOryx then
 				local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
@@ -754,32 +873,31 @@ function gamemode.draw()
 
 				shadowf(x, y, actor.symbol)
 			else
-				local quad = actor.quad
+				local image = actor.image
 
-				if not quad then
-					local arrays = (index == 1) and players or monsters
-					local _, array = table.random(arrays)
-					local _, item = table.random(array)
-					actor.quad, quad = item, item
+				if not image then
+					local set = (index == 1) and players or monsters
+					local _, images = table.random(set)
+					local _, choice = table.random(images)
+					actor.image, image = choice, choice
 				end
 
-				local _, _, w, h = quad:getViewport()
+				local w, h = image:getWidth(), image:getHeight()
 
-				local x = vx + ox
-				local y = vy + oy
+				local x = vx + ox + anix
+				local y = vy + oy + aniy
 				local sx = 0.5
 				local sy = 0.5
 				local offx = w * sx
 				local offy = h * sy
 
-				love.graphics.setColor(0, 0, 0, 255)
-				love.graphics.drawq(lofi, quad, x-2, y-2, 0, sx, sy, offx, offy)
-				love.graphics.drawq(lofi, quad, x-2, y+2, 0, sx, sy, offx, offy)
-				love.graphics.drawq(lofi, quad, x+2, y-2, 0, sx, sy, offx, offy)
-				love.graphics.drawq(lofi, quad, x+2, y+2, 0, sx, sy, offx, offy)
+				-- if actor.shadow then
+				-- 	love.graphics.setColor(0, 0, 0, 255)
+				-- 	love.graphics.draw(image, x, vy, 0, sx, sy * 0.2, offx, offy)
+				-- end
 
 				love.graphics.setColor(255, 255, 255, 255)
-				love.graphics.drawq(lofi, quad, x, y, 0, sx, sy, offx, offy)
+				love.graphics.draw(image, x, y, 0, sx, sy, offx, offy)
 			end
 		end
 	end
@@ -885,7 +1003,7 @@ function gamemode.keypressed( key )
 
 		if not drawOryx then
 			for _, actor in ipairs(actors) do
-				actor.quad = nil
+				actor.image = nil
 			end
 		end
 	elseif key == 't' then

@@ -9,3 +9,6 @@
 # Love
 *.love
 *.zip
+
+# Sublime
+*.sublime-workspace
