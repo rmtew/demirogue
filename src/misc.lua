@@ -52,8 +52,20 @@ function table.shuffle( tbl )
 	end
 end
 
+
 function printf( ... )
 	print(string.format(...))
+end
+
+function table.print( tbl, indent )
+	indent = indent or 0
+	for k, v in pairs(tbl) do
+		printf('%s%s = %s', string.rep(' ', indent), tostring(k), tostring(v))
+
+		if type(v) == 'table' then
+			table.print(v, indent + 2)
+		end
+	end
 end
 
 -------------------------------------------------------------------------------

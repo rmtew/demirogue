@@ -7,6 +7,7 @@ require 'roomgen'
 require 'Level'
 require 'Actor'
 require 'Scheduler'
+require 'behaviour'
 require 'action'
 require 'KDTree'
 require 'metalines'
@@ -100,18 +101,37 @@ local function _gen()
 			return 0, nil
 		end)
 
+	for _, node in pairs(behaviour.nodes) do
+		_G['AI_' .. node.tag] = 
+			function ( tbl )
+				tbl.tag = node.tag
+				return tbl
+			end
+	end
+
+	local aiParams = 
+		AI_Priority {
+			AI_Wander {},
+			AI_Search {},
+		}
+
+	for _, node in pairs(behaviour.nodes) do
+		_G['AI_' .. node.tag] = nil
+	end
+
 	for i = 2, #actors do
 		local actor = actors[i]
 
+		local ai = behaviour.new(aiParams)
+
 		local job = scheduler:add(
 			function ()
-				local dir = table.random(Level.Dir)
-				local target = actor.vertex.dirs[dir]
+				local result, cost, plan = ai:tick(level, actor)
 
-				if not target or target.actor then
-					return action.search(level, actor)
+				if result == behaviour.Result.PERFORM then
+					return cost, plan
 				else
-					return action.move(level, actor, target)
+					return 1, nil
 				end
 			end)
 
@@ -402,7 +422,7 @@ function export()
 	end
 end
 
-export()
+-- export()
 
 for name, quads in pairs(players) do
 	for index, quad in ipairs(quads) do

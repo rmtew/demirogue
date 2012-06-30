@@ -23,31 +23,20 @@
 -- node.reset( self:table )
 --     
 --
-
--- - So how to handle conditionals?
---   - They return ADVANCE or ABORT depending on whether their conditions are met.
---   - They don't return actions though.
---
 -- - PERFORM, returns a cost and an action (well the result of an action)
 -- - ADVANCE, returns nothing
 -- - ABORT, returns nothing
 --
--- - Need better names, e.g. PERFORM, CONTINUE, ABORT
 
-Sequence {
-	IfPlayer { withinRange = 2 },
-	Bounce {},
-	Leap {}, -- How does this know where to leap? Need a target.
-}
-
+require 'action'
 
 behaviour = {
 	Result = {
 		PERFORM = 'PERFORM',
 		ADVANCE = 'ADVANCE',
 		ABORT = 'ABORT',
-	}
-	nodes = {}
+	},
+	nodes = {},
 }
 
 local Result = behaviour.Result
@@ -86,6 +75,8 @@ local function _node( node )
 	assert(type(node.new) == 'function')
 	assert(type(node.tick) == 'function')
 	assert(type(node.reset) == 'function')
+
+	node.__index = node
 	
 	nodes[node.tag] = node
 end
@@ -96,12 +87,14 @@ end
 --    beginning.
 --
 -- params = { tag = 'Sequence', <subnode1>, <subnode2>, ..., <subnodeN> }
-nodes.Sequence = _node {
+_node {
+	tag = 'Sequence',
 	new =
 		function ( params )
 			local result = {
 				subnodes = _behaviour_new_array(params),
-				index = params.index or 1
+				index = params.index or 1,
+				performer = nil,
 			}
 
 			return result
@@ -110,23 +103,34 @@ nodes.Sequence = _node {
 		function ( self, level, actor )
 			local subnodes = self.subnodes
 
-			while self.index <= #subnodes do
-				local node = self.subnodes[self.index]
-				local result, cost, plan = self.subnodes[i](node, level, actor)
+			for index = self.index, #subnodes do
+				local subnode = subnodes[index]
+				local result, cost, plan = subnode:tick(level, actor)
 
-				if result ~= ADVANCE then
+				if result == PERFORM then
+					self.performer = index
+					self.index = index
 					return result, cost, plan
+				elseif result == ABORT then
+					self.performer = nil
+					self.index = 1
+					return ABORT
 				end
 
-				self.index = self.index + 1
+				self.performer = nil
 			end
+
+			self.index = 1
 
 			return ADVANCE
 		end,
-	exit =
+	reset =
 		function ( self, result )
-			if result == ABORT or self.index == #self.subnodes then
-				self.index = 1
+			local performer = self.performer
+
+			if performer then
+				self.subnodes[performer]:reset()
+				self.performer = nil
 			end
 		end,
 }
@@ -138,20 +142,14 @@ nodes.Sequence = _node {
 --    beginning.
 --
 -- params = { tag = 'Priority', <subnode1>, <subnode2>, ..., <subnodeN> }
-nodes.Priority = _Stateful {
+_node {
+	tag = 'Priority',
 	new =
 		function ( params )
-			assert(params.tag == 'Priority')
-
-			local subnodes = {}
-
-			for index, params in ipairs(params) do
-				subnodes[index] = _behaviour_new(params)
-			end
-
 			local result = {
-				subnodes = subnodes,
-				index = params.index or 1
+				subnodes = _behaviour_new_array(params),
+				index = params.index or 1,
+				performer = nil,
 			}
 
 			return result
@@ -160,22 +158,159 @@ nodes.Priority = _Stateful {
 		function ( self, level, actor )
 			local subnodes = self.subnodes
 
-			while self.index <= #subnodes do
-				local node = self.subnodes[self.index]
-				local result, cost, plan = self.subnodes[i](node, level, actor)
+			for index = self.index, #subnodes do
+				local subnode = subnodes[index]
+				local result, cost, plan = subnode:tick(level, actor)
 
-				if result ~= ABORT then
+				if result == PERFORM then
+					self.performer = index
+					self.index = index
 					return result, cost, plan
+				elseif result == ADVANCE then
+					self.performer = nil
+					self.index = 1
+					return ADVANCE
 				end
 
-				self.index = self.index + 1
+				self.performer = nil
+			end
+
+			self.index = 1
+
+			return ABORT
+		end,
+	reset =
+		function ( self, result )
+			local performer = self.performer
+
+			if performer then
+				self.subnodes[performer]:reset()
+				self.performer = nil
+			end
+		end,
+}
+
+_node {
+	tag = 'Guarded',
+	new =
+		function ( params )
+			local result = {
+				subnodes = _behaviour_new_array(params),
+				performer = nil,
+			}
+
+			return result
+		end,
+	tick = 
+		function ( self, level, actor )
+			local subnodes = self.subnodes
+
+			for index = self.performer or 1, #subnodes do
+				local subnode = subnodes[index]
+				local result, cost, plan = subnode:tick(level, actor)
+
+				if result == PERFORM then
+					self.performer = index
+					return result, cost, plan
+				elseif result == ABORT then
+					self.performer = nil
+					return ABORT
+				end
+
+				self.performer = nil
 			end
 
 			return ADVANCE
 		end,
-	exit =
+	reset =
 		function ( self, result )
-			self.index = 1
+			local performer = self.performer
+
+			if performer then
+				self.subnodes[performer]:reset()
+				self.performer = nil
+			end
 		end,
 }
 
+_node {
+	tag = 'Advance',
+	new =
+		function ( params )
+			return {}
+		end,
+	tick =
+		function ( self, level, actor )
+			return ADVANCE
+		end,
+	reset =
+		function ( self )
+		end,
+}
+
+_node {
+	tag = 'Abort',
+	new =
+		function ( params )
+			return {}
+		end,
+	tick =
+		function ( self, level, actor )
+			return ABORT
+		end,
+	reset =
+		function ( self )
+		end,
+}
+
+_node {
+	tag = 'Search',
+	new =
+		function ( params )
+			return {
+				performed = params.performed or false
+			}
+		end,
+	tick =
+		function ( self, level, actor )
+			if self.performed then
+				return ADVANCE
+			else
+				self.performed = true
+				return PERFORM, action.search(level, actor)
+			end
+		end,
+	reset =
+		function ( self )
+			self.performed = false
+		end,
+}
+
+_node {
+	tag = 'Wander',
+	new =
+		function ( params )
+			return {}
+		end,
+	tick =
+		function ( self, level, actor )
+			local candidates = {}
+
+			for vertex, _ in pairs(level.graph.vertices[actor.vertex]) do
+				if not vertex.actor then
+					candidates[vertex] = true
+				end
+			end
+
+			if table.count(candidates) == 0 then
+				return ABORT
+			else
+				local target = table.random(candidates)
+
+				return PERFORM, action.move(level, actor, target)
+			end
+		end,
+	reset =
+		function ( self )
+		end,
+}
