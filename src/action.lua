@@ -9,8 +9,6 @@ require 'Vector'
 
 action = {}
 
-
-
 function action.search( level, actor )
 	local duration = 0.25
 	local radius = 10
@@ -101,7 +99,6 @@ function action.melee( level, actor, target )
 				return false
 			end
 
-
 			if time <= impact then
 				local bias = time / impact
 				bias = bias * bias
@@ -139,3 +136,77 @@ function action.melee( level, actor, target )
 	}
 end
 
+
+-- The actor leaps towards the target vertex. If there's an actor at the target
+-- vertex it is attacked and the actor returns to it's starting vertex. If the
+-- target vertex is unoccupied the actor lands at the target vertex.
+function action.leap( level, actor, target )
+	local attack = target.actor ~= nil
+
+	local impact = 0.25
+	local recoil = 0.25
+	local duration = (attack) and impact + 2 * recoil or impact
+	local height = 30
+
+	local to = Vector.to(actor, target)
+	local toLength = to:length()
+
+	local plan =
+		function ( time )
+			if time >= duration then
+				if not attack then
+					actor.offset[1], actor.offset[2] = 0, 0
+					local success = actor:moveTo(target)
+					assert(success)
+					actor[1], actor[2] = target[1], target[2]
+				else
+					local offset = target.actor.offset
+					offset[1], offset[2] = 0, 0
+					target.actor:die()
+				end
+
+				return false
+			end
+
+			if time <= impact then
+				local bias = time / impact
+				local t = 2 * (bias - 0.5)
+				local y = -height * (1 - (t*t))
+				-- bias = bias * bias
+				actor.offset[1] = to[1] * bias
+				actor.offset[2] = y + (to[2] * bias)
+			else
+				assert(attack)
+
+				local bias = 1 - ((time - impact) / (duration - impact))
+				local t = 2 * (bias - 0.5)
+				local y = -height * (1 - (t*t))
+				-- bias = bias * bias
+				actor.offset[1] = to[1] * bias
+				actor.offset[2] = y + (to[2] * bias)
+			end
+
+			if attack and impact <= time then
+				if time <= recoil then
+					local bias = (time - impact) / (recoil - impact)
+					bias = math.sqrt(bias)
+
+					target.actor.offset[1] = to[1] * bias * 0.2
+					target.actor.offset[2] = to[2] * bias * 0.2
+				else
+					local bias = 1 - ((time - recoil) / (duration - recoil))
+					bias = bias * bias
+
+					target.actor.offset[1] = to[1] * bias * 0.2
+					target.actor.offset[2] = to[2] * bias * 0.2
+				end
+			end
+
+			return true
+		end
+
+	return 5, {
+		sync = true,
+		plan = plan,
+	}
+end

@@ -15,6 +15,8 @@ function Actor.new( level, vertex, symbol, onDeath )
 		level = level,
 		vertex = vertex,
 		symbol = symbol,
+		image = nil,
+		target = nil,
 		job = nil,
 		onDeath = onDeath,
 	}

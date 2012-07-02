@@ -111,8 +111,12 @@ local function _gen()
 
 	local aiParams = 
 		AI_Priority {
+			AI_Sequence {
+				AI_Target { range = 2, symbol = '@' },
+				AI_Bounce {},
+				AI_Leap {},
+			},
 			AI_Wander {},
-			AI_Search {},
 		}
 
 	for _, node in pairs(behaviour.nodes) do
@@ -873,8 +877,6 @@ function gamemode.draw()
 		end
 	end
 
-	local nullanim = function () return 0, 0 end
-
 	for index, actor in ipairs(actors) do
 		if distances[actor.vertex] then
 			local vx, vy = actor[1], actor[2]
@@ -884,12 +886,10 @@ function gamemode.draw()
 			if actor.anim then
 				anix, aniy = actor.anim(time)
 			end
-
-			local ax, ay = (actor.anim or nullanim)(time)
 			
 			if not drawOryx then
 				local dx, dy = font:getWidth(actor.symbol) * 0.5, font:getHeight() * 0.5
-				local x, y = (vx + ox) - dx, (vy + oy) - dy
+				local x, y = (vx + ox + anix) - dx, (vy + oy + aniy) - dy
 
 				shadowf(x, y, actor.symbol)
 			else

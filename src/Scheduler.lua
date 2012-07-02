@@ -33,7 +33,7 @@ function Scheduler:add( func )
 	local job = {
 		ticks = 0,
 		func = func,
-		release = nil,
+		remove = nil,
 	}
 
 	job.remove =
