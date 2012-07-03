@@ -464,6 +464,7 @@ local coverEffect = love.graphics.newPixelEffect [[
 	// The height band the cover will be drawn in.
 	extern float minHeight;
 	extern float maxHeight;
+	extern vec2 screen;
 
 	/*float smooth(float x, float minx, float maxx)
 	{
@@ -482,7 +483,7 @@ local coverEffect = love.graphics.newPixelEffect [[
 
 	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
 	{
-		vec4 hl = Texel(height, pc / vec2(800.0, 600.0));
+		vec4 hl = Texel(height, pc / screen);
 		float h = hl.r;
 		float l = (0.25 * hl.g) + (0.75 * hl.b);
 		// This is 1 when minHeight <= h <= maxHeight and 0 otherwise.
@@ -496,6 +497,32 @@ local coverEffect = love.graphics.newPixelEffect [[
 
 		// Light and band check the texel.
 		p *= lv;
+
+		return p;
+	}
+]]
+
+local fowTexEffect = love.graphics.newPixelEffect [[
+	extern Image height;
+	extern vec2 screen;
+
+	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
+	{
+		vec4 p = Texel(tex, tc) * color;
+		p.a *= Texel(height, pc / screen).b;
+
+		return p;
+	}
+]]
+
+local fowColourEffect = love.graphics.newPixelEffect [[
+	extern Image height;
+	extern vec2 screen;
+
+	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
+	{
+		vec4 p = color;
+		p.a *= Texel(height, pc / screen).b;
 
 		return p;
 	}
@@ -759,6 +786,7 @@ function gamemode.draw()
 			coverEffect:send('height', canvas)
 			coverEffect:send('minHeight', 0.8)
 			coverEffect:send('maxHeight', 1)
+			coverEffect:send('screen', { w, h })
 
 			love.graphics.setPixelEffect(coverEffect)
 
@@ -774,7 +802,11 @@ function gamemode.draw()
 	local linewidth = 2
 
 	if drawEdges then
-		love.graphics.setColor(128, 128, 128)
+		fowColourEffect:send('height', canvas)
+		fowColourEffect:send('screen', { w, h })
+		love.graphics.setPixelEffect(fowColourEffect)
+
+		love.graphics.setColor(128, 128, 128, 255)
 		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
 
 		-- local lines = {}
@@ -783,7 +815,7 @@ function gamemode.draw()
 			local vertex1 = verts[1]
 			local vertex2 = verts[2]
 
-			if vertex1.known and vertex2.known then
+			if vertex1.known or vertex2.known then
 				local distance1 = distances[vertex1] or maxdepth + 1
 				local distance2 = distances[vertex2] or maxdepth + 1
 				local distance = math.max(distance1, distance2)
@@ -801,6 +833,8 @@ function gamemode.draw()
 		end
 
 		-- love.graphics.line(lines)
+
+		love.graphics.setPixelEffect()
 	end
 
 
@@ -877,8 +911,12 @@ function gamemode.draw()
 		end
 	end
 
+	fowTexEffect:send('height', canvas)
+	fowTexEffect:send('screen', { w, h })
+	love.graphics.setPixelEffect(fowTexEffect)
+
 	for index, actor in ipairs(actors) do
-		if distances[actor.vertex] then
+		-- if distances[actor.vertex] then
 			local vx, vy = actor[1], actor[2]
 			local ox, oy = actor.offset[1], actor.offset[2]
 			local anix, aniy = 0, 0
@@ -919,8 +957,10 @@ function gamemode.draw()
 				love.graphics.setColor(255, 255, 255, 255)
 				love.graphics.draw(image, x, y, 0, sx, sy, offx, offy)
 			end
-		end
+		-- end
 	end
+
+	love.graphics.setPixelEffect()
 
 	local points = {}
 
