@@ -276,6 +276,52 @@ _node {
 }
 
 _node {
+	tag = 'Loop',
+	new =
+		function ( params )
+			local result = {
+				subnodes = _behaviour_new_array(params),
+				index = params.index or 1,
+				performer = nil,
+			}
+
+			return result
+		end,
+	tick = 
+		function ( self, level, actor )
+			local subnodes = self.subnodes
+
+			while true do
+				local subnode = subnodes[self.index]
+				local result, cost, plan = subnode:tick(level, actor)
+
+				if result == PERFORM then
+					self.performer = index
+					return result, cost, plan
+				elseif result == ABORT then
+					self.performer = nil
+					self.index = 1
+					
+					return ABORT
+				end
+
+				self.performer = nil
+
+				self.index = (self.index < #subnodes) and self.index + 1 or 1
+			end
+		end,
+	reset =
+		function ( self, level, actor )
+			local performer = self.performer
+
+			if performer then
+				self.subnodes[performer]:reset()
+				self.performer = nil
+			end
+		end,
+}
+
+_node {
 	tag = 'Advance',
 	new =
 		function ( params )

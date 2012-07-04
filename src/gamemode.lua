@@ -110,13 +110,15 @@ local function _gen()
 	end
 
 	local aiParams = 
-		AI_Priority {
-			AI_Sequence {
-				AI_Target { range = 2, symbol = '@' },
-				AI_Bounce {},
-				AI_Leap {},
+		AI_Loop {
+			AI_Priority {
+				AI_Sequence {
+					AI_Target { range = 2, symbol = '@' },
+					AI_Bounce {},
+					AI_Leap {},
+				},
+				AI_Wander {},
 			},
-			AI_Wander {},
 		}
 
 	for _, node in pairs(behaviour.nodes) do
@@ -131,12 +133,9 @@ local function _gen()
 		local job = scheduler:add(
 			function ()
 				local result, cost, plan = ai:tick(level, actor)
+				assert(result == behaviour.Result.PERFORM)
 
-				if result == behaviour.Result.PERFORM then
-					return cost, plan
-				else
-					return 1, nil
-				end
+				return cost, plan
 			end)
 
 		actor.job = job
@@ -294,7 +293,8 @@ local blobs = love.graphics.newImage('resources/blobs.png')
 local bricks = love.graphics.newImage('resources/bricks.png')
 local crystal = love.graphics.newImage('resources/crystal.png')
 local triforce = love.graphics.newImage('resources/triforce.png')
-local grass = love.graphics.newImage('resources/grass.png')
+local grass = love.graphics.newImage('resources/grass-styled.png')
+grass:setWrap('repeat', 'repeat')
 
 local backlight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0.85)
 local forelight = texture.smootherCircle(256, 256, 0, 0, 255, 255, 0.5)
@@ -502,6 +502,54 @@ local coverEffect = love.graphics.newPixelEffect [[
 	}
 ]]
 
+local planarCoverEffect = love.graphics.newPixelEffect [[
+	// The height and light canvas.
+	extern Image height;
+	// The height band the cover will be drawn in.
+	extern float minHeight;
+	extern float maxHeight;
+	extern vec2 screen;
+	extern vec2 origin;
+	extern float scale;
+
+	/*float smooth(float x, float minx, float maxx)
+	{
+		float n = clamp((x - minx) / (maxx - minx), 0, 1);
+
+		return n*n*n*(n*(n*6 - 15) + 10);
+	}*/
+
+	/*float smooth(float x, float minx, float maxx)
+	{
+		float n = clamp((x - minx) / (maxx - minx), 0, 1);
+		float ns = 2 * n - 1;
+
+		return -(ns*ns) + 1;
+	}*/
+
+	vec4 effect(vec4 color, Image tex, vec2 tc, vec2 pc)
+	{
+		vec4 hl = Texel(height, pc / screen);
+		float h = hl.r;
+		float l = (0.25 * hl.g) + (0.75 * hl.b);
+		// This is 1 when minHeight <= h <= maxHeight and 0 otherwise.
+		// float band = (1 - step(h, minHeight)) * (1 - step(maxHeight, h));
+		// float band = smooth(h, minHeight, maxHeight);
+		float band = (1 - step(h, minHeight)) * (step(minHeight, maxHeight));
+		vec4 lv = vec4(l ,l ,l, band);
+
+		// vec2 ctc = ((pc - origin) * 1/scale) / screen;
+		vec2 ctc = ((pc * 1/scale) + origin) / screen;
+
+		vec4 p = Texel(tex, ctc);
+
+		// Light and band check the texel.
+		p *= lv;
+
+		return p;
+	}
+]]
+
 local fowTexEffect = love.graphics.newPixelEffect [[
 	extern Image height;
 	extern vec2 screen;
@@ -599,7 +647,10 @@ function gamemode.draw()
 
 	-- LoS and FoW
 	--
-	-- Three state FoW unknown, known and not in LoS and known and in LoS.
+	-- Three state FoW:
+	-- - Unknown
+	-- - Known and not in LoS
+	-- - Known and in LoS.
 	-- The known flag is stored on the vertices as a boolean or nil and the
 	-- distances table is the LoS.
 	local maxdepth = 2
@@ -711,7 +762,7 @@ function gamemode.draw()
 			heightBatch:add(x, y, rot, scale, scale, 128, 128)
 
 			if grass then
-				grassBatch:add(x, y, rot, scale, scale, 128, 128)
+				grassBatch:add(x, y, 0, scale, scale, 128, 128)
 			end
 
 			-- Height textures aren't required to fit with a circle like the
@@ -783,12 +834,25 @@ function gamemode.draw()
 
 		if drawCover then
 			-- TODO: the min and max heights should be specified in a theme.
-			coverEffect:send('height', canvas)
-			coverEffect:send('minHeight', 0.8)
-			coverEffect:send('maxHeight', 1)
-			coverEffect:send('screen', { w, h })
+			local planar = true
 
-			love.graphics.setPixelEffect(coverEffect)
+			if not planar then
+				coverEffect:send('height', canvas)
+				coverEffect:send('minHeight', 0.8)
+				coverEffect:send('maxHeight', 1)
+				coverEffect:send('screen', { w, h })
+
+				love.graphics.setPixelEffect(coverEffect)
+			else
+				planarCoverEffect:send('height', canvas)
+				planarCoverEffect:send('minHeight', 0.8)
+				planarCoverEffect:send('maxHeight', 1)
+				planarCoverEffect:send('screen', { w, h })
+				planarCoverEffect:send('origin', { xform.origin[1], h - xform.origin[2] })
+				planarCoverEffect:send('scale', xform.scale)
+
+				love.graphics.setPixelEffect(planarCoverEffect)
+			end
 
 			love.graphics.setBlendMode('alpha')
 			love.graphics.draw(grassBatch, 0, 0)
@@ -860,9 +924,6 @@ function gamemode.draw()
 	if drawBetweeness then
 		if not level.betweenness then
 			level.betweenness = level.graph:betweenness()
-			for vertex, value in pairs(level.betweenness) do
-				print(value)
-			end
 		end
 
 		love.graphics.setColor(255, 255, 255, 255)

@@ -151,13 +151,16 @@ function action.leap( level, actor, target )
 	local to = Vector.to(actor, target)
 	local toLength = to:length()
 
+	if not attack then
+		local success = actor:moveTo(target)
+		assert(success)
+	end
+
 	local plan =
 		function ( time )
 			if time >= duration then
 				if not attack then
 					actor.offset[1], actor.offset[2] = 0, 0
-					local success = actor:moveTo(target)
-					assert(success)
 					actor[1], actor[2] = target[1], target[2]
 				else
 					local offset = target.actor.offset
