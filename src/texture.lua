@@ -156,6 +156,41 @@ function texture.featheredCircle( w, h, r, g, b, a, feather )
 	return love.graphics.newImage(result)
 end
 
+function texture.featheredAlpha( filename, feather )
+	feather = feather or 1
+	assert(0 <= feather and feather <= 1)
+
+	local result = love.image.newImageData(filename)
+	local w, h = result:getWidth(), result:getHeight()
+
+	local cx = w * 0.5
+	local cy = h * 0.5
+	local outerRadius = math.min(cx, cy) * 0.99
+	local innerRadius = outerRadius * feather
+	local a = 255
+
+	result:mapPixel(
+		function ( x, y, r, g, b )
+			local dx, dy = cx - x, cy - y
+			local d = math.sqrt((dx * dx) + (dy * dy))
+
+			if d > outerRadius then
+				return r, g, b, 0
+			elseif d > innerRadius then
+				local f = 1 - ((d - innerRadius) / (outerRadius - innerRadius))
+				-- f = f * f
+
+				return r, g, b, f*a
+			else
+				return r, g, b, a
+			end
+		end)
+
+	-- result:encode(string.format('%s-fa.png', filename:match('([^/]+)$')))
+
+	return love.graphics.newImage(result)
+end
+
 function texture.smootherCircle( w, h, r, g, b, a, feather )
 	feather = feather or 1
 	assert(0 <= feather and feather <= 1)

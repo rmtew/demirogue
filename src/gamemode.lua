@@ -293,7 +293,7 @@ local blobs = love.graphics.newImage('resources/blobs.png')
 local bricks = love.graphics.newImage('resources/bricks.png')
 local crystal = love.graphics.newImage('resources/crystal.png')
 local triforce = love.graphics.newImage('resources/triforce.png')
-local grass = love.graphics.newImage('resources/grass-styled.png')
+local grass = texture.featheredAlpha('resources/grass-styled.png', 0.9)
 grass:setWrap('repeat', 'repeat')
 
 local backlight = texture.featheredCircle(256, 256, 0, 255, 0, 255, 0.85)
@@ -494,7 +494,6 @@ local coverEffect = love.graphics.newPixelEffect [[
 
 		vec4 p = Texel(tex, tc);
 
-
 		// Light and band check the texel.
 		p *= lv;
 
@@ -511,6 +510,7 @@ local planarCoverEffect = love.graphics.newPixelEffect [[
 	extern vec2 screen;
 	extern vec2 origin;
 	extern float scale;
+	extern vec2 tiling;
 
 	/*float smooth(float x, float minx, float maxx)
 	{
@@ -538,10 +538,11 @@ local planarCoverEffect = love.graphics.newPixelEffect [[
 		float band = (1 - step(h, minHeight)) * (step(minHeight, maxHeight));
 		vec4 lv = vec4(l ,l ,l, band);
 
-		// vec2 ctc = ((pc - origin) * 1/scale) / screen;
-		vec2 ctc = ((pc * 1/scale) + origin) / screen;
+		vec2 worldpc = (pc * 1/scale) + origin;
+		vec2 ctc = worldpc / (screen / tiling);
 
 		vec4 p = Texel(tex, ctc);
+		p.a = Texel(tex, tc).a;
 
 		// Light and band check the texel.
 		p *= lv;
@@ -850,6 +851,11 @@ function gamemode.draw()
 				planarCoverEffect:send('screen', { w, h })
 				planarCoverEffect:send('origin', { xform.origin[1], h - xform.origin[2] })
 				planarCoverEffect:send('scale', xform.scale)
+				local tiling = {
+					level.aabb:height() / grass:getHeight(),
+					level.aabb:width() / grass:getWidth()		
+				}
+				planarCoverEffect:send('tiling', tiling)
 
 				love.graphics.setPixelEffect(planarCoverEffect)
 			end

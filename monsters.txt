@@ -1,0 +1,40 @@
+monsters
+========
+
+Ideas of monsters.
+
+* Leave a trail of stuff.
+* Have a cloud or bad stuff surround the monster, e.g. Brogue's Zombies.
+* Attack all surrounding verts.
+* Knight's move. Not sure how that would work in a graph based map though...
+* Move two verts every other turn.
+* Move very quickly when not in LoS.
+* Obscure LoS.
+* Reset 'known' vertices to 'unknown'.
+* Summon and run away.
+* Summon and consume summons for some kind of bonus.
+* Explode on death.
+* Sap the player at a distance and run in for the kill.
+* Become insubstantial and walk through the player.
+* 'Haunt' the player and control movement.
+* Impregnate the player with a parasite the player and burst out later.
+* Rotating laser beam, i.e. attack each surrounding vertex in an order.
+* Throw nearby enemies at the player.
+* Kill other monsters to 'level up'.
+* Multiply on hit, e.g. jellies or rats in MicRogue.
+* Telegraph attack by bouncing then leap where player was next turn.
+* Telegraph attack with crosshairs on the floor and attack next turn.
+* Mimic player movement directly or oppositely.
+* Buff nearby monsters, e.g. Brogue totems.
+* 'Turtle' and become invulnerable to some or all attacks.
+* 'Ignite' or otherwise transform the terrain the player is on.
+* Steal items from the floor or the player.
+* Reanimate after death, maybe a few turns lag.
+* After an attack become a fast moving but non-attacking form, e.g. Shiren's Master Hen.
+* Teleport or blink the player.
+* Swap positions with the player, e.g. Eyes in MicRogue.
+* Try and surround the player with invulnerable monsters that only attack once fully surrounded.
+* Mimics and shapeshifters.
+* Combine like Power Rangers...
+* Disperse 'seeds' like those mushroom things in Crawl.
+* Be invisible unless very close.
