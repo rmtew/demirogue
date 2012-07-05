@@ -32,6 +32,8 @@ Ideas of monsters.
 * Reanimate after death, maybe a few turns lag.
 * After an attack become a fast moving but non-attacking form, e.g. Shiren's Master Hen.
 * Teleport or blink the player.
+* Pull the player closer to the monster.
+* Push the player away from the monster.
 * Swap positions with the player, e.g. Eyes in MicRogue.
 * Try and surround the player with invulnerable monsters that only attack once fully surrounded.
 * Mimics and shapeshifters.
