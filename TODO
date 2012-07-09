@@ -1,0 +1,26 @@
+TODO
+====
+
+- Fast forward actions that aren't visible.
+- Refactor gamemode out:
+  - Rendering separate
+  - Core state machine
+    - Start screen
+    - Game
+    - Game Over
+  - Controls
+    - Allow for WASDQEZC, vi and numpad.
+    - Debug keymode.
+    - Mouse, both desktop (absolute pointer) and laptop versions (relative motion swipes).
+- Actor refactor
+  - Visuals refactored into Sprites
+  - May need more than one actor per vertex, e.g. ghosts. May be able to special case those though.
+  - Blackboard for AI related state.
+- Move Level graph function into a Graph2d utility library, they'd be useful for room and level gen.
+- Stop reaching into Level's innards all over the place, especially for vertex and graph info.
+- Need an object (maybe Level) that hold the actors, level, scheduler and so on.
+  - Needs to be able to spawn actors with.
+  - Need to be able to change time (for slow mo' on death).
+  - Need to be able to interrogate the graph.
+- Explanatory text for monsters.
+  - Maybe with unique names and flavour lines.

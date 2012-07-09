@@ -7,6 +7,7 @@ Ideas of monsters.
 * Have a cloud or bad stuff surround the monster, e.g. Brogue's Zombies.
 * Attack all surrounding verts.
 * Knight's move. Not sure how that would work in a graph based map though...
+* Only able to move to vertices with a distance of 2 from the current vertex.
 * Move two verts every other turn.
 * Move very quickly when not in LoS.
 * Obscure LoS.
@@ -17,7 +18,7 @@ Ideas of monsters.
 * Sap the player at a distance and run in for the kill.
 * Become insubstantial and walk through the player.
 * 'Haunt' the player and control movement.
-* Impregnate the player with a parasite the player and burst out later.
+* Impregnate the player with a parasite that will burst out later.
 * Rotating laser beam, i.e. attack each surrounding vertex in an order.
 * Throw nearby enemies at the player.
 * Kill other monsters to 'level up'.
@@ -40,3 +41,5 @@ Ideas of monsters.
 * Combine like Power Rangers...
 * Disperse 'seeds' like those mushroom things in Crawl.
 * Be invisible unless very close.
+* Temporarily reduce players view distance.
+* Restrict player movement, e.g. can't move away from monster like DCSS's Sirens.

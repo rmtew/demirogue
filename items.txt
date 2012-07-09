@@ -1,0 +1,23 @@
+items
+=====
+
+Ideas for items.
+
+* Bow. Although a single hit point game must control it somehow:
+  * Takes a turn to ready the bow. Then a turn to fire.
+  * A hit causes a status effect rather than death.
+* Damage each surrounding vertex.
+* Damage in an arc, e.g. 90 degress, focussed on attack direction.
+* Push monsters away from the player.
+* Create a LoS obscuring cloud.
+* Boomerang that attacks in a loop.
+* Holographic shadow that attracts enemies.
+* Lay a trap for enemies to walk into.
+* Become invisible if you stay still.
+* Boots that let you walk over certain terrain.
+* Leave a trail of slime that slows walking enemies.
+* Time limited levitation.
+* Summon a minion to attack monsters.
+* Wellies that protect you from lightning.
+* Box to hide in.
+* Time manipulation a la ToME 4, e.g. save state, kill enemy within time limit, revert to state without enemy.
