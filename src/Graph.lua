@@ -119,6 +119,43 @@ function Graph:merge( other )
 	end
 end
 
+-- This should be more efficient that distanceMap(), especially if queue
+-- is reused between runs.
+function Graph:dmap( source, maxdepth )
+	maxdepth = maxdepth or math.huge
+
+	local vertices = self.vertices
+	assert(vertices[source])
+
+	local result = { [source] = 0 }
+	local queue = { source }
+
+	local index = 1
+	local depth = 0
+
+	while index <= #queue and depth < maxdepth do
+		depth = depth + 1
+
+		local frontier = #queue
+
+		while index <= frontier do
+			local vertex = queue[i]
+
+			for peer, _ in pairs(vertices[vertex]) do
+				if not result[peer] then
+					result[peer] = depth
+					queue[#queue+1] = peer
+				end
+			end
+
+			index = index + 1
+		end
+	end
+
+	return result
+end
+
+-- TODO: If we could avoid the allocations of all but the result that would be cool
 function Graph:distanceMap( source, maxdepth )
 	maxdepth = maxdepth or math.huge
 
