@@ -11,6 +11,9 @@ function AABB.new( tbl )
 		ymax = tbl.ymax,
 	}
 
+	assert(result.xmin <= result.xmax)
+	assert(result.ymin <= result.ymax)
+
 	setmetatable(result, AABB)
 
 	return result
@@ -75,6 +78,13 @@ function AABB:shrink( amount )
 		xmax = self.xmax - amount,
 		ymin = self.ymin + amount,
 		ymax = self.ymax - amount,
+	}
+end
+
+function AABB:centre()
+	return Vector.new {
+		self.xmin + self:width() * 0.5,
+		self.ymin + self:height() * 0.5,
 	}
 end
 
