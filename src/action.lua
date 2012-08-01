@@ -213,3 +213,12 @@ function action.leap( level, actor, target )
 		plan = plan,
 	}
 end
+
+for name, func in pairs(action) do
+	action[name] =
+		function ( ... )
+			local cost, plan = func(...)
+			plan.name = name
+			return cost, plan
+		end
+end

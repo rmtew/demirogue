@@ -55,7 +55,7 @@ local function _gen()
 
 	local actors = {}
 
-	for _, room in pairs(level.rooms) do
+	for index, room in pairs(level.rooms) do
 		local vertex = table.random(room.vertices)
 		assert(vertex)
 
@@ -85,7 +85,7 @@ local function _gen()
 			actor.shadow = true
 		end
 
-		actors[#actors+1] = actor
+		actors[index] = actor
 	end
 
 	local scheduler = Scheduler.new()
@@ -118,6 +118,7 @@ local function _gen()
 					AI_Leap {},
 				},
 				AI_Wander {},
+				AI_Search {},
 			},
 		}
 
@@ -154,11 +155,25 @@ gamemode = {}
 function gamemode.update()
 	local dt = warp * love.timer.getDelta()
 	time = time + dt
+	
+	if #actions == 0 and not playerAction then
+		for index, actor in ipairs(actors) do
+			local ax, ay = actor[1], actor[2]
+			local vx, vy = actor.vertex[1], actor.vertex[2]
+			local dx = math.abs(ax - vx)
+			local dy = math.abs(ay - vy)
+			local epsilon = 0.001
+			local t = function ( x, y ) return string.format('[%.2f, %.2f]', x, y) end
+
+			assertf(dx < epsilon and dy < epsilon, 'actor #%d %s expecting %s delta %s', index, t(ax, ay), t(vx, vy), t(dx, dy))
+		end
+	end
 
 	if #actions == 0 then
+
 		local complete, ticks = false, 0
 		complete, ticks, actions = scheduler:run()
-		-- print('run', ticks)
+		-- print('run', ticks, #actions)
 		
 		for _, action in ipairs(actions) do
 			action.time = 0
@@ -176,6 +191,7 @@ function gamemode.update()
 			if running then
 				action.time = action.time + dt
 			else
+				print('boom', action.name)
 				table.remove(actions, 1)
 			end
 		else
@@ -192,6 +208,7 @@ function gamemode.update()
 
 					action.time = action.time + dt
 				else
+					print('boom', action.name)
 					table.remove(actions, index)
 				end
 			end

@@ -1,3 +1,11 @@
+
+function assertf( cond, ... )
+	if not cond then
+		error(string.format(...), 2)
+	end
+end
+
+
 function math.round( value )
 	return math.floor(0.5 + value)
 end

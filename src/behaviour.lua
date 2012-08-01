@@ -69,6 +69,9 @@ local function _behaviour_new_array( array )
 	return result
 end
 
+local _trace = true
+local _indent = 0
+
 local function _node( node )
 	assert(type(node) == 'table')
 	assert(type(node.tag) == 'string' and #node.tag > 0 and not nodes[node.tag])
@@ -110,6 +113,23 @@ local function _node( node )
 			function ( self, level, actor )
 				self.performed = false
 				node_reset(self, level, actor)
+			end
+	end
+
+	if _trace then
+		local node_tick = node.tick
+		node.tick =
+			function ( self, level, actor, indent )
+				local padding =string.rep(' ', _indent) 
+				printf('%s%s', padding, node.tag)
+				
+				_indent = _indent + 2
+				local result, cost, plan = node_tick(self, level, actor)
+				_indent = _indent - 2
+
+				printf('%s => %s', padding, result)
+
+				return result, cost, plan
 			end
 	end
 

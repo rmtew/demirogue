@@ -1,6 +1,7 @@
 require 'AABB'
 require 'Graph'
 require 'Vector'
+require 'graph2D'
 
 local V = Vector.new
 local VN = Vector.normal
@@ -348,8 +349,8 @@ function Level.new( params )
 		graph:merge(room)
 	end
 
-	_connect(graph, rooms)
-	_subdivide(graph, margin)
+	graph2D.connect(graph, rooms)
+	graph2D.subdivide(graph, margin)
 	_edgecheck(graph)
 	-- _enclose(graph, aabb, margin)
 
