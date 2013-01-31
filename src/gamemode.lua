@@ -12,11 +12,13 @@ require 'action'
 require 'KDTree'
 require 'metalines'
 require 'texture'
+require 'Voronoi'
 
 local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 local track = false
 local actions = {}
 local playerAction = nil
+local diagram = nil
 
 
 local function _gen()
@@ -287,20 +289,20 @@ local clut =
 
 		-- This is a test of black with a white edge for an old-school vibe.
 		--
-		-- local blur = 5
-		-- local b1 = 10
-		-- local b2 = 30
+		local blur = 5
+		local b1 = 10
+		local b2 = 30
 	
-		-- local black = { 0, 0, 0, 255 }
-		-- local white = { 255, 255, 255, 255 }
+		local black = { 0, 0, 0, 255 }
+		local white = { 255, 255, 255, 255 }
 
-		-- local bands = {
-		-- 	[1] = black,
-		-- 	[b1-blur] = white,
-		-- 	[b1+blur] = white,
-		-- 	[b2-blur] = black,
-		-- 	[100] = black,
-		-- }
+		local bands = {
+			[1] = black,
+			[b1-blur] = white,
+			[b1+blur] = white,
+			[b2-blur] = black,
+			[100] = black,
+		}
 
 		return texture.bandedCLUT(bands, 256, 256, 'grey')
 	end)()
@@ -502,7 +504,7 @@ local coverEffect = love.graphics.newPixelEffect [[
 	{
 		vec4 hl = Texel(height, pc / screen);
 		float h = hl.r;
-		float l = (0.25 * hl.g) + (0.75 * hl.b);
+		float l = (0.5 * hl.g) + (0.5 * hl.b);
 		// This is 1 when minHeight <= h <= maxHeight and 0 otherwise.
 		// float band = (1 - step(h, minHeight)) * (1 - step(maxHeight, h));
 		// float band = smooth(h, minHeight, maxHeight);
@@ -602,6 +604,7 @@ local drawHeightfield = false
 local drawCover = true
 local drawBetweeness = false
 local drawOryx = false
+local drawVoronoi = true
 
 local _spriteBatches = {}
 
@@ -722,8 +725,8 @@ function gamemode.draw()
 			height = {
 				-- image = triforce,
 				-- image = crystal,
-				-- image = bricks,
-				image = blobs,
+				image = bricks,
+				-- image = blobs,
 				-- image = mound,
 				size = numVertices,
 			},
@@ -780,7 +783,7 @@ function gamemode.draw()
 			heightBatch:add(x, y, rot, scale, scale, 128, 128)
 
 			if grass then
-				grassBatch:add(x, y, 0, scale, scale, 128, 128)
+				-- grassBatch:add(x, y, 0, scale, scale, 128, 128)
 			end
 
 			-- Height textures aren't required to fit with a circle like the
@@ -1046,6 +1049,41 @@ function gamemode.draw()
 
 	love.graphics.setPixelEffect()
 
+	if drawVoronoi and diagram then
+		local colours = {
+			{ 0, 0, 0, 255 },
+			{ 255, 0, 0, 255 },
+			{ 0, 255, 0, 255 },
+			{ 0, 0, 255, 255 },
+			{ 255, 255, 0, 255 },
+			{ 255, 0, 255, 255 },
+			{ 0, 255, 255, 255 },
+			{ 255, 255, 255, 255 },
+		}
+
+		for id, cell in ipairs(diagram.cells) do
+			local vertices = {}
+
+			for _, halfedge in ipairs(cell.halfedges) do
+				local startpoint = halfedge:getStartpoint()
+
+				vertices[#vertices+1] = startpoint.x
+				vertices[#vertices+1] = startpoint.y
+			end
+
+			if #vertices < 3*2 then
+				printf('cell id:%d has only %d verts', id, #vertices/2)
+			else
+				local colour = colours[1 + (id % #colours)]
+
+				love.graphics.setColor(unpack(colour))
+				love.graphics.polygon('fill', vertices)
+			end
+		end
+	end
+
+	love.graphics.setPixelEffect()
+
 	local points = {}
 
 	for vertex, _ in pairs(level.graph.vertices) do
@@ -1106,6 +1144,39 @@ local _keydir = {
 
 local known = false
 
+local function genvoronoi()
+	if diagram then
+		diagram = nil
+	else
+		local sites = {}
+
+		for vertex, _ in pairs(level.graph.vertices) do
+			local site = {
+				x = vertex[1],
+				y = vertex[2],
+			}
+			sites[#sites+1] = site
+		end
+
+		local bbox = {
+			xl = level.aabb.xmin - 100,
+			xr = level.aabb.xmax + 100,
+			yt = level.aabb.ymin - 100,
+			yb = level.aabb.ymax + 100,
+		}
+
+		diagram = Voronoi:new():compute(sites, bbox)
+
+		print('bbox', bbox.xl, bbox.xr, bbox.yt, bbox.yb)
+		print('#cells', #diagram.cells)
+		print('#edges', #diagram.edges)
+
+		for index, cell in ipairs(diagram.cells) do
+			print('cell', index, '#halfedges', #cell.halfedges)
+		end
+	end
+end
+
 function gamemode.keypressed( key )
 	if key == 'z' then
 		if scale ~= 1/3 then
@@ -1121,6 +1192,11 @@ function gamemode.keypressed( key )
 		level, actors, scheduler = _gen()
 		actions = {}
 		known = false
+
+		if diagram then
+			diagram = nil
+			genvoronoi()
+		end
 	elseif key == 's' and not playerAction and #actions == 0 then
 		local cost, action = action.search(level, actors[1])
 
@@ -1162,6 +1238,8 @@ function gamemode.keypressed( key )
 		for vertex, _ in pairs(level.graph.vertices) do
 			vertex.known = known
 		end
+	elseif 'r' then
+		genvoronoi()
 	elseif not playerAction and #actions == 0 then
 		local dir = _keydir[key]
 		local player = actors[1]
