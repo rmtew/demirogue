@@ -44,9 +44,9 @@ local function _gen()
 			xmax = 3 * w,
 			ymax = 3 * h,
 		},
-		margin = 100,
+		-- margin = 100,
 		-- margin = 50,
-		-- margin = 75,
+		margin = 75,
 		-- margin = 100,
 		layout = layoutgen.splat,
 		roomgen = rgen,
@@ -289,20 +289,20 @@ local clut =
 
 		-- This is a test of black with a white edge for an old-school vibe.
 		--
-		local blur = 5
-		local b1 = 10
-		local b2 = 30
+		-- local blur = 5
+		-- local b1 = 10
+		-- local b2 = 30
 	
-		local black = { 0, 0, 0, 255 }
-		local white = { 255, 255, 255, 255 }
+		-- local black = { 0, 0, 0, 255 }
+		-- local white = { 255, 255, 255, 255 }
 
-		local bands = {
-			[1] = black,
-			[b1-blur] = white,
-			[b1+blur] = white,
-			[b2-blur] = black,
-			[100] = black,
-		}
+		-- local bands = {
+		-- 	[1] = black,
+		-- 	[b1-blur] = white,
+		-- 	[b1+blur] = white,
+		-- 	[b2-blur] = black,
+		-- 	[100] = black,
+		-- }
 
 		return texture.bandedCLUT(bands, 256, 256, 'grey')
 	end)()
@@ -725,8 +725,8 @@ function gamemode.draw()
 			height = {
 				-- image = triforce,
 				-- image = crystal,
-				image = bricks,
-				-- image = blobs,
+				-- image = bricks,
+				image = blobs,
 				-- image = mound,
 				size = numVertices,
 			},
@@ -889,6 +889,46 @@ function gamemode.draw()
 		love.graphics.setBlendMode(oldBlendMode)
 	end
 
+	if drawVoronoi and diagram then
+		love.graphics.setPixelEffect()
+		local colours = {
+			-- { 0, 0, 0, 255 },
+			{ 255, 0, 0, 255 },
+			{ 0, 255, 0, 255 },
+			{ 0, 0, 255, 255 },
+			{ 255, 255, 0, 255 },
+			{ 255, 0, 255, 255 },
+			{ 0, 255, 255, 255 },
+			{ 255, 255, 255, 255 },
+		}
+
+		for id, cell in ipairs(diagram.cells) do
+			local vertices = {}
+
+			for _, halfedge in ipairs(cell.halfedges) do
+				local startpoint = halfedge:getStartpoint()
+
+				vertices[#vertices+1] = startpoint.x
+				vertices[#vertices+1] = startpoint.y
+			end
+
+			if #vertices < 3*2 then
+				printf('cell id:%d has only %d verts', id, #vertices/2)
+			else
+				local colour = { 64, 64, 64, 255 }
+
+				if not cell.site.wall then
+					colour = colours[1 + (id % #colours)]
+				end
+
+				love.graphics.setColor(unpack(colour))
+				love.graphics.polygon('fill', vertices)
+				love.graphics.setColor(0, 0, 0, 255)
+				love.graphics.polygon('line', vertices)
+			end
+		end
+	end
+
 	local linewidth = 2
 
 	if drawEdges then
@@ -1049,41 +1089,6 @@ function gamemode.draw()
 
 	love.graphics.setPixelEffect()
 
-	if drawVoronoi and diagram then
-		local colours = {
-			{ 0, 0, 0, 255 },
-			{ 255, 0, 0, 255 },
-			{ 0, 255, 0, 255 },
-			{ 0, 0, 255, 255 },
-			{ 255, 255, 0, 255 },
-			{ 255, 0, 255, 255 },
-			{ 0, 255, 255, 255 },
-			{ 255, 255, 255, 255 },
-		}
-
-		for id, cell in ipairs(diagram.cells) do
-			local vertices = {}
-
-			for _, halfedge in ipairs(cell.halfedges) do
-				local startpoint = halfedge:getStartpoint()
-
-				vertices[#vertices+1] = startpoint.x
-				vertices[#vertices+1] = startpoint.y
-			end
-
-			if #vertices < 3*2 then
-				printf('cell id:%d has only %d verts', id, #vertices/2)
-			else
-				local colour = colours[1 + (id % #colours)]
-
-				love.graphics.setColor(unpack(colour))
-				love.graphics.polygon('fill', vertices)
-			end
-		end
-	end
-
-	love.graphics.setPixelEffect()
-
 	local points = {}
 
 	for vertex, _ in pairs(level.graph.vertices) do
@@ -1154,6 +1159,7 @@ local function genvoronoi()
 			local site = {
 				x = vertex[1],
 				y = vertex[2],
+				wall = vertex.wall,
 			}
 			sites[#sites+1] = site
 		end
@@ -1238,7 +1244,7 @@ function gamemode.keypressed( key )
 		for vertex, _ in pairs(level.graph.vertices) do
 			vertex.known = known
 		end
-	elseif 'r' then
+	elseif key == 'r' then
 		genvoronoi()
 	elseif not playerAction and #actions == 0 then
 		local dir = _keydir[key]

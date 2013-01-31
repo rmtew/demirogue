@@ -352,7 +352,7 @@ function Level.new( params )
 	graph2D.connect(graph, rooms)
 	graph2D.subdivide(graph, margin)
 	_edgecheck(graph)
-	-- _enclose(graph, aabb, margin)
+	_enclose(graph, params.aabb, margin)
 
 	local aabbs = {}
 

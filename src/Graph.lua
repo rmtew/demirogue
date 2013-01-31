@@ -185,6 +185,8 @@ function Graph:distanceMap( source, maxdepth )
 	return result
 end
 
+-- Floyd-Warshall, for sparse graphs it would be more efficient to use a
+-- breadth first traversal from each vertex.
 function Graph:allPairsShortestPaths()
 	local result = {}
 
@@ -197,6 +199,7 @@ function Graph:allPairsShortestPaths()
 			if vertex1 == vertex2 then
 				weights[vertex2] = 0
 			elseif peers[vertex2] then
+				-- If we need weights here's where to insert them.
 				weights[vertex2] = 1
 			else
 				weights[vertex2] = math.huge

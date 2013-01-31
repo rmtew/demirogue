@@ -9,5 +9,5 @@ function love.conf( t )
 
     -- t.screen.width = 400
     -- t.screen.height = 300
-	-- t.screen.fsaa = 8
+	t.screen.fsaa = 8
 end
