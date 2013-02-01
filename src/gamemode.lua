@@ -891,6 +891,10 @@ function gamemode.draw()
 
 	if drawVoronoi and diagram then
 		love.graphics.setPixelEffect()
+
+		local linewidth = 2
+		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
+
 		local colours = {
 			-- { 0, 0, 0, 255 },
 			{ 255, 0, 0, 255 },
@@ -918,13 +922,16 @@ function gamemode.draw()
 				local colour = { 64, 64, 64, 255 }
 
 				if not cell.site.wall then
-					colour = colours[1 + (id % #colours)]
+					-- colour = colours[1 + (id % #colours)]
+					colour = { 0, 255, 255, 255 }
 				end
 
 				love.graphics.setColor(unpack(colour))
 				love.graphics.polygon('fill', vertices)
-				love.graphics.setColor(0, 0, 0, 255)
-				love.graphics.polygon('line', vertices)
+				if not cell.site.wall then
+					love.graphics.setColor(0, 0, 0, 255)
+					love.graphics.polygon('line', vertices)
+				end
 			end
 		end
 	end
@@ -1171,15 +1178,19 @@ local function genvoronoi()
 			yb = level.aabb.ymax + 100,
 		}
 
+		local start = love.timer.getMicroTime()
 		diagram = Voronoi:new():compute(sites, bbox)
+		local finish = love.timer.getMicroTime()
 
-		print('bbox', bbox.xl, bbox.xr, bbox.yt, bbox.yb)
-		print('#cells', #diagram.cells)
-		print('#edges', #diagram.edges)
+		printf('Voronoi:compute(%d) %.3fs', #sites, finish - start)
 
-		for index, cell in ipairs(diagram.cells) do
-			print('cell', index, '#halfedges', #cell.halfedges)
-		end
+		-- print('bbox', bbox.xl, bbox.xr, bbox.yt, bbox.yb)
+		-- print('#cells', #diagram.cells)
+		-- print('#edges', #diagram.edges)
+
+		-- for index, cell in ipairs(diagram.cells) do
+		-- 	print('cell', index, '#halfedges', #cell.halfedges)
+		-- end
 	end
 end
 

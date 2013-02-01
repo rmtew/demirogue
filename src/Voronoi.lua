@@ -1,8 +1,8 @@
 --[[
 
-voronoi.lua
+Voronoi.lua
 
-Based on Raymon Hill's excellent Javascript implementation.
+Based on Raymond Hill's excellent Javascript implementation.
 
 Author: Raymond Hill (rhill@raymondhill.net)
 Contributor: Jesse Morgan (morgajel@gmail.com)
@@ -644,7 +644,6 @@ function Voronoi.Cell:prepare()
 	for index = numHalfedges, 1, -1 do
 		local edge = halfedges[index].edge
 		if not edge.vb or not edge.va then
-			print('va', not edge.va, 'vb', not edge.vb)
 			table.remove(halfedges, index)
 		end
 	end

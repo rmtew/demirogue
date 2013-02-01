@@ -24,3 +24,14 @@ TODO
   - Need to be able to interrogate the graph.
 - Explanatory text for monsters.
   - Maybe with unique names and flavour lines.
+
+- The scheduler is a nice idea but the code is too complex.
+  - Binomial heap isn't stable by default but could be a good idea.
+
+- Voronoi
+  - Polygon offset algorithm for shorelines, roofs and so on.
+  - Edge fettling for cells, e.g. grass.
+  - Reconsider level generation in light of using voronoi.
+  - Either try and maintain max vertex valance of 8 (so keys work) or move to mouse only input.
+  - Maybe try to compile Love by hand to get Geometry support.
+  - Need to be able to traverse the halfedges and find out connected cells.
