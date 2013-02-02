@@ -305,10 +305,11 @@ function Level.new( params )
 	local layout = params.layout
 	local roomgen = params.roomgen
 	local graphgen = params.graphgen
-
-	local limits = {
+	local limits = params.limits or {
 		minwidth = 100,
 		minheight = 100,
+		maxwidth = 400,
+		maxheight = 400,
 		margin = margin,
 		maxboxes = 45,
 		point1s = nil,

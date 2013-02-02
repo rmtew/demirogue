@@ -93,8 +93,8 @@ function layoutgen.splat( bbox, limits )
 
 	local minwidth = limits.minwidth + limits.margin
 	local minheight = limits.minheight + limits.margin
-	local maxwidth = math.floor(bbox:width() * 0.5)
-	local maxheight = math.floor(bbox:height() * 0.5)
+	local maxwidth = limits.maxwidth or math.floor(bbox:width() * 0.5)
+	local maxheight = limits.maxheight or math.floor(bbox:height() * 0.5)
 
 	print('pre', minwidth, minheight, maxwidth, maxheight)
 
