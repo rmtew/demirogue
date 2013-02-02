@@ -34,6 +34,8 @@ TODO
   - Reconsider level generation in light of using voronoi.
     - Create room AABBs layout gen style.
     - Change roomgen to create points and not graphs.
+    - Voronoi
+    - Connect rooms
     
   - Either try and maintain max vertex valance of 8 (so keys work) or move to mouse only input.
   - Maybe try to compile Love by hand to get Geometry support.

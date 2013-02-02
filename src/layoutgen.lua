@@ -14,6 +14,8 @@ end
 -- limits = {
 --     minwidth = minimum width of a resulting bbox
 --     minheight = minimum height of a resulting bbox
+--     maxwidth = maximum width of a resulting bbox
+--     maxheight = maximum height of a resulting bbox
 --     margin = minimum space between resulting bboxes
 --     maxboxes = maximum no. of resulting leaves.
 -- }
@@ -25,6 +27,8 @@ local _axes = {
 }
 
 function layoutgen.bsp( bbox, limits )
+	error('layoutgen.bsp() is very bad')
+
 	local minbranchwidth = (2 * limits.minwidth) + (2 * limits.margin)
 	local minbranchheight = (2 * limits.minheight) + (2 * limits.margin)
 

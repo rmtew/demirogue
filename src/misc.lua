@@ -78,6 +78,7 @@ end
 
 -------------------------------------------------------------------------------
 
+-- TODO: This is less efficient than an array of arrays so change it.
 function newgrid( width, height, value )
 	local data = {}
 

@@ -88,5 +88,39 @@ function AABB:centre()
 	}
 end
 
+-- The smallest square AABB that contains the aabb.
+function AABB:square()
+	local w, h = self:width(), self:height()
+	local cx, cy = self.xmin + w * 0.5, self.ymin + h * 0.5
+
+	local result
+
+	if w > h then
+		result = AABB.new {
+			xmin = self.xmin,
+			xmax = self.xmax,
+			ymin = cy - w * 0.5,
+			ymax = cy + w * 0.5,
+		}
+	else
+		result = AABB.new {
+			xmin = cx - h * 0.5,
+			xmax = cx + h * 0.5,
+			ymin = self.ymin,
+			ymax = self.ymax,
+		}
+	end
+
+	assert(result:width() == result:height())
+
+	return result
+end
+
+function AABB:contains( point )
+	local x, y = point[1], point[2]
+
+	return self.xmin <= x and x <= self.xmax and self.ymin <= y and y <= self.ymax
+end
+
 
 

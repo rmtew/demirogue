@@ -85,4 +85,24 @@ function Vector.scale( self )
 	return self
 end
 
+function Vector.aabb( vectors )
+	local xmin, xmax = math.huge, -math.huge
+	local ymin, ymax = math.huge, -math.huge
+
+	for i = 1, #vectors do
+		local vector  = vectors[i]
+		xmin = math.min(xmin, vector[1])
+		xmax = math.max(xmax, vector[1])
+		ymin = math.min(ymin, vector[2])
+		ymax = math.max(ymax, vector[2])
+	end
+
+	return AABB.new {
+		xmin = xmin,
+		xmax = xmax,
+		ymin = ymin,
+		ymax = ymax,
+	}
+end
+
 

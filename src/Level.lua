@@ -2,49 +2,14 @@ require 'AABB'
 require 'Graph'
 require 'Vector'
 require 'graph2D'
+require 'Quadtree'
 
 local V = Vector.new
 local VN = Vector.normal
 
-Level = {
-	Dir = {
-		N = 'N',
-		E = 'E',
-		S = 'S',
-		W = 'W',
-		NE = 'NE',
-		SE = 'SE',
-		SW = 'SW',
-		NW = 'NW',
-	},
-	DirToVec = {
-		N = V {  0, -1 },
-		E = V {  1,  0 },
-		S = V {  0,  1 },
-		W = V { -1,  0 },
-		NE = VN {  1, -1 },
-		SE = VN {  1,  1 },
-		SW = VN { -1,  1 },
-		NW = VN { -1, -1 },
-	},
-	Opposite = {
-		N = 'S',
-		E = 'W',
-		S = 'N',
-		W = 'E',
-		NE = 'SW',
-		SE = 'NW',
-		SW = 'NE',
-		NW = 'SE',
-	},
-}
+Level = {}
 
 Level.__index = Level
-
-local Dir = Level.Dir
-local DirToVec = Level.DirToVec
-local Opposite = Level.Opposite
-
 
 local function _connect( graph, rooms )
 	local centres = {}
@@ -96,133 +61,6 @@ local function _connect( graph, rooms )
 	end
 end
 
-local function _edgecheck( graph )
-	local deathrow = {}
-
-	for vertex, peers in pairs(graph.vertices) do
-		-- We need to map edges to directions.
-		local diredges = {}
-		local dirdots = {}
-
-		for other, edge in pairs(peers) do
-			local disp = Vector.to(vertex, other):normalise()
-
-			local maxdot = math.cos(math.pi / 8)
-			local neardir = nil
-
-			for dir, vec in pairs(DirToVec) do
-				local dot = disp:dot(vec)
-
-				if maxdot <= dot then
-					maxdot = dot
-					neardir = dir
-				end
-			end
-
-			assert(neardir)
-
-			local diredge = diredges[neardir]
-			local dirdot = dirdots[neardir]
-
-			if not diredge or dirdot < maxdot then
-				diredges[neardir] = edge
-				dirdots[neardir] = maxdot
-
-				if diredge then
-					deathrow[diredge] = true
-				end
-			end
-		end
-
-		for dir, edge in pairs(diredges) do
-			if vertex == graph.edges[edge][1] then
-				edge.dir1to2 = dir
-			else
-				edge.dir2to1 = dir
-			end
-		end
-	end
-
-	for edge, _ in pairs(graph.edges) do
-		local dir1to2, dir2to1 = edge.dir1to2, edge.dir2to1
-
-		if not dir1to2 or not dir2to1 or edge.dir1to2 ~= Opposite[edge.dir2to1] then
-			deathrow[edge] = true
-		end
-	end
-
-	for edge, _ in pairs(deathrow) do
-		graph:removeEdge(edge)
-	end
-
-	for vertex, peers in pairs(graph.vertices) do
-		local dirs = {}
-
-		for other, edge in pairs(peers) do
-			local endverts = graph.edges[edge]
-			
-			if vertex == endverts[1] then
-				dirs[edge.dir1to2] = other
-			else
-				dirs[edge.dir2to1] = other
-			end
-		end
-
-		vertex.dirs = dirs
-	end
-end
-
-local function _subdivide( graph, margin )
-	local subs = {}
-
-	for edge, endverts in pairs(graph.edges) do
-		local length = Vector.toLength(endverts[1], endverts[2])
-		local numpoints = math.floor(length / margin) - 1
-
-		-- We allow corridors to be subdivided slightly more than other edges
-		-- to ensure connectivity.
-		if edge.corridor and length > margin and numpoints == 0 then
-			numpoints = 1
-		end
-
-		if numpoints > 0 then
-			local length = edge.length / (numpoints + 1)
-			local start, finish = endverts[1], endverts[2]
-			assert(start ~= finish)
-			local normal = Vector.to(start, finish):normalise()
-
-			local vertices = { start }
-
-			for i = 1, numpoints do
-				local vertex = Vector.new {
-					start[1] + (i * length * normal[1]),
-					start[2] + (i * length * normal[2]),
-				}
-
-				vertex.subdivide = true
-
-				graph:addVertex(vertex)
-
-				vertices[#vertices+1] = vertex
-			end
-
-			vertices[#vertices+1] = finish
-
-			subs[#subs+1] = {
-				vertices = vertices,
-				length = length,
-			}
-			
-			graph:removeEdge(edge)
-		end
-	end
-
-	for _, sub in ipairs(subs) do
-		for i = 1, #sub.vertices-1 do
-			graph:addEdge({ length = sub.length }, sub.vertices[i], sub.vertices[i+1])
-		end
-	end
-end
 
 local function _enclose( graph, aabb, margin )
 	print('_enclose()')
@@ -311,87 +149,54 @@ function Level.new( params )
 	local margin = params.margin
 	local layout = params.layout
 	local roomgen = params.roomgen
-	local graphgen = params.graphgen
 	local limits = params.limits or {
 		minwidth = 100,
 		minheight = 100,
 		maxwidth = 400,
 		maxheight = 400,
 		margin = margin,
-		maxboxes = 45,
+		maxboxes = 1,
 		point1s = nil,
 		point2s = nil,
 	}
 
-	local boxes = layout(aabb, limits)
+	-- 1. get the rooms AABBs.
+	local aabbs = layout(aabb, limits)
+
+	printf('#aabbs:%d', #aabbs)
+
+	-- 2. get point lists for each room.
 	local rooms = {}
+	for index = 1, #aabbs do
+		local aabb = aabbs[index]
 
-	local graph = Graph.new()
-	
-	for index, box in ipairs(boxes) do
-		local room
+		local points
 		repeat
-			room = roomgen(box, margin)
-		until next(room.vertices)
+			points = roomgen(aabb, margin)
+		until #points > 0
 
-		for edge, endverts in pairs(room.edges) do
-			assert(endverts[1] ~= endverts[2], string.format('%d', index))
-		end
-
-		local betweenness, eccentricities, radius, diameter = room:betweenness()
-
-		for vertex, value in pairs(betweenness) do
-			vertex.centrality = value
-
-			if eccentricities[vertex] == radius then
-				vertex.central = true
-			end
-
-			if eccentricities[vertex] == diameter then
-				vertex.peripheral = true
-			end
-		end
-
-		rooms[index] = room
-
-		graph:merge(room)
+		rooms[index] = {
+			points = points,
+			index = index,
+			aabb = aabb,
+		}
 	end
 
-	graph2D.connect(graph, rooms)
-	graph2D.subdivide(graph, margin)
-	_edgecheck(graph)
-	-- _enclose(graph, params.aabb, margin)
+	-- 3. insert all the points into a quadtree.
+	local quadtree = Quadtree.new(aabb)
 
-	local aabbs = {}
+	for index = 1, #rooms do
+		local points = rooms[index].points
 
-	for index, room in ipairs(rooms) do
-		local xmin = math.huge
-		local ymin = math.huge
-		local xmax = -math.huge
-		local ymax = -math.huge
-
-		for vertex, _ in pairs(room.vertices) do
-			local x, y = vertex[1], vertex[2]
-			xmin = math.min(x, xmin)
-			ymin = math.min(y, ymin)
-			xmax = math.max(x, xmax)
-			ymax = math.max(y, ymax)
+		for j = 1, #points do
+			quadtree:insert(points[j], index)
 		end
-
-		aabbs[index] = AABB.new {
-			xmin = xmin,
-			ymin = ymin,
-			xmax = xmax,
-			ymax = ymax,
-		}
 	end
 
 	local result = {
 		aabb = aabb,
-		boxes = boxes,
-		rooms = rooms,
-		aabbs = aabbs,
-		graph = graph,
+		rooms =rooms,
+		quadtree = quadtree,
 	}
 
 	setmetatable(result, Level)

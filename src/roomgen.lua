@@ -1,7 +1,18 @@
-require 'graphgen'
+--
+-- roomgen/lua
+--
+-- The roomgen table contained function with the following signature:
+--
+--   roomgen.<func>( aabb, margin )
+--
+-- An array of points is the result.
+--
 
-roomgen = {}
+roomgen = {
+	grid = nil,
+}
 
+-- TDOD: not as efficient as an array of arrays.
 local function _mask( width, height, default )
 	local data = {}
 
@@ -43,10 +54,8 @@ local function _mask( width, height, default )
 	}
 end
 
-
--- TODO: Can construct the graph by hand more optimally than gabriel.
 function roomgen.grid( bbox, margin )
-	local result = {}
+	local points = {}
 
 	local w = bbox:width()
 	local h = bbox:height()
@@ -64,15 +73,15 @@ function roomgen.grid( bbox, margin )
 			local x = xoffset + (x * margin)
 			local y = yoffset + (y * margin)
 
-			result[#result+1] = Vector.new { x, y }
+			points[#points+1] = Vector.new { x, y }
 		end
 	end
 
-	return graphgen.gabriel(result)
+	return points
 end
 
 function roomgen.browniangrid( bbox, margin )
-	local result = {}
+	local points = {}
 
 	local w = bbox:width()
 	local h = bbox:height()
@@ -134,12 +143,12 @@ function roomgen.browniangrid( bbox, margin )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * margin)
 
-				result[#result+1] = Vector.new { x, y }
+				points[#points+1] = Vector.new { x, y }
 			end
 		end
 	end
 
-	return graphgen.gabriel(result)
+	return points
 end
 
 function roomgen.cellulargrid( bbox, margin )
@@ -250,7 +259,7 @@ function roomgen.cellulargrid( bbox, margin )
 
 	print('#points', #result)
 
-	return graphgen.gabriel(result)
+	return result
 end
 
 function roomgen.randgrid( bbox, margin )
@@ -280,7 +289,7 @@ function roomgen.randgrid( bbox, margin )
 		end
 	end
 
-	return graphgen.gabriel(result)
+	return result
 end
 
 function roomgen.hexgrid( bbox, margin )
@@ -311,7 +320,7 @@ function roomgen.hexgrid( bbox, margin )
 		end
 	end
 
-	return graphgen.gabriel(result)
+	return result
 end
 
 function roomgen.randhexgrid( bbox, margin )
@@ -344,7 +353,7 @@ function roomgen.randhexgrid( bbox, margin )
 		end
 	end
 
-	return graphgen.gabriel(result)
+	return result
 end
 
 -- ensure all points are at least margin apart.
@@ -412,7 +421,7 @@ function roomgen.random( bbox, margin )
 
 	result = _sanitise(bbox, margin, result)
 
-	return graphgen.gabriel(result)
+	return result
 end
 
 
