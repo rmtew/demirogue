@@ -9,5 +9,6 @@ function love.conf( t )
 
     -- t.screen.width = 400
     -- t.screen.height = 300
+    -- The voronoi cells look a lot better with AA on.
 	t.screen.fsaa = 8
 end

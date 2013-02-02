@@ -959,6 +959,11 @@ function gamemode.draw()
 
 				local bias = (maxdepth - distance) / maxdepth
 				local luminance = 100 + math.round(100 * bias)
+
+				if drawVoronoi and diagram then
+					luminance = 255
+				end
+
 				love.graphics.setColor(luminance, 0, luminance, luminance)
 				
 				love.graphics.line(vertex1[1], vertex1[2], vertex2[1], vertex2[2])

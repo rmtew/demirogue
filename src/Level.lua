@@ -91,7 +91,7 @@ local function _connect( graph, rooms )
 		end
 
 		if near1 and near2 then
-			graph:addEdge({ length = mindist }, near1, near2)
+			graph:addEdge({ length = mindist, corridor = true }, near1, near2)
 		end
 	end
 end
@@ -176,7 +176,14 @@ local function _subdivide( graph, margin )
 	local subs = {}
 
 	for edge, endverts in pairs(graph.edges) do
-		local numpoints = math.floor(Vector.toLength(endverts[1], endverts[2]) / margin) - 1
+		local length = Vector.toLength(endverts[1], endverts[2])
+		local numpoints = math.floor(length / margin) - 1
+
+		-- We allow corridors to be subdivided slightly more than other edges
+		-- to ensure connectivity.
+		if edge.corridor and length > margin and numpoints == 0 then
+			numpoints = 1
+		end
 
 		if numpoints > 0 then
 			local length = edge.length / (numpoints + 1)
