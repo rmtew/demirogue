@@ -47,7 +47,7 @@ local function _gen()
 		margin = 50,
 		-- margin = 75,
 		-- margin = 100,
-		layout = layoutgen.splat,
+		layout = layoutgen.bsp,
 		roomgen = rgen,
 		graphgen = graphgen.gabriel,
 	}
@@ -151,9 +151,9 @@ local actions = {}
 local warp = 1
 local time = 0
 
-gamemode = {}
+voronoimode = {}
 
-function gamemode.update()
+function voronoimode.update()
 	local dt = warp * love.timer.getDelta()
 	time = time + dt
 	
@@ -611,7 +611,7 @@ end
 
 local scale = 1/3
 
-function gamemode.draw()
+function voronoimode.draw()
 	love.graphics.push()
 	
 	local xform = {
@@ -1087,7 +1087,7 @@ function gamemode.draw()
 		count)
 end
 
-function gamemode.mousepressed( x, y, button )
+function voronoimode.mousepressed( x, y, button )
 	if button == 'wu' then
 		scale = math.min(3, scale * 3)
 		printf('scale:%.2f', scale)
@@ -1159,7 +1159,7 @@ local function genvoronoi()
 	end
 end
 
-function gamemode.keypressed( key )
+function voronoimode.keypressed( key )
 	if key == 'z' then
 		if scale ~= 1/3 then
 			scale = 1/3
@@ -1247,5 +1247,5 @@ function gamemode.keypressed( key )
 	end
 end
 
-function gamemode.keyreleased( key )
+function voronoimode.keyreleased( key )
 end

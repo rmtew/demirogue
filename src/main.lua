@@ -1,4 +1,5 @@
 require 'gamemode'
+require 'voronoimode'
 require 'glyphmode'
 
 print('_VERSION', _VERSION)
@@ -7,7 +8,7 @@ local modes = {
 	gamemode,
 	glyphmode,
 }
-local mode = gamemode
+local mode = voronoimode
 
 function love.load()
 	font = love.graphics.newFont('resources/inconsolata.otf', 30)
