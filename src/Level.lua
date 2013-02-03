@@ -3,6 +3,7 @@ require 'Graph'
 require 'Vector'
 require 'graph2D'
 require 'Quadtree'
+require 'Voronoi'
 
 local V = Vector.new
 local VN = Vector.normal
@@ -11,83 +12,80 @@ Level = {}
 
 Level.__index = Level
 
-local function _connect( graph, rooms )
+-- Uses a relative neighbourhood graph to connect the rooms.
+local function _connect( rooms, margin )
 	local centres = {}
 
-	for _, room in ipairs(rooms) do
-		local xmin, ymin = math.huge, math.huge
-		local xmax, ymax = -math.huge, -math.huge
-
-		for vertex, _ in pairs(room.vertices) do
-			local x, y = vertex[1], vertex[2]
-			xmin = math.min(xmin, x)
-			ymin = math.min(ymin, y)
-			xmax = math.max(xmax, x)
-			ymax = math.max(ymax, y)
-		end
-
-		local centre = Vector.new {
-			xmin + (0.5 * (xmax - xmin)),
-			ymin + (0.5 * (ymax - ymin)),
-		}
-
+	for index, room in ipairs(rooms) do
+		local centre = room.aabb:centre()
 		centre.room = room
-
-		centres[#centres+1] = centre
+		centres[index] = centre
 	end
 
 	local skele = graphgen.rng(centres)
 
+	-- Now create the points along the edges.
+
+	local points = {}
+
 	for edge, verts in pairs(skele.edges) do
 		local room1, room2 = verts[1].room, verts[2].room
 
-		local mindist = math.huge
-		local near1, near2 = nil, nil
-
-		for vertex1, _ in pairs(room1.vertices) do
-			for vertex2, _ in pairs(room2.vertices) do
-				local distance = Vector.toLength(vertex1, vertex2)
-
-				if distance < mindist then
-					mindist = distance
-					near1, near2 = vertex1, vertex2
-				end
-			end
-		end
+		local distance, near1, near2 = Vector.nearest(room1.points, room2.points)
 
 		if near1 and near2 then
-			graph:addEdge({ length = mindist, corridor = true }, near1, near2)
+			-- distance / margin 
+			local numPoints = math.round(distance / margin) - 1
+			local segLength = distance / (numPoints + 1)
+			local normal = Vector.to(near1, near2):normalise()
+
+			for i = 1, numPoints do
+				local point = {
+					near1[1] + (i * segLength * normal[1]),
+					near1[2] + (i * segLength * normal[2]),
+					corridor = true,
+				}
+
+				points[#points+1] = point
+			end			
 		end
 	end
+
+	return points
 end
 
 
-local function _enclose( graph, aabb, margin )
+local function _enclose( points, aabb, margin )
 	print('_enclose()')
 
 	local width = math.ceil(aabb:width() / margin)
 	local height = math.ceil(aabb:height() / margin)
 
+	print('margin', margin)
+
 	margin = aabb:width() / width
+
+	print('margin', margin)
 
 	local grid = newgrid(width, height, false)
 
-	for vertex, _ in pairs(graph.vertices) do
-		local x = math.round((vertex[1] - aabb.xmin) / margin)
-		local y = math.round((vertex[2] - aabb.ymin) / margin)
+	for _, point in pairs(points) do
+		local x = math.round((point[1] - aabb.xmin) / margin)
+		local y = math.round((point[2] - aabb.ymin) / margin)
 
 		local cell = grid.get(x, y)
 
 		if cell then
-			cell[#cell+1] = vertex
+			cell[#cell+1] = point
 		else
-			grid.set(x, y, { vertex })
+			grid.set(x, y, { point })
 		end
 	end
 
-	grid.print()
+	-- grid.print()
 
 	local dirs = {
+		{ 0, 0 },
 		{ -1, -1 },
 		{  0, -1 },
 		{  1, -1 },
@@ -98,42 +96,58 @@ local function _enclose( graph, aabb, margin )
 		{  1,  1 },
 	}
 
+	local result = {}
+
 	for x= 1, width do
 		for y = 1, height do
-			if not grid.get(x, y) then
-				-- local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
-				-- local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
+			-- if not grid.get(x, y) then
+				for attempt = 1, 10 do
+					-- local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
+					-- local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-				local rx = aabb.xmin + ((x-1) * margin) + (margin * 0.5) + (margin * math.random() * 0.25)
-				local ry = aabb.ymin + ((y-1) * margin) + (margin * 0.5) + (margin * math.random() * 0.25)
+					local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
+					local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-				local candidate = { rx, ry, wall = true }
-				local empty = {}
-				local accepted = true
+					local candidate = { rx, ry, wall = true }
+					local empty = {}
+					local accepted = true
 
-				for _, dir in ipairs(dirs) do
-					local dx, dy = x + dir[1], y + dir[2]
-					
-					if 1 <= dx and dx <= width and 1 <= dy and dy <= height then
-						for _, vertex in ipairs(grid.get(dx, dy) or empty) do
-							if Vector.toLength(vertex, candidate) < margin then
-								accepted = false
-								break
+					for _, dir in ipairs(dirs) do
+						local dx, dy = x + dir[1], y + dir[2]
+						
+						if 1 <= dx and dx <= width and 1 <= dy and dy <= height then
+							for _, vertex in ipairs(grid.get(dx, dy) or empty) do
+								if Vector.toLength(vertex, candidate) < margin then
+									accepted = false
+									break
+								end
 							end
+						end
+
+						if not accepted then
+							break
 						end
 					end
 
-					if not accepted then
-						break
+					if accepted then
+						local cell = grid.get(x, y)
+
+						if cell then
+							cell[#cell+1] = candidate
+						else
+							cell = { candidate }
+							grid.set(x, y, cell)
+						end
+
+						result[#result+1] = candidate
+						-- break
 					end
 				end
-
-				if accepted then
-					graph:addVertex(candidate)
-				end
-			end
+			-- end
 		end
 	end
+
+	return result
 end
 
 
@@ -155,34 +169,40 @@ function Level.new( params )
 		maxwidth = 400,
 		maxheight = 400,
 		margin = margin,
-		maxboxes = 1,
+		maxboxes = 40,
 		point1s = nil,
 		point2s = nil,
 	}
 
-	-- 1. get the rooms AABBs.
-	local aabbs = layout(aabb, limits)
+	-- 1. get the rooms borders.
+	local borders = layout(aabb, limits)
 
-	printf('#aabbs:%d', #aabbs)
+	printf('#borders:%d', #borders)
 
 	-- 2. get point lists for each room.
 	local rooms = {}
-	for index = 1, #aabbs do
-		local aabb = aabbs[index]
+	for index = 1, #borders do
+		local border = borders[index]
 
 		local points
 		repeat
-			points = roomgen(aabb, margin)
+			points = roomgen(border, margin)
 		until #points > 0
+
+		local aabb = Vector.aabb(points)
 
 		rooms[index] = {
 			points = points,
 			index = index,
 			aabb = aabb,
+			border = border,
 		}
 	end
 
-	-- 3. insert all the points into a quadtree.
+	-- 3. connect the rooms.
+	local corridors = _connect(rooms, margin)
+
+	-- 4. insert all the room and corridor points into a quadtree.
 	local quadtree = Quadtree.new(aabb)
 
 	for index = 1, #rooms do
@@ -193,10 +213,70 @@ function Level.new( params )
 		end
 	end
 
+	for index = 1, #corridors do
+		local point = corridors[index]
+
+		-- TODO: need somthing better than -1 to mark a corridor.
+		quadtree:insert(point, -1)
+	end
+
+	-- 5. create a list of all points then enclose them.
+	local all = {}
+
+	for index = 1, #rooms do
+		local points = rooms[index].points
+
+		for j = 1, #points do
+			all[#all+1] = points[j]
+		end
+	end
+
+	for index = 1, #corridors do
+		all[#all+1] = corridors[index]
+	end
+
+	local walls = _enclose(all, params.aabb, margin)
+
+	for _, wall in ipairs(walls) do
+		all[#all+1] = wall
+	end
+
+	-- 6. build voronoi diagram.
+	local sites = {}
+
+	for index, point in ipairs(all) do
+		local site = {
+			x = point[1],
+			y = point[2],
+			wall = point.wall,
+			corridor = point.corridor,
+		}
+
+		sites[#sites+1] = site
+	end
+
+	local bbox = {
+		xl = params.aabb.xmin,
+		xr = params.aabb.xmax,
+		yt = params.aabb.ymin,
+		yb = params.aabb.ymax,
+	}
+
+	local start = love.timer.getMicroTime()
+	diagram = Voronoi:new():compute(sites, bbox)
+	local finish = love.timer.getMicroTime()
+
+	printf('Voronoi:compute(%d) %.3fs', #sites, finish - start)
+
+
 	local result = {
 		aabb = aabb,
 		rooms =rooms,
+		corridors = corridors,
+		walls = walls,
+		all = all,
 		quadtree = quadtree,
+		diagram = diagram,
 	}
 
 	setmetatable(result, Level)

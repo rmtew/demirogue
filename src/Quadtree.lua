@@ -1,18 +1,27 @@
+--
+-- Quadtree.lua
+--
+-- 
+-- 
+
 
 Quadtree = {}
 Quadtree.__index = Quadtree
 
--- node = {
---     point = { x, y },
---     data = ...,
+-- branch = {
 --     aabb = <AABB>,
---     <NW> = node | nil,
---     <NE> = node | nil,
---     <SW> = node | nil,
---     <SE> = node | nil,
+--     <NW> = node | leaf,
+--     <NE> = node | leaf,
+--     <SW> = node | leaf,
+--     <SE> = node | leaf,
 -- }
 --
---
+-- leaf = {
+--     leaf = true,
+--     aabb = <AABB>,
+--     point = { x, y },
+--     data = ...
+-- }
 --
 
 function Quadtree.new( aabb )
@@ -30,103 +39,158 @@ function Quadtree.new( aabb )
 	return result
 end
 
--- Assumes the point has already been checked for being in the AABB
-local function _quadrant( aabb, point )
-	local cx = aabb.xmin + (aabb.xmax - aabb.xmin) * 0.5
-	local cy = aabb.ymin + (aabb.ymax - aabb.ymin) * 0.5
+local function _subdivide( node )
+	assert(node.leaf)
+	assert(node.point)
 
-	local x, y = point[1], point[2]
-
-	if y > cy then
-		if x < cx then
-			return 1 -- NW
-		else
-			return 2 -- NE
-		end
-	else
-		if x < cx then
-			return 3 -- SW
-		else
-			return 4 -- SE
-		end
-	end
-end
-
-local function _childAABB( parent, quadrant )
-	assert(1 <= quadrant and quadrant <= 4)
-
-	local aabb = parent.aabb
-	
+	local aabb = node.aabb
 	local xmin, xmax = aabb.xmin, aabb.xmax
 	local ymin, ymax = aabb.ymin, aabb.ymax
 
 	local cx = xmin + (xmax - xmin) * 0.5
 	local cy = ymin + (ymax - ymin) * 0.5
 
-	if quadrant < 3 then
-		-- N(W|E)
-		ymin = cy
-	else
-		-- S(W|E)
-		ymax = cy
-	end
-
-	-- quadrant & 1
-	if quadrant == 1 or quadrant == 3 then
-		-- (N|S)W
-		xmax = cx
-	else
-		-- (N|S)E
-		xmin = cx
-	end
-
-	return AABB.new {
-		xmin = xmin,
-		xmax = xmax,
-		ymin = ymin,
-		ymax = ymax,
+	local nw = {
+		leaf = true,
+		aabb = AABB.new {
+			xmin = xmin,
+			xmax = cx,
+			ymin = cy,
+			ymax = ymax,
+		},
+		point = nil,
+		data = nil,
 	}
+
+	local ne = {
+		leaf = true,
+		aabb = AABB.new {
+			xmin = cx,
+			xmax = xmax,
+			ymin = cy,
+			ymax = ymax,
+		},
+		point = nil,
+		data = nil,
+	}
+
+	local sw = {
+		leaf = true,
+		aabb = AABB.new {
+			xmin = xmin,
+			xmax = cx,
+			ymin = ymin,
+			ymax = cy,
+		},
+		point = nil,
+		data = nil,
+	}
+
+	local se = {
+		leaf = true,
+		aabb = AABB.new {
+			xmin = cx,
+			xmax = xmax,
+			ymin = ymin,
+			ymax = cy,
+		},
+		point = nil,
+		data = nil,
+	}
+
+	local result =  {
+		aabb = node.aabb,
+		nw,
+		ne,
+		sw,
+		se,
+	}
+
+	assert(not result.leaf)
+	assert(#result == 4)
+
+	local point = node.point
+	local x, y = point[1], point[2]
+	local index
+
+	if y > cy then
+		if x < cx then
+			index = 1 -- NW
+		else
+			index = 2 -- NE
+		end
+	else
+		if x < cx then
+			index = 3 -- SW
+		else
+			index = 4 -- SE
+		end
+	end
+
+	local child = result[index]
+
+	child.point = node.point
+	child.data = node.data
+
+	return result
 end
+
+function Quadtree:_insert( node, parent, index, point, data )
+	if not node.aabb:contains(point) then
+		return false
+	end
+
+	-- There's three things the node can be:
+	-- - branch in which case recurse
+	-- - an unpopulated leaf, set the point and data and be done.
+	-- - a populated leaf, subdivide then recurse
+
+	if node.leaf then
+		if not node.point then
+			node.point = point
+			node.data = data
+
+			return true
+		else
+			node = _subdivide(node)
+
+			if not parent then
+				self.root = node
+			else
+				parent[index] = node
+			end
+		end
+	end
+
+	for index = 1, 4 do
+		if self:_insert(node[index], node, index, point, data) then
+			return true
+		end
+	end
+
+	error('should never happen')
+
+	return false
+end
+
 
 function Quadtree:insert( point, data )
 	if not self.aabb:contains(point) then
 		return false
 	end
 
-	local node = self.root
+	local root = self.root
 
-	if not node then
+	if root then
+		return self:_insert(root, nil, nil, point, data)
+	else
 		self.root = {
+			leaf = true,
 			point = point,
 			data = data,
 			aabb = self.square,
-			nil,
-			nil,
-			nil,
-			nil,
 		}
-	else
-		while true do
-			local quadrant = _quadrant(node.aabb, point)
-			local child = node[quadrant]
-
-			if child then
-				node = child
-			else
-				node[quadrant] = {
-					point = point,
-					data = data,
-					aabb = _childAABB(node, quadrant),
-					nil,
-					nil,
-					nil,
-					nil,
-				}
-				break
-			end
-		end
 	end
-	print('done')
 
 	return true
 end

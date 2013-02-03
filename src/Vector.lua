@@ -105,4 +105,25 @@ function Vector.aabb( vectors )
 	}
 end
 
+function Vector.nearest( vectors1, vectors2 )
+	local mindist = math.huge
+	local near1, near2 = nil, nil
+
+	for i = 1, #vectors1 do
+		for j = 1, #vectors2 do
+			local vector1 = vectors1[i]
+			local vector2 = vectors2[j]
+
+			local distance = Vector.toLength(vector1, vector2)
+
+			if distance < mindist then
+				mindist = distance
+				near1, near2 = vector1, vector2
+			end
+		end
+	end
+
+	return mindist, near1, near2
+end
+
 

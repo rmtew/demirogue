@@ -1,6 +1,6 @@
-require 'gamemode'
+-- require 'gamemode'
 require 'voronoimode'
-require 'glyphmode'
+-- require 'glyphmode'
 
 print('_VERSION', _VERSION)
 
@@ -48,9 +48,9 @@ function love.mousepressed( x, y, button )
 end
 
 function love.mousereleased( x, y, button )
-	print('love.mousepressed', x, y, button)
+	print('love.mousereleased', x, y, button)
 
-	mode.mousepressed(x, y, button)
+	mode.mousereleased(x, y, button)
 end
 
 function love.keypressed( key )

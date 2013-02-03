@@ -27,8 +27,8 @@ local function _gen()
 		function ( ... )
 			local r = math.random()
 			if r < 0.33 then
-				-- return roomgen.browniangrid(...)
-				return roomgen.cellulargrid(...)
+				return roomgen.browniangrid(...)
+				-- return roomgen.cellulargrid(...)
 			elseif r < 0.66 then
 				return roomgen.random(...)
 			else
@@ -72,6 +72,8 @@ end
 local drawPoints = true
 local drawRoomAABBs = true
 local drawQuadtree = true
+local drawWalls = true
+local drawVoronoi = true
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -88,47 +90,95 @@ function shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
-local scale = 1/3
+local xform = {
+	scale = 1/3,
+	origin = { 0, 0 },
+}
 
 function voronoimode.draw()
-	love.graphics.push()
-	
-	local xform = {
-		scale = scale,
-		origin = { 0, 0 },
-	}
+	love.graphics.push()	
 	
 	love.graphics.translate(-xform.origin[1], -xform.origin[2])
 	love.graphics.scale(xform.scale, xform.scale)
 
-	if drawQuadtree then
-		love.graphics.setColor(0, 0, 255, 255)
-		local old = love.graphics.getBlendMode()
-		love.graphics.setBlendMode('additive')
+	love.graphics.setLineStyle('rough')
 
-		local function aux( node )
-			local leaf = true
+	if drawVoronoi then
+		local linewidth = 2
+		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
 
-			for i = 1, 4 do
-				local child = node[i]
-				if child then
-					aux(child)
-					leaf = false
-				end
+		local colours = {
+			-- { 0, 0, 0, 255 },
+			{ 255, 0, 0, 255 },
+			{ 0, 255, 0, 255 },
+			{ 0, 0, 255, 255 },
+			{ 255, 255, 0, 255 },
+			{ 255, 0, 255, 255 },
+			{ 0, 255, 255, 255 },
+			{ 255, 255, 255, 255 },
+		}
+
+		for id, cell in ipairs(level.diagram.cells) do
+			local vertices = {}
+
+			for _, halfedge in ipairs(cell.halfedges) do
+				local startpoint = halfedge:getStartpoint()
+
+				vertices[#vertices+1] = startpoint.x
+				vertices[#vertices+1] = startpoint.y
 			end
 
-			-- if leaf then
-				local aabb = node.aabb
-				love.graphics.rectangle('line', aabb.xmin, aabb.ymin, aabb:width(), aabb:height())
-			-- end
+			if #vertices < 3*2 then
+				printf('cell id:%d has only %d verts', id, #vertices/2)
+			else
+				local colour = { 64, 64, 64, 255 }
+
+				if not cell.site.wall then
+					-- colour = colours[1 + (id % #colours)]
+					colour = { 0, 255, 255, 255 }
+				end
+
+				love.graphics.setColor(unpack(colour))
+				love.graphics.polygon('fill', vertices)
+				if not cell.site.wall then
+					love.graphics.setColor(0, 0, 0, 255)
+					love.graphics.polygon('line', vertices)
+				end
+			end
+		end
+	end
+
+	if drawQuadtree then
+		local branch = { 0, 255, 255, 64 }
+		local leaf = { 255, 0, 255, 64 }
+
+		local function aux( node )
+			local style = 'line'
+			if node.leaf then
+				love.graphics.setColor(unpack(leaf))
+				
+				if not node.point then
+					style = 'fill'
+				end
+			else
+				love.graphics.setColor(unpack(branch))
+			end
+
+			local aabb = node.aabb
+			love.graphics.rectangle(style, aabb.xmin, aabb.ymin, aabb:width(), aabb:height())
+
+			if not node.leaf then
+				for i = 1, 4 do
+					local child = node[i]
+					aux(child)
+				end
+			end
 		end
 
 		local root = level.quadtree.root
 		if root then
 			aux(root)
 		end
-
-		love.graphics.setBlendMode(old)
 	end
 
 	if drawRoomAABBs then
@@ -150,6 +200,22 @@ function voronoimode.draw()
 				love.graphics.circle('fill', point[1], point[2], radius)	
 			end
 		end
+
+		love.graphics.setColor(255, 255 , 255, 255)
+
+		for index, point in ipairs(level.corridors) do
+			local radius = 3
+			love.graphics.circle('fill', point[1], point[2], radius)
+		end
+
+		if drawWalls then
+			love.graphics.setColor(128, 128 , 128, 255)
+
+			for index, point in ipairs(level.walls) do
+				local radius = 3
+				love.graphics.circle('fill', point[1], point[2], radius)
+			end
+		end
 	end
 
 	love.graphics.pop()
@@ -167,12 +233,29 @@ end
 
 function voronoimode.mousepressed( x, y, button )
 	if button == 'wu' then
-		scale = math.min(3, scale * 3)
-		printf('scale:%.2f', scale)
+		xform.scale = math.min(3, xform.scale * 1.05)
+		printf('scale:%.2f', xform.scale)
 	elseif button == 'wd' then
-		scale = math.max(1/3, scale * 1/3)
-		printf('scale:%.2f', scale)
+		xform.scale = math.max(1/3, xform.scale * 0.95)
+		printf('scale:%.2f', xform.scale)
+	-- elseif button == 'l' then
+	-- 	-- Set the centre of the screen to where you clicked.
+	-- 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+
+	-- 	local wx = xform.origin[1] + (x / xform.scale)
+	-- 	local wy = xform.origin[2] + (y / xform.scale)
+
+	-- 	local ox = wx - (w * 0.5)
+	-- 	local oy = wy - (h * 0.5)
+
+	-- 	printf('[%d, %d] -> [%.2f, %.2f] -> [%.2f, %.2f]', x, y, wx, wy, ox, oy)
+
+	-- 	xform.origin[1] = ox
+	-- 	xform.origin[2] = oy
 	end
+end
+
+function voronoimode.mousereleased( x, y, button )
 end
 
 local function genvoronoi()
@@ -222,8 +305,25 @@ function voronoimode.keypressed( key )
 		end
 	elseif key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
+	elseif key == 'q' then
+		drawQuadtree = not drawQuadtree
+	elseif key == 'w' then
+		drawWalls = not drawWalls
+	elseif key == 'v' then
+		drawVoronoi = not drawVoronoi
+	elseif key == 'r' then
+		xform.origin = { 0, 0 }
+		xform.scale = 1/3
 	elseif key == ' ' then
 		level = _gen()
+	elseif key == 'right' then
+		xform.origin[1] = xform.origin[1] + (100 * xform.scale)
+	elseif key == 'left' then
+		xform.origin[1] = xform.origin[1] - (100 * xform.scale)
+	elseif key == 'up' then
+		xform.origin[2] = xform.origin[2] - (100 * xform.scale)
+	elseif key == 'down' then
+		xform.origin[2] = xform.origin[2] + (100 * xform.scale)
 	end
 end
 
