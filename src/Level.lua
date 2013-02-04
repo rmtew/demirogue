@@ -177,6 +177,8 @@ function Level.new( params )
 
 	local levelStart = love.timer.getMicroTime()
 
+	-- TODO: should ensure all points are on integer coordinates.
+
 	-- 1. get the rooms borders.
 	local borders = layout(aabb, limits)
 
@@ -320,8 +322,11 @@ function Level.new( params )
 
 	-- TEST
 	-- To save trying to write straight skeleton generating code.
-	local offset = margin * 0.5
+	local offsetStart = love.timer.getMicroTime()
+
+	local offset = margin * 0.1
 	local cores = {}
+	local voronoi = Voronoi:new()
 
 	for _, cell in ipairs(diagram.cells) do
 		if not cell.site.wall then
@@ -339,12 +344,12 @@ function Level.new( params )
 
 			for i = 2, #points do
 				local point = points[i]
-				Vector.advance(point, centre, offset * 0.5)
+				Vector.advance(point, centre, offset * 2)
 
 				sites[#sites+1] = { x = point[1], y = point[2] }
 			end
 
-			local diagram = Voronoi:new():compute(sites, bbox)
+			local diagram = voronoi:compute(sites, bbox)
 
 			local cell
 
@@ -370,6 +375,10 @@ function Level.new( params )
 			end
 		end
 	end
+
+	local offsetFinish = love.timer.getMicroTime()
+
+	printf('cell offset %.3fs', offsetFinish - offsetStart)
 
 	-- TODO: convert Voronoi representation into something easier to use.
 	-- TODO: create cell connectivity graph.

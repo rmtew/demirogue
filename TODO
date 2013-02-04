@@ -26,7 +26,8 @@ TODO
   - Maybe with unique names and flavour lines.
 
 - The scheduler is a nice idea but the code is too complex.
-  - Binomial heap isn't stable by default but could be a good idea.
+  - Binary heap isn't stable by default but could be a good idea.
+    - Problem is that you need a for ever increasing timer.
 
 - Voronoi
   - Polygon offset algorithm for shorelines, roofs and so on.
@@ -40,3 +41,13 @@ TODO
   - Either try and maintain max vertex valance of 8 (so keys work) or move to mouse only input.
   - Maybe try to compile Love by hand to get Geometry support.
   - Need to be able to traverse the halfedges and find out connected cells.
+
+  - Lakes (water, lava, abyss, acid, ...)
+    - Brogue method would be hard to translate:
+      - Create CA based lake.
+      - Try five times and place into world.
+        - If connectivity breaks reject.
+    - We only have connectivity after the voronoi step.
+      - Could use lake as a mask and turn already created voronoi cells into
+        fluid then check connectivity though.
+        - Will look weird to have square and hexagonal water spaces though.

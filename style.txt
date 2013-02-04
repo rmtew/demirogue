@@ -1,0 +1,8 @@
+style.txt
+---------
+
+Visual style musings:
+
+- Pastel shaded regions.
+- Slight gradients or textures on cells.
+- 

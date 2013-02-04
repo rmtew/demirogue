@@ -77,8 +77,8 @@ local drawRoomAABBs = false
 local drawQuadtree = false
 local drawWalls = true
 local drawVoronoi = true
-local drawHulls = true
-local drawEdges = true
+local drawHulls = false
+local drawEdges = false
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -258,6 +258,14 @@ function voronoimode.draw()
 	love.graphics.setLineWidth(1)
 	for _, core in ipairs(level.cores) do
 		love.graphics.polygon('fill', core)
+	end
+
+	for vertex, peers in pairs(level.graph.vertices) do
+		if table.count(peers) > 8 then
+			love.graphics.setColor(0, 0, 0, 128)
+			local radius = 10
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		end
 	end
 
 	love.graphics.pop()
