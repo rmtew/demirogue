@@ -95,12 +95,12 @@ end
 function layoutgen.splat( bbox, limits )
 	local result = {}
 
-	local minwidth = limits.minwidth + limits.margin
-	local minheight = limits.minheight + limits.margin
+	local minwidth = limits.minwidth + limits.margin * 1.5
+	local minheight = limits.minheight + limits.margin * 1.5
 	local maxwidth = limits.maxwidth or math.floor(bbox:width() * 0.5)
 	local maxheight = limits.maxheight or math.floor(bbox:height() * 0.5)
 
-	print('pre', minwidth, minheight, maxwidth, maxheight)
+	-- print('pre', minwidth, minheight, maxwidth, maxheight)
 
 	local attempts = 0
 	local maxattempts = 1000
@@ -129,7 +129,6 @@ function layoutgen.splat( bbox, limits )
 
 		for _, other in ipairs(result) do
 			if aabb:intersects(other) then
-				print('intersects', attempts)
 				accepted = false
 
 				break
@@ -137,18 +136,15 @@ function layoutgen.splat( bbox, limits )
 		end
 
 		if accepted then
-			print('accepted', width, height)
 			result[#result+1] = aabb
 		end
 
 		attempts = attempts + 1
 	end
 
-	print('after', #result, attempts)
-
 	for index, bbox in ipairs(result) do
-		print('shrink', bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, bbox:width(), bbox:height())
-		result[index] = bbox:shrink(limits.margin * 0.5)
+		-- print('shrink', bbox.xmin, bbox.ymin, bbox.xmax, bbox.ymax, bbox:width(), bbox:height())
+		result[index] = bbox:shrink(limits.margin * 0.75)
 	end
 
 	return result

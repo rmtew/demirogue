@@ -19,7 +19,6 @@ local actions = {}
 local playerAction = nil
 local diagram = nil
 
-
 local function _gen()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 
@@ -30,11 +29,16 @@ local function _gen()
 				return roomgen.browniangrid(...)
 				-- return roomgen.cellulargrid(...)
 			elseif r < 0.66 then
-				return roomgen.random(...)
+				-- return roomgen.random(...)
+				return roomgen.enclose(...)
 			else
 				return roomgen.hexgrid(...)
 			end
 		end
+
+	-- TODO: need proper config data for the extents and level generation
+	--       values.
+	-- TODO: room connection should be a parameter.
 
 	local level = Level.new {
 		aabb = AABB.new {
@@ -50,7 +54,6 @@ local function _gen()
 		layout = layoutgen.splat,
 		roomgen = rgen,
 	}
-
 	
 	return level
 end
@@ -70,10 +73,12 @@ function voronoimode.update()
 end
 
 local drawPoints = true
-local drawRoomAABBs = true
-local drawQuadtree = true
+local drawRoomAABBs = false
+local drawQuadtree = false
 local drawWalls = true
 local drawVoronoi = true
+local drawHulls = true
+local drawEdges = true
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -90,6 +95,12 @@ function shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
+-- TODO: make an object of this with methods like:
+--       - screenToWorld( point )
+--       - worldToScreen( point )
+--       - centreOnScreenSpace( point )
+--       - centreOnWorldSpace( point )
+--       - zoomTo( scale )              -- smoothly interpolate.
 local xform = {
 	scale = 1/3,
 	origin = { 0, 0 },
@@ -191,6 +202,31 @@ function voronoimode.draw()
 		end
 	end
 
+	if drawHulls then
+		love.graphics.setColor(255, 255, 0, 255)
+		
+		for _, room in ipairs(level.rooms) do
+			local vertices = {}
+
+			for _, point in ipairs(room.hull) do
+				vertices[#vertices+1] = point[1]
+				vertices[#vertices+1] = point[2]
+			end
+
+			love.graphics.polygon('line', vertices)
+		end
+	end
+
+	if drawEdges then
+		love.graphics.setColor(0, 255, 0, 255)
+		
+		for edge, endverts in pairs(level.graph.edges) do
+			if not endverts[1].wall and not endverts[2].wall then
+				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			end
+		end
+	end
+
 	if drawPoints then
 		love.graphics.setColor(255, 0 , 255, 255)
 
@@ -216,6 +252,12 @@ function voronoimode.draw()
 				love.graphics.circle('fill', point[1], point[2], radius)
 			end
 		end
+	end
+
+	love.graphics.setColor(0, 0, 255, 128)
+	love.graphics.setLineWidth(1)
+	for _, core in ipairs(level.cores) do
+		love.graphics.polygon('fill', core)
 	end
 
 	love.graphics.pop()
@@ -258,44 +300,7 @@ end
 function voronoimode.mousereleased( x, y, button )
 end
 
-local function genvoronoi()
-	if diagram then
-		diagram = nil
-	else
-		local sites = {}
-
-		for vertex, _ in pairs(level.graph.vertices) do
-			local site = {
-				x = vertex[1],
-				y = vertex[2],
-				wall = vertex.wall,
-			}
-			sites[#sites+1] = site
-		end
-
-		local bbox = {
-			xl = level.aabb.xmin - 100,
-			xr = level.aabb.xmax + 100,
-			yt = level.aabb.ymin - 100,
-			yb = level.aabb.ymax + 100,
-		}
-
-		local start = love.timer.getMicroTime()
-		diagram = Voronoi:new():compute(sites, bbox)
-		local finish = love.timer.getMicroTime()
-
-		printf('Voronoi:compute(%d) %.3fs', #sites, finish - start)
-
-		-- print('bbox', bbox.xl, bbox.xr, bbox.yt, bbox.yb)
-		-- print('#cells', #diagram.cells)
-		-- print('#edges', #diagram.edges)
-
-		-- for index, cell in ipairs(diagram.cells) do
-		-- 	print('cell', index, '#halfedges', #cell.halfedges)
-		-- end
-	end
-end
-
+-- TODO: need a proper declarative interface for setting up controls.
 function voronoimode.keypressed( key )
 	if key == 'z' then
 		if scale ~= 1/3 then
@@ -311,6 +316,10 @@ function voronoimode.keypressed( key )
 		drawWalls = not drawWalls
 	elseif key == 'v' then
 		drawVoronoi = not drawVoronoi
+	elseif key == 'h' then
+		drawHulls = not drawHulls
+	elseif key == 'e' then
+		drawEdges = not drawEdges
 	elseif key == 'r' then
 		xform.origin = { 0, 0 }
 		xform.scale = 1/3

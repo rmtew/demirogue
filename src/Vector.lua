@@ -78,11 +78,24 @@ function Vector.midpoint( self, other )
 	}
 end
 
-function Vector.scale( self )
+function Vector.scale( self, scale )
 	self[1] = scale * self[1]
 	self[2] = scale * self[2]
 
 	return self
+end
+
+function Vector.advance( self, target, distance )
+	local disp = Vector.to(target, self)
+	local dispLength = disp:length()
+
+	assert(dispLength > distance)
+
+	disp:normalise()
+	disp:scale(distance)
+
+	self[1] = self[1] - disp[1]
+	self[2] = self[2] - disp[2]
 end
 
 function Vector.aabb( vectors )
@@ -125,5 +138,10 @@ function Vector.nearest( vectors1, vectors2 )
 
 	return mindist, near1, near2
 end
+
+function Vector.perp( self )
+	return _Vector_new { -self[2], self[1] }
+end
+
 
 

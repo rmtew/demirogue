@@ -130,8 +130,8 @@ function roomgen.browniangrid( bbox, margin )
 		walked = walked + 1
 	until walked > maxattempts 
 
-	mask.print()
-	print(x, y, numx, numy)
+	-- mask.print()
+	-- print(x, y, numx, numy)
 
 
 	local xoffset = bbox.xmin + (gapx * 0.5)
@@ -195,8 +195,8 @@ function roomgen.cellulargrid( bbox, margin )
 		end
 	end
 
-	print('init')
-	old.print()
+	-- print('init')
+	-- old.print()
 
 	local passes = 4
 	local birth = 3
@@ -230,16 +230,16 @@ function roomgen.cellulargrid( bbox, margin )
 			end
 		end
 
-		new.print()
-		print()
+		-- new.print()
+		-- print()
 
 		new, old = old, new
 	end
 
 	local mask = old
 
-	new.print()
-	print()
+	-- new.print()
+	-- print()
 	
 	local result = {}
 
@@ -257,7 +257,7 @@ function roomgen.cellulargrid( bbox, margin )
 		end
 	end
 
-	print('#points', #result)
+	-- print('#points', #result)
 
 	return result
 end
@@ -273,7 +273,7 @@ function roomgen.randgrid( bbox, margin )
 	numx, numy = numx + 1, numy + 1
 	gapx, gapy = gapx * margin, gapy * margin
 
-	print(w, margin, numx, gapx)
+	-- print(w, margin, numx, gapx)
 
 	local xoffset = bbox.xmin + (gapx * 0.5)
 	local yoffset = bbox.ymin + (gapy * 0.5)
@@ -424,4 +424,79 @@ function roomgen.random( bbox, margin )
 	return result
 end
 
+-- Based on the _enclose() function in Level.lua.
+function roomgen.enclose( aabb, margin )
+	local width = math.ceil(aabb:width() / margin)
+	local height = math.ceil(aabb:height() / margin)
 
+	margin = aabb:width() / width
+
+	local grid = newgrid(width, height, false)
+
+	-- grid.print()
+
+	local dirs = {
+		{ 0, 0 },
+		{ -1, -1 },
+		{  0, -1 },
+		{  1, -1 },
+		{ -1,  0 },
+		{  1,  0 },
+		{ -1,  1 },
+		{  0,  1 },
+		{  1,  1 },
+	}
+
+	local result = {}
+
+	for x= 1, width do
+		for y = 1, height do
+			-- if not grid.get(x, y) then
+				for attempt = 1, 10 do
+					-- local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
+					-- local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
+
+					local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
+					local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
+
+					local candidate = { rx, ry }
+					local empty = {}
+					local accepted = true
+
+					for _, dir in ipairs(dirs) do
+						local dx, dy = x + dir[1], y + dir[2]
+						
+						if 1 <= dx and dx <= width and 1 <= dy and dy <= height then
+							for _, vertex in ipairs(grid.get(dx, dy) or empty) do
+								if Vector.toLength(vertex, candidate) < margin then
+									accepted = false
+									break
+								end
+							end
+						end
+
+						if not accepted then
+							break
+						end
+					end
+
+					if accepted then
+						local cell = grid.get(x, y)
+
+						if cell then
+							cell[#cell+1] = candidate
+						else
+							cell = { candidate }
+							grid.set(x, y, cell)
+						end
+
+						result[#result+1] = candidate
+						-- break
+					end
+				end
+			-- end
+		end
+	end
+
+	return result
+end

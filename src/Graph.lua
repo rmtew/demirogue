@@ -57,6 +57,13 @@ function Graph:_invariant()
 	end
 end
 
+function Graph:isPeer( vertex1, vertex2 )
+	assert(self.vertices[vertex1])
+	assert(self.vertices[vertex2])
+
+	return self.vertices[vertex1][vertex2] ~= nil
+end
+
 function Graph:addVertex( vertex )
 	assert(self.vertices[vertex] == nil)
 
