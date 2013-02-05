@@ -143,5 +143,10 @@ function Vector.perp( self )
 	return _Vector_new { -self[2], self[1] }
 end
 
+function Vector.__tostring( self )
+	return string.format("[%f, %f]", self[1], self[2])
+end
+
+Vector.tostring = __tostring
 
 

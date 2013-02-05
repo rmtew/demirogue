@@ -12,12 +12,16 @@ require 'action'
 require 'metalines'
 require 'texture'
 require 'Voronoi'
+require 'Viewport'
 
 local w, h = love.graphics.getWidth(), love.graphics.getHeight()
-local track = false
-local actions = {}
-local playerAction = nil
-local diagram = nil
+
+local bounds = AABB.new {
+	xmin = 0,
+	ymin = 0,
+	xmax = 3 * w,
+	ymax = 3 * h,
+}
 
 local function _gen()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
@@ -41,12 +45,7 @@ local function _gen()
 	-- TODO: room connection should be a parameter.
 
 	local level = Level.new {
-		aabb = AABB.new {
-			xmin = 0,
-			ymin = 0,
-			xmax = 3 * w,
-			ymax = 3 * h,
-		},
+		aabb = bounds,
 		-- margin = 100,
 		margin = 50,
 		-- margin = 75,
@@ -60,6 +59,8 @@ end
 
 local level
 local time = 0
+
+local viewport = Viewport.new(bounds, bounds)
 
 voronoimode = {}
 
@@ -95,28 +96,16 @@ function shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
--- TODO: make an object of this with methods like:
---       - screenToWorld( point )
---       - worldToScreen( point )
---       - centreOnScreenSpace( point )
---       - centreOnWorldSpace( point )
---       - zoomTo( scale )              -- smoothly interpolate.
-local xform = {
-	scale = 1/3,
-	origin = { 0, 0 },
-}
-
 function voronoimode.draw()
 	love.graphics.push()	
 	
-	love.graphics.translate(-xform.origin[1], -xform.origin[2])
-	love.graphics.scale(xform.scale, xform.scale)
+	viewport:setup()
 
 	love.graphics.setLineStyle('rough')
 
 	if drawVoronoi then
 		local linewidth = 2
-		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
+		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
 
 		local colours = {
 			-- { 0, 0, 0, 255 },
@@ -268,6 +257,9 @@ function voronoimode.draw()
 		end
 	end
 
+	love.graphics.setLineWidth(10)
+	love.graphics.rectangle('line', viewport.portal.xmin, viewport.portal.ymin, viewport.portal:width(), viewport.portal:height())
+
 	love.graphics.pop()
 
 	local numPoints = 0
@@ -281,27 +273,31 @@ function voronoimode.draw()
 		numPoints)
 end
 
+local minZoom = 1/3
+local maxZoom = 3
+
 function voronoimode.mousepressed( x, y, button )
 	if button == 'wu' then
-		xform.scale = math.min(3, xform.scale * 1.05)
-		printf('scale:%.2f', xform.scale)
+		local zoom = viewport:getZoom()
+
+		if zoom < maxZoom then
+			viewport:setZoom(1.1)
+			printf('zoom:%.2f -> %.2f', zoom, viewport:getZoom())
+		end
 	elseif button == 'wd' then
-		xform.scale = math.max(1/3, xform.scale * 0.95)
-		printf('scale:%.2f', xform.scale)
-	-- elseif button == 'l' then
-	-- 	-- Set the centre of the screen to where you clicked.
-	-- 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+		local zoom = viewport:getZoom()
 
-	-- 	local wx = xform.origin[1] + (x / xform.scale)
-	-- 	local wy = xform.origin[2] + (y / xform.scale)
+		if zoom > minZoom then
+			viewport:setZoom(0.9)
+			printf('zoom:%.2f -> %.2f', zoom, viewport:getZoom())
+		end
+	elseif button == 'l' then
+		local screen = Vector.new { x, y }
+		local world = viewport:screenToWorld(screen)
 
-	-- 	local ox = wx - (w * 0.5)
-	-- 	local oy = wy - (h * 0.5)
+		print(screen, world)
 
-	-- 	printf('[%d, %d] -> [%.2f, %.2f] -> [%.2f, %.2f]', x, y, wx, wy, ox, oy)
-
-	-- 	xform.origin[1] = ox
-	-- 	xform.origin[2] = oy
+		viewport:setCentre(world)
 	end
 end
 
@@ -329,18 +325,17 @@ function voronoimode.keypressed( key )
 	elseif key == 'e' then
 		drawEdges = not drawEdges
 	elseif key == 'r' then
-		xform.origin = { 0, 0 }
-		xform.scale = 1/3
+		viewport.portal = AABB.new(viewport.bounds)
 	elseif key == ' ' then
 		level = _gen()
-	elseif key == 'right' then
-		xform.origin[1] = xform.origin[1] + (100 * xform.scale)
-	elseif key == 'left' then
-		xform.origin[1] = xform.origin[1] - (100 * xform.scale)
-	elseif key == 'up' then
-		xform.origin[2] = xform.origin[2] - (100 * xform.scale)
-	elseif key == 'down' then
-		xform.origin[2] = xform.origin[2] + (100 * xform.scale)
+	-- elseif key == 'right' then
+	-- 	xform.origin[1] = xform.origin[1] + (100 * xform.scale)
+	-- elseif key == 'left' then
+	-- 	xform.origin[1] = xform.origin[1] - (100 * xform.scale)
+	-- elseif key == 'up' then
+	-- 	xform.origin[2] = xform.origin[2] - (100 * xform.scale)
+	-- elseif key == 'down' then
+	-- 	xform.origin[2] = xform.origin[2] + (100 * xform.scale)
 	end
 end
 

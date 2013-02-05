@@ -1,3 +1,6 @@
+-- All other lua files assume this is loaded before they are.
+require 'misc'
+
 -- require 'gamemode'
 require 'voronoimode'
 -- require 'glyphmode'
