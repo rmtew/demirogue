@@ -60,7 +60,7 @@ end
 local level
 local time = 0
 
-local viewport = Viewport.new(bounds, bounds)
+local viewport = Viewport.new(bounds)
 
 voronoimode = {}
 
@@ -71,6 +71,8 @@ function voronoimode.update()
 	if not level then
 		level = _gen()
 	end
+
+	viewport:update()
 end
 
 local drawPoints = true
@@ -243,11 +245,11 @@ function voronoimode.draw()
 		end
 	end
 
-	love.graphics.setColor(0, 0, 255, 128)
-	love.graphics.setLineWidth(1)
-	for _, core in ipairs(level.cores) do
-		love.graphics.polygon('fill', core)
-	end
+	-- love.graphics.setColor(0, 0, 255, 128)
+	-- love.graphics.setLineWidth(1)
+	-- for _, core in ipairs(level.cores) do
+	-- 	love.graphics.polygon('fill', core)
+	-- end
 
 	for vertex, peers in pairs(level.graph.vertices) do
 		if table.count(peers) > 8 then
@@ -257,8 +259,8 @@ function voronoimode.draw()
 		end
 	end
 
-	love.graphics.setLineWidth(10)
-	love.graphics.rectangle('line', viewport.portal.xmin, viewport.portal.ymin, viewport.portal:width(), viewport.portal:height())
+	local centre = viewport.centreDamp.value
+	love.graphics.circle('line', centre[1], centre[2], 10)
 
 	love.graphics.pop()
 
@@ -281,14 +283,14 @@ function voronoimode.mousepressed( x, y, button )
 		local zoom = viewport:getZoom()
 
 		if zoom < maxZoom then
-			viewport:setZoom(1.1)
+			viewport:setZoom(math.min(maxZoom, zoom * 1.5))
 			printf('zoom:%.2f -> %.2f', zoom, viewport:getZoom())
 		end
 	elseif button == 'wd' then
 		local zoom = viewport:getZoom()
 
 		if zoom > minZoom then
-			viewport:setZoom(0.9)
+			viewport:setZoom(math.max(minZoom, zoom * 0.75))
 			printf('zoom:%.2f -> %.2f', zoom, viewport:getZoom())
 		end
 	elseif button == 'l' then
@@ -306,13 +308,7 @@ end
 
 -- TODO: need a proper declarative interface for setting up controls.
 function voronoimode.keypressed( key )
-	if key == 'z' then
-		if scale ~= 1/3 then
-			scale = 1/3
-		else
-			scale = 1
-		end
-	elseif key == 'a' then
+	if key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
 	elseif key == 'q' then
 		drawQuadtree = not drawQuadtree

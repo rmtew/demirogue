@@ -1,4 +1,3 @@
-
 function assertf( cond, ... )
 	if not cond then
 		error(string.format(...), 2)
@@ -126,3 +125,51 @@ function newgrid( width, height, value )
 	}
 end
 
+-------------------------------------------------------------------------------
+
+Dampener = {}
+Dampener.__index = Dampener
+
+function Dampener.newf( value, target, bias )
+	local result = {
+		value = value,
+		target = target,
+		bias = bias,
+	}
+
+	setmetatable(result, Dampener)
+
+	return result
+end
+
+function Dampener.newv( value, target, bias )
+	local result = {
+		value = { value[1], value[2] },
+		target = { target[1], target[2] },
+		bias = bias,
+	}
+
+	setmetatable(result, Dampener)
+
+	return result
+end
+
+function Dampener:updatef( target )
+	target = target or self.target
+
+	self.value = self.value + self.bias * (target - self.value)
+
+	return self.value
+end
+
+function Dampener:updatev( target )
+	target = target or self.target
+
+	local vtot = Vector.to(self.value, target)
+	Vector.scale(vtot, self.bias)
+
+	self.value[1] = self.value[1] + vtot[1]
+	self.value[2] = self.value[2] + vtot[2]
+
+	return self.value
+end

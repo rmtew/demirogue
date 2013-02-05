@@ -4,8 +4,8 @@ require 'AABB'
 Viewport = {}
 Viewport.__index = Viewport
 
-function Viewport.new( portal, bounds )
-	portal = portal or AABB.new {
+function Viewport.new( bounds )
+	local portal = AABB.new {
 		xmin = 0,
 		xmax = love.graphics.getWidth(),
 		ymin = 0,
@@ -15,6 +15,9 @@ function Viewport.new( portal, bounds )
 	local result = {
 		portal = AABB.new(portal),
 		bounds = AABB.new(bounds),
+		zoom = 1,
+		centreDamp = Dampener.newv(portal:centre(), portal:centre(), 0.1),
+		zoomDamp = Dampener.newf(1, 1, 0.1),
 	}
 
 	setmetatable(result, Viewport)
@@ -67,7 +70,12 @@ function Viewport:_constrain()
 	end
 end
 
-function Viewport:update( dt )
+function Viewport:update()
+	local centre = self.centreDamp:updatev()
+	local zoom = self.zoomDamp:updatef()
+
+	self:_setCentre(centre)
+	self:_setZoom(zoom)
 end
 
 function Viewport:setup()
@@ -108,7 +116,7 @@ function Viewport:worldToScreen( point )
 	return Vector.new { math.round(x), math.round(y) }
 end
 
-function Viewport:setCentre( centre )
+function Viewport:_setCentre( centre )
 	local portal = self.portal
 	local halfWidth = portal:width() * 0.5
 	local halfHeight = portal:height() * 0.5
@@ -121,30 +129,33 @@ function Viewport:setCentre( centre )
 	self:_constrain()
 end
 
-function Viewport:setZoom( zoom )
+function Viewport:setCentre( centre )
+	self.centreDamp.target = Vector.new(centre)
+end
+
+function Viewport:_setZoom( zoom )
 	assert(zoom > 0)
+
+	local halfWindowWidth = love.graphics.getWidth() * 0.5
+	local halfWindowHeight = love.graphics.getHeight() * 0.5
 
 	local portal = self.portal
 	local centre = portal:centre()
-	local halfWidth = portal:width() * 0.5
-	local halfHeight = portal:height() * 0.5
 
-	portal.xmin = math.round(centre[1] - (halfWidth / zoom))
-	portal.xmax = math.round(centre[1] + (halfWidth / zoom))
-	portal.ymin = math.round(centre[2] - (halfHeight / zoom))
-	portal.ymax = math.round(centre[2] + (halfHeight / zoom))
+	portal.xmin = math.round(centre[1] - (halfWindowWidth / zoom))
+	portal.xmax = math.round(centre[1] + (halfWindowWidth / zoom))
+	portal.ymin = math.round(centre[2] - (halfWindowHeight / zoom))
+	portal.ymax = math.round(centre[2] + (halfWindowHeight / zoom))
+
+	self.zoom = zoom
 
 	self:_constrain()
 end
 
+function Viewport:setZoom( zoom )
+	self.zoomDamp.target = zoom
+end
+
 function Viewport:getZoom()
-	local windowWidth = love.graphics.getWidth()
-	local windowHeight = love.graphics.getHeight()
-	local portal = self.portal
-
-	local xZoom = windowWidth / portal:width()
-	local yZoom = windowHeight / portal:height()
-
-	-- Yes, I am y-ist...
-	return xZoom
+	return self.zoom
 end

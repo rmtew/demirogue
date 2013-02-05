@@ -324,12 +324,12 @@ function Level.new( params )
 	-- To save trying to write straight skeleton generating code.
 	local offsetStart = love.timer.getMicroTime()
 
-	local offset = margin * 0.1
+	local offset = margin * 0.2
 	local cores = {}
 	local voronoi = Voronoi:new()
 
 	for _, cell in ipairs(diagram.cells) do
-		if not cell.site.wall then
+		if not cell.site.wall  or true then
 			local neighbours = cell:getNeighborIds()
 			local points = { { cell.site.x, cell.site.y } }
 

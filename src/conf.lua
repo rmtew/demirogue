@@ -13,7 +13,7 @@ function love.conf( t )
     -- t.screen.fullscreen = false
     -- t.screen.vsync = true
     -- The voronoi cells look a lot better with AA on.
-	t.screen.fsaa = 8
+	t.screen.fsaa = 0 -- 8
     
     -- t.modules.joystick = true
     -- t.modules.audio = true
