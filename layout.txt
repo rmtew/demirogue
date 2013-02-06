@@ -1,0 +1,13 @@
+Layout
+------
+
+I'm having issues trying to come up with a more controlled layout generation
+system that doesn't need either a graph drawing algorithm (slow and imperfect).
+
+Maybe looking at some simpler systems in more detail would help:
+
+- Automatic GUI style layout system based on tree-of-boxes and tree-grammars.
+
+A box grammar needs horizontal and vertical boxes.
+
+[] {} <> ()	

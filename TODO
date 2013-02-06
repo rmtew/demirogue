@@ -31,6 +31,9 @@ TODO
 
 - Voronoi
   - Polygon offset algorithm for shorelines, roofs and so on.
+    - Currently using a voronoi based hack for per cell offsetting.
+      - For each cell move in the neighbouring sites by twice the offset.
+      - Then recalc voronoi and the halfedges for the cell are the offset edges.
   - Edge fettling for cells, e.g. grass.
   - Reconsider level generation in light of using voronoi.
     - Create room AABBs layout gen style.
@@ -39,6 +42,8 @@ TODO
     - Connect rooms
     
   - Either try and maintain max vertex valance of 8 (so keys work) or move to mouse only input.
+    - Only a few cells seem to have too may neighbours.
+    - Not checked for edges being too close, e.g. having two edges that are west.
   - Maybe try to compile Love by hand to get Geometry support.
   - Need to be able to traverse the halfedges and find out connected cells.
 
@@ -51,3 +56,23 @@ TODO
       - Could use lake as a mask and turn already created voronoi cells into
         fluid then check connectivity though.
         - Will look weird to have square and hexagonal water spaces though.
+
+- Need to move rendering code into it's own file.
+- Need to add filters to dmap.
+  - Need to demeter up Level, there's too much reaching into internals.
+
+- Need some basic menu support for debugging flags, resolution changing and
+  probably some game uses.
+
+- Need to define cell/vertex structure:
+  - Currently commented at the top of Level.lua
+
+- Need to define terrain types.
+  - Name
+  - Passable
+  - BG colour
+  - FG colour
+  - drawCore flag
+- Need diagonal terrain matrix for how to handle edges between the cells.
+  - For example hard edges (thick black lines say) should only be between certain cell types.
+  - Also if I ever perturb the edges what happens depends on the abutting cell types.

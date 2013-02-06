@@ -259,8 +259,13 @@ function voronoimode.draw()
 		end
 	end
 
-	local centre = viewport.centreDamp.value
-	love.graphics.circle('line', centre[1], centre[2], 10)
+	-- love.graphics.setLineWidth(5)
+	-- love.graphics.setColor(0, 0, 0, 128)
+	-- local centre = viewport.centreDamp.value
+	-- love.graphics.circle('line', centre[1], centre[2], 10)
+	-- love.graphics.setColor(255, 0, 0, 128)
+	-- local centre = viewport.portal:centre()
+	-- love.graphics.circle('line', centre[1], centre[2], 10)
 
 	love.graphics.pop()
 

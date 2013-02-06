@@ -13,7 +13,28 @@ Level = {}
 
 Level.__index = Level
 
--- Uses a relative neighbourhood graph to connect the rooms.
+--
+-- TODO: sort out cell/vertex structure.
+--
+-- vertex = {
+--     x,
+--     y,
+--     corridor = true | nil,
+--     wall = true | nil,
+-- }
+--
+-- TODO: sort out room structure as well.
+--
+-- room = {
+--     points = cell sites/vertices in the room, can't rely on order.
+--     aabb   = the tight bounding box of the rooms vertices.
+--     border = the original AABB passed into the roomgen.
+--     hull   = clockwise list of Vectors representing the convex hull of the vertices.
+-- }
+--
+
+-- Uses a relative neighbourhood graph (RNG) to connect the rooms.
+-- TODO: The results are a little too connected. Play with removing edges.
 local function _connect( rooms, margin )
 	local centres = {}
 
@@ -40,6 +61,9 @@ local function _connect( rooms, margin )
 		if near1 and near2 then
 			-- We already have the end points of the corridor so we only create
 			-- the internal points.
+			-- TODO: if numPoints < 1 then something has gone wrong, maybe
+			--       assert on it. Need to ensure the layoutgen functions
+			--       always leave at least 2*margin distance between rooms.
 			local numPoints = math.round(distance / margin) - 1
 			local segLength = distance / (numPoints + 1)
 			local normal = Vector.to(near1, near2):normalise()
@@ -89,6 +113,7 @@ local function _enclose( points, aabb, margin )
 
 	-- grid.print()
 
+	-- Any point within a cell could be too close to other cell neighbouring.
 	local dirs = {
 		{ 0, 0 },
 		{ -1, -1 },
@@ -154,7 +179,8 @@ end
 -- margin - the minimum distance between vertices
 -- layout - layoutgen function
 -- roomgen - roomgen function
--- graphgen - graphgen function
+-- TODO: limits
+-- TODO: if level gen takes too long this needs to run in a coroutine.
 
 function Level.new( params )
 	-- local aabb = AABB.new(params.aabb)
@@ -182,7 +208,8 @@ function Level.new( params )
 	-- 1. get the rooms borders.
 	local borders = layout(aabb, limits)
 
-	-- As a test lets kill a quarter of the rooms.
+	-- TEST: let's kill a quarter of the rooms.
+	-- RESULT: better than I though but some of the corridors were too long.
 	-- local cull = math.floor(#borders * 0.25)
     --
 	-- for i = 1, cull do
@@ -209,6 +236,7 @@ function Level.new( params )
 
 		local hull = geometry.convexHull(points)
 
+		-- Check that the convexHull() and isPointInHull() functions work.
 		for _, point in ipairs(points) do
 			assert(geometry.isPointInHull(point, hull))
 		end
@@ -259,7 +287,7 @@ function Level.new( params )
 		all[#all+1] = corridors[index]
 	end
 
-	-- We need to ensure the map is surround by wall.
+	-- We need to ensure the map is surround by wall so expand the AABB a bit.
 	local safe = params.aabb:shrink(-margin)
 	local walls = _enclose(all, safe, margin)
 
@@ -320,8 +348,8 @@ function Level.new( params )
 		end
 	end
 
-	-- TEST
-	-- To save trying to write straight skeleton generating code.
+	-- TEST: to save trying to write straight skeleton generating code.
+	-- RESULT: it works but is quite slow and only work for single cells.
 	local offsetStart = love.timer.getMicroTime()
 
 	local offset = margin * 0.2
