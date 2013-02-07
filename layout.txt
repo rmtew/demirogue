@@ -2,12 +2,77 @@ Layout
 ------
 
 I'm having issues trying to come up with a more controlled layout generation
-system that doesn't need either a graph drawing algorithm (slow and imperfect).
+system that doesn't need either a graph drawing algorithm (slow and imperfect)
+or provides the right mix of control and generative power.
 
 Maybe looking at some simpler systems in more detail would help:
 
 - Automatic GUI style layout system based on tree-of-boxes and tree-grammars.
 
-A box grammar needs horizontal and vertical boxes.
+- The main restriction on any system is that it produces graphs that can be
+  rendered and have certain properties.
+  - Planar graphs in the 2D case.
+  - Size restrictions.
 
-[] {} <> ()	
+ Here's some pseudo-code for a box based graph rendering algorithm
+
+ function layout( node, margin )
+ 	if node.leaf then
+ 		node.points = gen(node)
+ 		local aabb = bounds(node.points)
+ 		node.width, node.height = aabb:width(), aabb:height()
+ 	else
+ 		local maxWidth = 0
+ 		local maxHeight = 0
+ 		local 
+ 		for _, child in ipairs(node.children) do
+ 			layout(child)
+ 			maxWidth = math.max(node.width, maxWidth)
+ 			maxHeight = math.max(node.height, maxHeight)
+ 		end
+
+ 		if node.horz then
+ 			-- We centre the nodes within the max height.
+			for child in pairs(node.children) do
+
+ 			end
+ 		end 			
+ 		elseif node.vert then
+
+ 		end
+ 	end
+
+ 	if node.root then
+ 	end
+ end
+
+
+
+
+
+
+Graph Grammar Rules
+- Planarity: the left and right hand of rules must be planar.
+- Conext sensitive: graphs can be on the left side of rules, not just nodes.
+  - Gives more control and expressive power to the designer.
+- Connected: both the left and right hand graphs in rules must have a single
+             connected component.
+- Generative/Projective: the right hand of rules can only add to the left hand.
+  - Removing nodes or massively changing topology make rendering a lot harder.
+- Non-colliding: any vertex that has added neighbours in the right hand rule
+                 must have the exact valence described in the left hand rule.
+  - This avoids the following issue
+
+  1: A -- B => A -- C -- B
+                    |
+                    D
+
+Problem
+-------
+
+S1 --- F1 =>  S1 --- R1
+               |     |
+               |     |
+              R2 --- F1
+
+

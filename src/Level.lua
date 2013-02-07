@@ -357,7 +357,7 @@ function Level.new( params )
 	local voronoi = Voronoi:new()
 
 	for _, cell in ipairs(diagram.cells) do
-		if not cell.site.wall  or true then
+		if not cell.site.wall then
 			local neighbours = cell:getNeighborIds()
 			local points = { { cell.site.x, cell.site.y } }
 

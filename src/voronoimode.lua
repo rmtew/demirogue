@@ -210,6 +210,8 @@ function voronoimode.draw()
 
 	if drawEdges then
 		love.graphics.setColor(0, 255, 0, 255)
+		local linewidth = 5
+		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
 		
 		for edge, endverts in pairs(level.graph.edges) do
 			if not endverts[1].wall and not endverts[2].wall then
@@ -245,11 +247,11 @@ function voronoimode.draw()
 		end
 	end
 
-	-- love.graphics.setColor(0, 0, 255, 128)
-	-- love.graphics.setLineWidth(1)
-	-- for _, core in ipairs(level.cores) do
-	-- 	love.graphics.polygon('fill', core)
-	-- end
+	love.graphics.setColor(0, 0, 255, 128)
+	love.graphics.setLineWidth(1)
+	for _, core in ipairs(level.cores) do
+		love.graphics.polygon('fill', core)
+	end
 
 	for vertex, peers in pairs(level.graph.vertices) do
 		if table.count(peers) > 8 then
