@@ -24,7 +24,7 @@ Maybe looking at some simpler systems in more detail would help:
  	else
  		local maxWidth = 0
  		local maxHeight = 0
- 		local 
+
  		for _, child in ipairs(node.children) do
  			layout(child)
  			maxWidth = math.max(node.width, maxWidth)
@@ -35,8 +35,7 @@ Maybe looking at some simpler systems in more detail would help:
  			-- We centre the nodes within the max height.
 			for child in pairs(node.children) do
 
- 			end
- 		end 			
+ 			end 			
  		elseif node.vert then
 
  		end
@@ -74,5 +73,19 @@ S1 --- F1 =>  S1 --- R1
                |     |
                |     |
               R2 --- F1
+
+
+Action points.
+--------------
+
+1. Implement context-free box grammar and generator.
+2. Implement context-sensitive box grammar and generator.
+3. 
+
+- Need planarity testing for grammar rules.
+  - There are linear algorithms, not sure how complex though.
+- Need subgraph matching for grammar rules.
+  - There are planar graph matching algorithms but I think they use the
+    placements of the edges.
 
 
