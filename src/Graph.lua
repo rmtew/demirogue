@@ -1,3 +1,7 @@
+-- Don't normally do this (all lua file can assume misc is already loaded) but
+-- the tests at the bottom of the file can be run outside of Love.
+require 'misc'
+
 --
 -- Graph.lua
 --
@@ -323,20 +327,22 @@ local _defaultEdgeEq =
 		return true
 	end
 
+-- Finds all matching pattern subgraphs in the self/host graph.
 --
 -- Subgraph isomorphism based on J. R. Ullmann's 'An Algorithm for Subgraph
--- Isomorphism'.
+-- Isomorphism'. Extended to accept a vertex and edge equality functions as
+-- optional arguments.
 --
 -- There is a planar subgraph isomorphism algorithm with far better asymptotic
 -- bounds (Eppstein 'Subgraph Isomorphism in Planar Graphs and Related
 -- Problems') but it's far more complicated.
 --
--- Finds all matching pattern subgraphs in the self/host graph.
---
 -- Returns false if there's no matches.
 --
--- Returns true, matches: where matches is an array of vertex and edge maps.
+-- Returns true, matches: matches is an array of pattern to host vertex maps.
 --
+-- TODO: Ullmann's algorithm has a 'refine' step that isn;t currently
+--       implemented in this version.
 function Graph:matches( pattern, vertexEq, edgeEq )
 	vertexEq = vertexEq or _defaultVertexEq
 	edgeEq = edgeEq or _defaultEdgeEq
@@ -391,12 +397,14 @@ function Graph:matches( pattern, vertexEq, edgeEq )
 	local maxDepth = #potentials
 	local depth = 1
 	
+	-- Brute force, backtracking tree search needs a stack to hold intermediate
+	-- state.
 	local stack = {}
 
 	for index = 1, #potentials do
 		local frame = {
-			choiceIndex = 1,
-			choices = potentials[index],
+			nextChoiceIndex = 1,
+			choices = potentials[index].hostVertices,
 			patternVertex = potentials[index].patternVertex,
 			hostVertex = nil,
 		}
@@ -408,30 +416,31 @@ function Graph:matches( pattern, vertexEq, edgeEq )
 		local choices = frame.choices
 		local choice
 
-		for choiceIndex = frame.choiceIndex, #choices do
+		for choiceIndex = frame.nextChoiceIndex, #choices do
 			choice = choices[choiceIndex]
 
 			-- Does the choice conflict with a previous choice?
-			for index = depth-1, 1, -1 do
+			for index = 1, depth-1 do
 				local ancestor = stack[index]
-				if choice == frame.hostVertex then
+				if choice == ancestor.hostVertex then
 					choice = nil
 					break
 				end
 			end
 
 			if choice then
-				frame.choiceIndex = choiceIndex + 1
+				frame.nextChoiceIndex = choiceIndex + 1
 				break
 			end
 		end
 
 		if choice then
 			frame.hostVertex = choice
-			frame.choiceIndex = choiceIndex + 1
 
 			-- Have we got a mapping for each pattern vertex?
-			if depth == maxDepth then
+			if depth < maxDepth then
+				depth = depth + 1
+			else
 				-- pattern -> host vertex map.
 				local map = {}
 
@@ -462,23 +471,30 @@ function Graph:matches( pattern, vertexEq, edgeEq )
 					result[#result+1] = map
 				end
 			end
-		elseif depth == 1 then
-			if #result > 0 then
-				return true, result
-			else
-				return false
-			end
 		else
-			frame.choiceIndex = #choices + 1
+			-- No choices at depth 1 means we're at the end!
+			if depth == 1 then
+				return #result > 0, result
+			else
+				-- No choices si signified by the nextChoiceIndex being greater
+				-- than the choices array.
+				frame.nextChoiceIndex = #choices + 1
 
-			-- We need to unwind.
-			for index = depth, 1, -1 do
-				local frame = stack[index]
-				if frame.choiceIndex > #frame.choices then
-					frame.choiceIndex = 1
-				else
+				-- We need to unwind.
+				for index = depth, 1, -1 do
 					depth = index
-					break
+
+					local frame = stack[index]
+					frame.hostVertex = nil
+
+					-- If there are still possible choices stay at this depth.
+					if frame.nextChoiceIndex <= #frame.choices then
+						break
+					-- If there are no more choices reset the nextChoiceIndex
+					-- but not at depth 1 or we'll loop forever.
+					elseif index ~= 1 then
+						frame.nextChoiceIndex = 1
+					end
 				end
 			end
 		end
@@ -511,6 +527,101 @@ if arg then
 	for vertex, centrality in pairs(betweenness) do
 		print(vertex, centrality)
 	end
+
+
+ --    local a = { tag = 'a' }
+	-- local b = { tag = 'b' }
+	
+	-- local host = Graph.new()
+	-- host:addVertex(a)
+	-- host:addVertex(b)
+	
+	-- host:addEdge({}, a, b)
+	
+	-- local x = { tag = 'x' }
+	-- local y = { tag = 'y' }
+	
+	-- local pattern = Graph.new()
+	-- pattern:addVertex(x)
+	-- pattern:addVertex(y)
+	
+	-- pattern:addEdge({}, x, y)
+	
+	-- local success, result = host:matches(pattern)
+
+	-- print(success)
+	-- if result then
+	-- 	table.print(result)
+	-- end
+
+	-- a -- b -- c
+	-- |    |    |
+	-- d -- e -- f
+
+	local a = { tag = 'a' }
+	local b = { tag = 'b' }
+	local c = { tag = 'c' }
+	local d = { tag = 'd' }
+	local e = { tag = 'e' }
+	local f = { tag = 'f' }
+
+	local host = Graph.new()
+	host:addVertex(a)
+	host:addVertex(b)
+	host:addVertex(c)
+	host:addVertex(d)
+	host:addVertex(e)
+	host:addVertex(f)
+
+	host:addEdge({}, a, b)
+	host:addEdge({}, b, c)
+	host:addEdge({}, d, e)
+	host:addEdge({}, e, f)
+	host:addEdge({}, a, d)
+	host:addEdge({}, b, e)
+	host:addEdge({}, c, f)
+
+	-- x -- y
+	-- |    |
+	-- z -- w
+
+	local x = { tag = 'x' }
+	local y = { tag = 'y' }
+	local z = { tag = 'z' }
+	local w = { tag = 'w' }
+	
+	local pattern = Graph.new()
+	pattern:addVertex(x)
+	pattern:addVertex(y)
+	pattern:addVertex(z)
+	pattern:addVertex(w)
+
+	pattern:addEdge({}, x, y)
+	pattern:addEdge({}, x, z)
+	pattern:addEdge({}, z, w)
+	pattern:addEdge({}, y, w)
+	
+	local success, result = host:matches(pattern)
+
+	assert(success)
+	assert(#result == 16)
+
+	print(success)
+	if success then
+		for _, map in ipairs(result) do
+			local ps = {}
+			local hs = {}
+
+			for p, h in pairs(map) do
+				ps[#ps+1] = p.tag
+				hs[#hs+1] = h.tag
+			end
+
+			printf('%s:%s', table.concat(ps), table.concat(hs))
+		end
+	end
+
+	print(#result)
 end
 
 

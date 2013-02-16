@@ -59,6 +59,16 @@ function table.shuffle( tbl )
 	end
 end
 
+function table.collect( tbl, func )
+	local result = {}
+
+	for k, v in pairs(tbl) do
+		result[k] = func(v)
+	end
+
+	return result
+end
+
 
 function printf( ... )
 	print(string.format(...))
