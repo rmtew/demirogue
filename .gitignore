@@ -12,3 +12,7 @@
 
 # Sublime
 *.sublime-workspace
+
+# Generated debugging files.
+src/dots/*.png
+src/dots/*.dot

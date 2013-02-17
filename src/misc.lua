@@ -19,6 +19,7 @@ function table.keys( tbl )
 	return result
 end
 
+-- Really just a shallow copy.
 function table.copy( tbl )
 	local result = {}
 
@@ -83,6 +84,18 @@ function table.print( tbl, indent )
 			table.print(v, indent + 2)
 		end
 	end
+end
+
+function fopen( filename, mode )
+	local f
+	if love then
+		f = love.filesystem.newFile(filename, mode)
+		f:open('w')
+	else
+		f = io.open(filename, mode)
+	end
+
+	return f
 end
 
 -------------------------------------------------------------------------------

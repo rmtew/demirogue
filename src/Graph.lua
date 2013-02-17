@@ -501,6 +501,38 @@ function Graph:matches( pattern, vertexEq, edgeEq )
 	end
 end
 
+function Graph:dotFile( name, vertexLabeller )
+	name = name or 'G'
+	local ids = {}
+
+	vertexAttr = vertexAttr or function ( vertex ) return ids[vertex] end
+
+	local id = 1
+
+	for vertex, _ in pairs(self.vertices) do
+		ids[vertex] = string.format('v%d', id)
+		id = id + 1
+	end
+
+	local parts = { string.format('graph %s {', name) }
+
+	for edge, endverts in pairs(self.edges) do
+		local vertex1, vertex2 = endverts[1], endverts[2]
+		parts[#parts+1] = string.format('  %s -- %s;', ids[vertex1], ids[vertex2])
+	end
+
+	parts[#parts+1] = ''
+
+	for vertex, id in pairs(ids) do
+		local label = vertexLabeller(vertex)
+		parts[#parts+1] = string.format('  %s [label="%s"];', id, label)
+	end
+
+	parts[#parts+1] = '}'
+
+	return table.concat(parts, '\n')
+end
+
 if arg then
 	local test = Graph.new()
 	test:addVertex(1)
@@ -622,6 +654,8 @@ if arg then
 	end
 
 	print(#result)
+
+	print(host:dotFile(nil, function ( vertex ) return vertex.tag end))
 end
 
 
