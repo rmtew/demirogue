@@ -182,7 +182,7 @@ function Graph:dmap( source, maxdepth )
 		local frontier = #queue
 
 		while index <= frontier do
-			local vertex = queue[i]
+			local vertex = queue[index]
 
 			for peer, _ in pairs(vertices[vertex]) do
 				if not result[peer] then
@@ -196,6 +196,27 @@ function Graph:dmap( source, maxdepth )
 	end
 
 	return result
+end
+
+function Graph:isEmpty()
+	return next(self.vertices) == nil
+end
+
+-- Could be made more efficient with a depth first traversal I think.
+function Graph:isConnected()
+	local vertex = next(self.vertices)
+
+	if vertex then
+		local island = self:dmap(vertex)
+
+		for vertex, _ in pairs(self.vertices) do
+			if not island[vertex] then
+				return false
+			end
+		end
+	end
+
+	return true
 end
 
 -- TODO: If we could avoid the allocations of all but the result that would be cool
@@ -515,6 +536,8 @@ function Graph:dotFile( name, vertexLabeller )
 	end
 
 	local parts = { string.format('graph %s {', name) }
+
+	parts[#parts+1] = "  graph [overlap=scale];"
 
 	for edge, endverts in pairs(self.edges) do
 		local vertex1, vertex2 = endverts[1], endverts[2]

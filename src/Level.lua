@@ -14,7 +14,7 @@ Level = {}
 Level.__index = Level
 
 --
--- TODO: sort out cell/vertex structure.
+-- TODO: sort out cell/vertex structure. Below is the current setup.
 --
 -- vertex = {
 --     x,
@@ -23,7 +23,7 @@ Level.__index = Level
 --     wall = true | nil,
 -- }
 --
--- TODO: sort out room structure as well.
+-- TODO: sort out room structure as well. Below is the current setup.
 --
 -- room = {
 --     points = cell sites/vertices in the room, can't rely on order.
