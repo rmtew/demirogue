@@ -173,7 +173,7 @@ function GraphGrammar:build( maxIterations, maxVertices )
 
 	for iteration = 1, maxIterations do
 
-		local f = fopen(string.format('dots/graph-%03d.dot', iteration), 'w')
+		local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
 		
 		local rulesMatches = {}
 

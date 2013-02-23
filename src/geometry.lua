@@ -87,3 +87,22 @@ function geometry.isPointInHull( point, hull )
 	return true
 end
 
+function geometry.closestPointOnLine( lineA, lineB, point )
+	local aToP = Vector.to(lineA, point)
+	local aToB = Vector.to(lineA, lineB)
+    local aToBSqrLen = Vector.dot(aToB, aToB)
+    local proj = aToP:dot(aToB)
+    local t = proj / aToBSqrLen;
+    
+    if t < 0 then
+    	t = 0
+    elseif t > 1 then
+    	t = 1
+    end
+
+    return Vector.new {
+    	lineA[1] + aToB[1] * t,
+    	lineA[2] + aToB[2] * t,
+	}
+end
+

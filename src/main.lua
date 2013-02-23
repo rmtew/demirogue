@@ -3,6 +3,7 @@ require 'misc'
 
 -- require 'gamemode'
 require 'voronoimode'
+require 'graphmode'
 -- require 'glyphmode'
 
 print('_VERSION', _VERSION)
@@ -61,6 +62,8 @@ function love.keypressed( key )
 
 	if key == 'escape' then
 		love.event.push('quit')
+	elseif key == '0' then
+		mode = graphmode
 	else
 		mode.keypressed(key)
 	end

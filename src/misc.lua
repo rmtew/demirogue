@@ -89,8 +89,8 @@ end
 function fopen( filename, mode )
 	local f
 	if love then
-		f = love.filesystem.newFile(filename, mode)
-		f:open('w')
+		f = love.filesystem.newFile(filename)
+		assertf(f:open(mode), 'fopen failed with %s %s', filename, tostring(mode))
 	else
 		f = io.open(filename, mode)
 	end
