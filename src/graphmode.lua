@@ -85,7 +85,7 @@ function graphmode.update()
 		local d = coord:toLength(vertex)
 		if d < distance then
 			distance = d
-			selection = vertex
+			selection = { type = 'vertex', vertex = vertex }
 		end
 	end
 
@@ -93,7 +93,7 @@ function graphmode.update()
 		local d = coord:toLength(vertex)
 		if d < distance then
 			distance = d
-			selection = vertex
+			selection = { type = 'vertex', vertex = vertex }
 		end
 	end
 
@@ -101,18 +101,47 @@ function graphmode.update()
 		selection = nil
 	end
 
-	if state.edge then
-		local current = state.selection
+	-- What about an edge?
+	if not selection then
+		distance = math.huge
 
-		if current and selection then
-			local different = current ~= selection
-			local sameSide = current.side == selection.side
+		for edge, endverts in pairs(level.leftGraph.edges) do
+			local d = geometry.closestPointOnLine(endverts[1], endverts[2], coord):toLength(coord)
+
+			if d < distance then
+				distance = d
+				selection = { type = 'edge', edge = edge }
+			end
+		end
+
+		for edge, endverts in pairs(level.rightGraph.edges) do
+			local d = geometry.closestPointOnLine(endverts[1], endverts[2], coord):toLength(coord)
+
+			if d < distance then
+				distance = d
+				selection = { type = 'edge', edge = edge }
+			end
+		end
+		
+		if distance > config.tolerance then
+			selection = nil
+		end
+	end
+
+	if state.edge then
+		assert(state.selection and state.selection.type == 'vertex')
+
+		local current = state.selection.vertex
+
+		if selection and selection.type == 'vertex' then
+			local different = current ~= selection.vertex
+			local sameSide = current.side == selection.vertex.side
 
 			if different and sameSide then
 				local graph = (current.side == 'left') and level.leftGraph or level.rightGraph
 
-				if not graph:isPeer(current, selection) then
-					graph:addEdge({}, current, selection)
+				if not graph:isPeer(current, selection.vertex) then
+					graph:addEdge({ side = current.side }, current, selection.vertex)
 				end
 			end
 		end
@@ -130,13 +159,39 @@ function graphmode.draw()
 
 	local hw = w * 0.5
 
+	-- Dividing line.
+	love.graphics.setColor(255, 255, 255, 255)
 	love.graphics.setLine(1, 'rough')
 	love.graphics.line(hw, 0, hw, h)
 
 	local level = state.stack[state.index]
 
+	-- Highlight any selection.
+	if state.selection then
+		local selection = state.selection
+
+		love.graphics.setColor(255, 255, 0, 255)
+
+		if selection.type == 'vertex' then
+			love.graphics.setLine(3, 'rough')
+			local radius = 10
+			love.graphics.circle('line', selection.vertex[1], selection.vertex[2], radius)
+		end
+
+		if selection.type == 'edge' then
+			local graph = (selection.edge.side == 'left') and level.leftGraph or level.rightGraph
+			local endverts = graph.edges[selection.edge]
+
+			table.print(endverts)
+
+			love.graphics.setLine(10, 'rough')
+			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+		end
+	end
+
 	local radius = 5
 
+	love.graphics.setLine(3, 'rough')
 	love.graphics.setColor(255, 0, 0, 255)
 
 	for vertex, _ in pairs(level.leftGraph.vertices) do
@@ -157,19 +212,12 @@ function graphmode.draw()
 		love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 	end
 
-	if state.selection then
-		local selection = state.selection
-		love.graphics.setLine(3, 'rough')
-		love.graphics.setColor(255, 255, 255, 255)
-		local radius = 10
-		love.graphics.circle('line', selection[1], selection[2], radius)
+	if state.edge then
+		local vertex = state.selection.vertex
+		local mx, my = love.mouse.getX(), love.mouse.getY()
+		local coord = Vector.new { mx, my }
 
-		if state.edge then
-			local mx, my = love.mouse.getX(), love.mouse.getY()
-			local coord = Vector.new { mx, my }
-
-			love.graphics.line(selection[1], selection[2], coord[1], coord[2])
-		end
+		love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
 	end
 end
 
@@ -216,7 +264,9 @@ end
 
 function graphmode.keypressed( key )
 	if key == 'lshift' or key == 'rshift' then
-		state.edge = true
+		if state.selection and state.selection.type == 'vertex' then
+			state.edge = true
+		end
 	end
 end
 
