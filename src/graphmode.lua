@@ -182,13 +182,12 @@ function graphmode.draw()
 			local graph = (selection.edge.side == 'left') and level.leftGraph or level.rightGraph
 			local endverts = graph.edges[selection.edge]
 
-			table.print(endverts)
-
 			love.graphics.setLine(10, 'rough')
 			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 		end
 	end
 
+	-- Now the vertices and edges.
 	local radius = 5
 
 	love.graphics.setLine(3, 'rough')
@@ -202,7 +201,7 @@ function graphmode.draw()
 		love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 	end
 
-	love.graphics.setColor(0, 255, 0, 255)
+	love.graphics.setColor(0, 0, 255, 255)
 
 	for vertex, _ in pairs(level.rightGraph.vertices) do
 		love.graphics.circle('fill', vertex[1], vertex[2], radius)
@@ -212,6 +211,16 @@ function graphmode.draw()
 		love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 	end
 
+	-- Now draw the tags.
+	for vertex, _ in pairs(level.leftGraph.vertices) do
+		_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+	end
+
+	for vertex, _ in pairs(level.rightGraph.vertices) do
+		_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+	end
+
+	-- If we're in edge mode draw a line to help.
 	if state.edge then
 		local vertex = state.selection.vertex
 		local mx, my = love.mouse.getX(), love.mouse.getY()
@@ -219,9 +228,18 @@ function graphmode.draw()
 
 		love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
 	end
+
+	local numLeft = table.count(level.leftGraph.vertices)
+	local numRight = table.count(level.rightGraph.vertices)
+	_shadowf(10, 10, '#%d left:%d right:%d', state.index, numLeft, numRight)
 end
 
 function graphmode.mousepressed( x, y, button )
+	-- THis stop vertices being placed too close to other vertices.
+	if state.selection and state.selection.vertex then
+		return
+	end
+
 	local coord = { x, y }
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 	local hw = w * 0.5
@@ -234,6 +252,7 @@ function graphmode.mousepressed( x, y, button )
 			x,
 			y,
 			side = 'left',
+			tag = 'a',
 		}
 
 		local rightVertex = {
@@ -241,6 +260,7 @@ function graphmode.mousepressed( x, y, button )
 			y,
 			side = 'right',
 			mapped = true,
+			tag = 'a',
 		}
 
 		level.leftGraph:addVertex(leftVertex)
@@ -254,6 +274,7 @@ function graphmode.mousepressed( x, y, button )
 			y,
 			side = 'right',
 			mapped = false,
+			tag = 'a',
 		}
 		level.rightGraph:addVertex(rightVertex)
 	end
@@ -262,11 +283,61 @@ end
 function graphmode.mousereleased( x, y, button )
 end
 
+local _tags = {}
+
 function graphmode.keypressed( key )
 	if key == 'lshift' or key == 'rshift' then
 		if state.selection and state.selection.type == 'vertex' then
 			state.edge = true
 		end
+	elseif key == 'backspace' then
+		if state.selection then
+			local selection = state.selection
+			local level = state.stack[state.index]
+
+			if selection.type == 'vertex' then
+				local vertex = selection.vertex
+				
+				if vertex.side == 'left' then
+					level.leftGraph:removeVertex(vertex)
+					level.rightGraph:removeVertex(level.map[vertex])
+					level.map[vertex] = nil
+				elseif not vertex.mapped then
+					level.rightGraph:removeVertex(vertex)
+				end
+			else
+				local edge = selection.edge
+				local graph = (edge.side == 'left') and level.leftGraph or level.rightGraph
+
+				graph:removeEdge(edge)
+			end
+		end
+	elseif key:find('^(%a)$') then
+		if state.selection and state.selection.type == 'vertex' then
+			local vertex = state.selection.vertex
+			vertex.tag = key
+
+			if vertex.side == 'left' then
+				local level = state.stack[state.index]
+				level.map[vertex].tag = key
+			end
+		end
+	elseif key == 'up' then
+		if state.index > 1 then
+			state.index = state.index - 1
+		end
+	elseif key == 'down' then
+		state.index = state.index + 1
+
+		if not state.stack[state.index] then
+			state.stack[state.index] = {
+				leftGraph = Graph.new(),
+				rightGraph = Graph.new(),
+				map = {},
+			}
+		end
+	else key == 'f6' then
+		
 	end
 end
 
