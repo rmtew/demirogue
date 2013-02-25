@@ -243,8 +243,13 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		danglers[patternVertex] = dangles
 	end
 
-	-- Now we remove the matched vertices from the graph.
+	-- Now we remove the matched vertices from the graph, while we're at it
+	-- stash the postions of the removed vertices for when they're replaced by
+	-- substitute vertices.
+	local substitutePositions = {}
+	local map = self.map
 	for patternVertex, graphVertex in pairs(match) do
+		substitutePositions[map[patternVertex]] = Vector.new(graphVertex)
 		graph:removeVertex(graphVertex)
 	end
 
@@ -259,12 +264,11 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 		-- If the substitute vertex is replacing a pattern vertex
 		-- just use the already calculated position.
-		local inverse = inverseMap[substituteVertex]
-		if inverse then
-			local graphVertex = match[inverse]
-			copy[1], copy[2] = graphVertex[1], graphVertex[2]
+		local position = substitutePositions[substituteVertex]
+		if position then
+			copy[1], copy[2] = position[1], position[2]
 		else
-			-- If this a new substitutw vertex lerp to position.
+			-- If this a new substitute vertex lerp to position.
 			-- TODO: need to rotate
 			local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
 			-- NaN checks.
@@ -289,8 +293,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	end
 
 	-- Now the dangling edges.
-	local map = self.map
-
 	for patternVertex, dangles in pairs(danglers) do
 		for _, graphVertex in ipairs(dangles) do
 			local embeddedVertex = vertexEmbedding[map[patternVertex]]
@@ -298,6 +300,16 @@ function GraphGrammar.Rule:replace( graph, match, params )
 			-- TODO: Need to copy edge properties or something.
 			graph:addEdge({}, embeddedVertex, graphVertex)
 		end
+	end
+
+	if params.replaceYield then
+		while not love.keyboard.isDown('tab') do
+			love.graphics.setLine(3, 'rough')
+			love.graphics.setColor(0, 0, 255, 255)
+			love.graphics.rectangle('line', matchAABB.xmin, matchAABB.ymin, matchAABB:width(), matchAABB:height())
+			coroutine.yield(graph)
+		end
+		coroutine.yield(graph)
 	end
 
 	-- Now make it pretty.
@@ -380,11 +392,14 @@ function GraphGrammar:build( maxIterations, maxVertices )
 
 		local match = ruleMatch.matches[math.random(1, #ruleMatch.matches)]
 
-		ruleMatch.rule:replace(graph, match, self)
-
 		if self.replaceYield then
+			while not love.keyboard.isDown('return') do
+				coroutine.yield(graph)
+			end
 			coroutine.yield(graph)
 		end
+
+		ruleMatch.rule:replace(graph, match, self)
 
 		-- local dotFile = graph:dotFile('G' .. iteration, function ( vertex ) return vertex.tag end)
 		-- f:write(dotFile)

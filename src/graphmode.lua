@@ -410,9 +410,9 @@ function graphmode.draw()
 
 				springStrength = 1,
 				edgeLength = 100,
-				repulsion = 2,
+				repulsion = 500,
 				maxDelta = 0.5,
-				convergenceDistance = 2,
+				convergenceDistance = 1,
 				drawYield = true,
 				replaceYield = true,
 			}
@@ -421,7 +421,7 @@ function graphmode.draw()
 
 			state.coro = coroutine.create(
 				function ()
-					grammar:build(5, 20)
+					grammar:build(20, 20)
 				end)
 		end
 
@@ -570,7 +570,7 @@ function graphmode.keypressed( key )
 		file:open('w')
 		file:write(code)
 		file:close()
-	elseif key == 'f9' then
+	elseif key == 'f8' then
 		local file = love.filesystem.newFile("rules.txt")
 		if file:open('r') then
 			local code = file:read()

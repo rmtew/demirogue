@@ -158,6 +158,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 			local vertex = vertices[i]
 			local peers = graph.vertices[vertex]
 
+			-- Vertex-vertex forces.
 			for j = i+1, #vertices do
 				local other = vertices[j]
 				assert(vertex ~= other)
@@ -167,6 +168,8 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					local d = to:length()
 
 					local f = -springStrength * math.log(d/edgeLength)
+
+					--print('spring', f)
 
 					local vforce = forces[vertex]
 					local oforce = forces[other]
@@ -182,6 +185,8 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 					local f = repulsion / (d*d)
 
+					--print('repulse', f)
+
 					local vforce = forces[vertex]
 					local oforce = forces[other]
 
@@ -190,6 +195,41 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 					oforce[1] = oforce[1] + (to[1] * f)
 					oforce[2] = oforce[2] + (to[2] * f)
+				end
+
+			end
+			
+			-- Now edge-edge forces.
+			local edges = {}
+			for other, edge in pairs(peers) do
+				local to = Vector.to(vertex, other)
+				local angle = math.atan2(to[2], to[1])
+
+				edges[#edges+1] = { angle, edge, other, to }
+			end
+
+			if #edges >= 2 then
+				table.sort(edges,
+					function ( lhs, rhs )
+						return lhs[1] < rhs[1]
+					end)
+
+				for index = 1, #edges do
+					local angle1, edge1, other1, to1 = unpack(edges[index])
+					local nextIndex = (index == #edges) and 1 or index+1
+					local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
+
+					local edgeRepulse = 1
+					-- local edgeLength = ...
+					local to1Length = to1:length()
+					local to2Length = to2:length()
+					local el = edgeLength
+					local angleRepulse = 1
+
+					local fEdge = edgeRepulse * (math.atan(to1Length/el) + math.atan(to2Length/el))
+					local theta = math.acos(to1:dot(to2)) / (to1Length * to2Length)
+					local fTheta = angleRepulse * (1/math.tan(theta * 0.5))
+
 				end
 			end
 		end
