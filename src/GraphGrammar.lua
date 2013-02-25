@@ -1,4 +1,5 @@
 require 'Graph'
+require 'graph2D'
 
 GraphGrammar = {
 	Rule = {}
@@ -24,10 +25,18 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	-- Check that the pattern and substitute graphs have tags.
 	for vertex, _ in pairs(pattern.vertices) do
 		assert(vertex.tag)
+		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1])
+		assert(vertex[1] == vertex[1])
+		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2])
+		assert(vertex[2] == vertex[2])
 	end
 
 	for vertex, _ in pairs(substitute.vertices) do
 		assert(vertex.tag)
+		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1])
+		assert(vertex[1] == vertex[1])
+		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2])
+		assert(vertex[2] == vertex[2])
 	end
 
 	-- Check that the map uses valid vertices and is bijective.
@@ -38,6 +47,30 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 		assert(not inverse[substituteVertex])
 		inverse[substituteVertex] = patternVertex
+	end
+
+	-- Now we create the edge winding order lists.
+	local windings = {}
+	for patternVertex1, patternPeers in pairs(pattern.vertices) do
+		local winding = {}
+
+		for patternVertex2, patternEdge in pairs(patternPeers) do
+			local to = Vector.to(patternVertex1, patternVertex2)
+			local angle = math.atan2(to[2], to[1])
+			winding[#winding+1] = { angle = angle, edge = patternEdge }
+		end
+
+		table.sort(winding,
+				function ( lhs, rhs )
+					return lhs.angle < rhs.angle
+				end)
+
+		-- Don't need the angles, just the edges in order.
+		for index = 1, #winding do
+			winding[index] = winding[index].edge
+		end
+
+		windings[patternVertex1] = winding
 	end
 
 	-- All pattern vertices should be mapped.
@@ -56,10 +89,18 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	local delta = table.count(substitute.vertices) - table.count(pattern.vertices)
 	assert(delta >= 0)
 
+	-- Useful in replace().
+	local inverseMap = {}
+	for patterVertex, substituteVertex in pairs(map) do
+		inverseMap[substituteVertex] = patternVertex
+	end
+
 	local result = {
 		pattern = pattern,
 		substitute = substitute,
 		map = map,
+		inverseMap = inverseMap,
+		windings = windings,
 		delta = delta,
 	}
 
@@ -76,6 +117,82 @@ function GraphGrammar.Rule:matches( graph )
 	-- TODO: Probably need an edgeEq as well..
 	local success, result = graph:matches(self.pattern, _vertexEq)
 
+	-- The following bit of code is flawed...
+	if success and false then
+		-- Iterate backwards because we may be removing matches.
+		for index = #result, 1, -1 do
+			local match = result[index]
+			
+			-- First off we need a map from pattern edges to host edges.
+			local edgeMap = {}
+
+			for patternEdge, patternEndVerts in pairs(self.pattern.edges) do
+				local graphVertex1 = match[patternEndVerts[1]]
+				local graphVertex2 = match[patternEndVerts[2]]
+				edgeMap[patternEdge] = graph.vertices[graphVertex1][graphVertex2]
+			end
+
+			-- Now calculate the windings for the host graph.
+			for patternVertex1, patternPeers in pairs(self.pattern.vertices) do
+				local graphVertex1 = match[patternVertex1]
+
+				local graphWinding = {}
+
+				for patternVertex2, patternEdge in pairs(patternPeers) do
+					local graphVertex2 = match[patternVertex2]
+					local to = Vector.to(graphVertex1, graphVertex2)
+					local angle = math.atan2(to[2], to[1])
+					graphWinding[#graphWinding+1] = {
+						angle = angle,
+						edge = edgeMap[patternEdge]
+					}
+				end
+
+				table.sort(graphWinding,
+						function ( lhs, rhs )
+							return lhs.angle < rhs.angle
+						end)
+
+				-- Check that the edges in the host and the pattern have the
+				-- same winding order.
+				local winding = self.windings[patternVertex1]
+				local success = true
+
+				print('#WINDING', #winding)
+
+				for i = 1, #graphWinding-1 do
+					local graphEdge1 = graphWinding[i]
+					local graphEdge2 = graphWinding[i+1]
+
+					for j, patternEdge in ipairs(winding) do
+						if edgeMap[patternEdge] == graphEdge1 then
+							local nj = (j == #winding) and 1 or j + 1
+
+							if graphEdge2 ~= edgeMap[winding[nj]] then
+								print('WIND FAIL')
+								success = false
+								break
+							end
+						end
+					end
+
+					if not success then
+						break
+					end
+				end
+
+				if not success then
+					matches[index] = matches[#matches]
+					matches[#matches] = nil
+				end
+			end
+		end
+
+		if #result == 0 then
+			return false
+		end
+	end
+
 	return success, result
 end
 
@@ -83,12 +200,31 @@ end
 -- method. If not, all bets are off and you better know what you're doing.
 --
 -- TODO: May need a specific vertex copy function.
-function GraphGrammar.Rule:replace( graph, match )
+function GraphGrammar.Rule:replace( graph, match, params )
 	-- We need the inverse of the matching map.
-	local inverse = {}
+	local inverseMatch = {}
 	for patternVertex, graphVertex in pairs(match) do
-		inverse[graphVertex] = patternVertex
+		inverseMatch[graphVertex] = patternVertex
+		print(patternVertex[1], patternVertex[2], graphVertex[1], graphVertex[2])
 	end
+
+	local matchAABB = graph2D.matchAABB(match)
+
+	-- If the AABB of the matched part of the host graph is too small enlarge.
+	if matchAABB:width() < 1 then
+		local fudge = 0.5
+		matchAABB.xmin = matchAABB.xmin - fudge
+		matchAABB.xmax = matchAABB.xmax + fudge
+	end
+
+	if matchAABB:height() < 1 then
+		local fudge = 0.5
+		matchAABB.ymin = matchAABB.ymin - fudge
+		matchAABB.ymax = matchAABB.ymax + fudge
+	end
+
+	-- Shrink to a quarter of the size.
+	-- matchAABB:scale(0.95)
 
 	-- First off let's find out which edges we'll need to re-establish.
 	-- { [patternVertex] = { graphVertex }* }
@@ -99,7 +235,7 @@ function GraphGrammar.Rule:replace( graph, match )
 		for graphPeer, graphEdge in pairs(graph.vertices[graphVertex]) do
 			-- If a graph vertex has a peer that isn't in the match we'll need
 			-- to reconnect it later.
-			if not inverse[graphPeer] then
+			if not inverseMatch[graphPeer] then
 				dangles[#dangles+1] = graphPeer
 			end
 		end
@@ -114,10 +250,29 @@ function GraphGrammar.Rule:replace( graph, match )
 
 	-- Add the, initially unconnected, substitute graph vertices.
 	local substitute = self.substitute
+	local substituteAABB = graph2D.aabb(substitute)
 	-- { [substitute.vertex] = fresh copy of the vertex }
 	local vertexEmbedding = {}
+	local inverseMap = self.inverseMap
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		local copy = table.copy(substituteVertex)
+
+		-- If the substitute vertex is replacing a pattern vertex
+		-- just use the already calculated position.
+		local inverse = inverseMap[substituteVertex]
+		if inverse then
+			local graphVertex = match[inverse]
+			copy[1], copy[2] = graphVertex[1], graphVertex[2]
+		else
+			-- If this a new substitutw vertex lerp to position.
+			-- TODO: need to rotate
+			local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
+			-- NaN checks.
+			assert(coord[1] == coord[1])
+			assert(coord[2] == coord[2])
+			copy[1], copy[2] = coord[1], coord[2]
+		end
+
 		vertexEmbedding[substituteVertex] = copy
 		graph:addVertex(copy)
 	end
@@ -144,10 +299,27 @@ function GraphGrammar.Rule:replace( graph, match )
 			graph:addEdge({}, embeddedVertex, graphVertex)
 		end
 	end
+
+	-- Now make it pretty.
+	local springStrength = params.springStrength
+	local edgeLength = params.edgeLength
+	local repulsion = params.repulsion
+	local maxDelta = params.maxDelta
+	local convergenceDistance = params.convergenceDistance
+	local yield = params.drawYield
+	graph2D.forceDraw(graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield)
 end
 
 function GraphGrammar.new( params )
 	local rules = params.rules
+
+	local springStrength = params.springStrength or 1
+	local edgeLength = params.edgeLength or 50
+	local repulsion = params.repulsion or 1
+	local maxDelta = params.maxDelta or 1
+	local convergenceDistance = params.convergenceDistance or 2
+	local drawYield = params.drawYield or false
+	local replaceYield = params.replaceYield or false
 
 	-- TODO:
 	-- - Check we have at least one start rule.
@@ -157,6 +329,13 @@ function GraphGrammar.new( params )
 	local result = {
 		rules = rules,
 		graph = nil,
+		springStrength = springStrength,
+		edgeLength = edgeLength,
+		repulsion = repulsion,
+		maxDelta = maxDelta,
+		convergenceDistance = convergenceDistance,
+		drawYield = drawYield,
+		replaceYield = replaceYield,
 	}
 
 	setmetatable(result, GraphGrammar)
@@ -167,13 +346,12 @@ end
 -- TODO: Need to maintain a generator DAG.
 function GraphGrammar:build( maxIterations, maxVertices )
 	local graph = Graph.new()
-	graph:addVertex { tag = 'start' }
+	graph:addVertex { 400, 300, tag = 's' }
 
 	local rules = self.rules
 
 	for iteration = 1, maxIterations do
-
-		local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
+		-- local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
 		
 		local rulesMatches = {}
 
@@ -202,83 +380,23 @@ function GraphGrammar:build( maxIterations, maxVertices )
 
 		local match = ruleMatch.matches[math.random(1, #ruleMatch.matches)]
 
-		ruleMatch.rule:replace(graph, match)
+		ruleMatch.rule:replace(graph, match, self)
 
-		local dotFile = graph:dotFile('G' .. iteration, function ( vertex ) return vertex.tag end)
+		if self.replaceYield then
+			coroutine.yield(graph)
+		end
 
-		f:write(dotFile)
-
-		f:close()
+		-- local dotFile = graph:dotFile('G' .. iteration, function ( vertex ) return vertex.tag end)
+		-- f:write(dotFile)
+		-- f:close()
 	end
 
 	return graph
 end
 
-
-if arg then
-	-- local pattern = Graph.new()
-	-- local start = { tag = 'start' }
-	-- pattern:addVertex(start)
-
-	-- local substitute = Graph.new()
-	-- local a = { tag = 'a' }
-	-- local b = { tag = 'b' }
-
-	-- substitute:addVertex(a)
-	-- substitute:addVertex(b)
-	-- substitute:addEdge({}, a, b)
-
-	-- local rule1 = GraphGrammar.Rule.new(pattern, substitute, { [start] = a })
-
-	-- local pattern2 = Graph.new()
-	-- pattern2:addVertex(a)
-	-- pattern2:addVertex(b)
-	-- pattern2:addEdge({}, a, b)
-
-	-- local substitute2 = Graph.new()
-	-- local c = { tag = 'c' }
-	-- substitute2:addVertex(a)
-	-- substitute2:addVertex(b)
-	-- substitute2:addVertex(c)
-	-- substitute2:addEdge({}, a, b)
-	-- substitute2:addEdge({}, b, c)
-
-	-- local rule2 = GraphGrammar.Rule.new(pattern2, substitute2, { [a] = a, [b] = b })
-
-	-- local pattern3 = Graph.new()
-	-- pattern3:addVertex(b)
-	-- pattern3:addVertex(c)
-	-- local c2 = { tag = 'c' }
-	-- pattern3:addVertex(c2)
-	-- pattern3:addEdge({}, b, c)
-	-- pattern3:addEdge({}, b, c2)
-
-	-- local substitute3 = Graph.new()
-	-- local d = { tag = 'd' }
-	-- substitute3:addVertex(a)
-	-- substitute3:addVertex(b)
-	-- substitute3:addVertex(c)
-	-- substitute3:addVertex(d)
-
-	-- substitute3:addEdge({}, a, b)
-	-- substitute3:addEdge({}, a, c)
-	-- substitute3:addEdge({}, b, d)
-	-- substitute3:addEdge({}, c, d)
-
-	-- local rule3 = GraphGrammar.Rule.new(pattern3, substitute3, { [b] = a, [c] = b, [c2] = c })
-
-	-- local grammar = GraphGrammar.new {
-	-- 	rules = {
-	-- 		rule1 = rule1,
-	-- 		rule2 = rule2,
-	-- 		rule3 = rule3,
-	-- 	}
-	-- }
-
-	-- local result = grammar:build(50, 5)
-
+if arg and false then
 	local pattern1 = Graph.new()
-	local start = { tag = 'start' }
+	local start = { 0, 0, tag = 's' }
 	pattern1:addVertex(start)
 
 	--     p
@@ -288,11 +406,11 @@ if arg then
 	--     p
 
 	local substitute1 = Graph.new()
-	local abyss = { tag = 'abyss' }
-	local p1 = { tag = 'p' }
-	local p2 = { tag = 'p' }
-	local p3 = { tag = 'p' }
-	local p4 = { tag = 'p' }
+	local abyss = { 0, 0, tag = 'abyss' }
+	local p1 = { 0, -1, tag = 'p' }
+	local p2 = { 1, 0, tag = 'p' }
+	local p3 = { 0, 1, tag = 'p' }
+	local p4 = { -1, 0, tag = 'p' }
 
 	substitute1:addVertex(abyss)
 	substitute1:addVertex(p1)
@@ -315,9 +433,9 @@ if arg then
 	--   / |
 	-- p - a
 	local pattern2 = Graph.new()
-	local pabyss = { tag = 'abyss' }
-	local pp1 = { tag = 'p' }
-	local pp2 = { tag = 'p' }
+	local pabyss = { 0, 0, tag = 'abyss' }
+	local pp1 = { 0, -1, tag = 'p' }
+	local pp2 = { -1, 0, tag = 'p' }
 	
 	pattern2:addVertex(pabyss)
 	pattern2:addVertex(pp1)
@@ -331,10 +449,10 @@ if arg then
 	--   / | \
 	-- p - a - p
 	local substitute2 = Graph.new()
-	local sabyss = { tag = 'abyss' }
-	local sp1 = { tag = 'p' }
-	local sp2 = { tag = 'p' }
-	local sp3 = { tag = 'p' }
+	local sabyss = { 0, 0, tag = 'abyss' }
+	local sp1 = { -1, 0, tag = 'p' }
+	local sp2 = { 1, 0, tag = 'p' }
+	local sp3 = { 0, -1, tag = 'p' }
 	
 	substitute2:addVertex(sabyss)
 	substitute2:addVertex(sp1)
@@ -359,9 +477,9 @@ if arg then
 	--   / |
 	-- p - a
 	local pattern3 = Graph.new()
-	local pabyss = { tag = 'abyss' }
-	local pp1 = { tag = 'p' }
-	local pp2 = { tag = 'p' }
+	local pabyss = { 0, 0, tag = 'abyss' }
+	local pp1 = { 0, -1, tag = 'p' }
+	local pp2 = { -1, 0, tag = 'p' }
 	
 	pattern3:addVertex(pabyss)
 	pattern3:addVertex(pp1)
@@ -375,10 +493,10 @@ if arg then
 	--   / | 
 	-- p - a 
 	local substitute3 = Graph.new()
-	local sabyss = { tag = 'abyss' }
-	local sp1 = { tag = 'p' }
-	local sp2 = { tag = 'p' }
-	local sc = { tag = 'c' }
+	local sabyss = { 0, 0, tag = 'abyss' }
+	local sp1 = { 0, -1, tag = 'p' }
+	local sp2 = { -1, 0, tag = 'p' }
+	local sc = { -1, -1, tag = 'c' }
 	
 	substitute3:addVertex(sabyss)
 	substitute3:addVertex(sp1)

@@ -3,6 +3,7 @@ require 'GraphGrammar'
 require 'AABB'
 require 'Vector'
 require 'geometry'
+require 'graph2D'
 
 -- Basic graph editing for making grammar rule sets.
 --
@@ -293,88 +294,163 @@ end
 function graphmode.draw()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 
-	local hw = w * 0.5
+	if not state.show then
+			local hw = w * 0.5
 
-	-- Dividing line.
-	love.graphics.setColor(255, 255, 255, 255)
-	love.graphics.setLine(1, 'rough')
-	love.graphics.line(hw, 0, hw, h)
+		-- Dividing line.
+		love.graphics.setColor(255, 255, 255, 255)
+		love.graphics.setLine(1, 'rough')
+		love.graphics.line(hw, 0, hw, h)
 
-	local level = state.stack[state.index]
+		local level = state.stack[state.index]
 
-	-- Highlight any selection.
-	if state.selection then
-		local selection = state.selection
+		-- Highlight any selection.
+		if state.selection then
+			local selection = state.selection
 
-		love.graphics.setColor(255, 255, 0, 255)
+			love.graphics.setColor(255, 255, 0, 255)
 
-		if selection.type == 'vertex' then
-			love.graphics.setLine(3, 'rough')
-			local radius = 10
-			love.graphics.circle('line', selection.vertex[1], selection.vertex[2], radius)
+			if selection.type == 'vertex' then
+				love.graphics.setLine(3, 'rough')
+				local radius = 10
+				love.graphics.circle('line', selection.vertex[1], selection.vertex[2], radius)
+			end
+
+			if selection.type == 'edge' then
+				local graph = (selection.edge.side == 'left') and level.leftGraph or level.rightGraph
+				local endverts = graph.edges[selection.edge]
+
+				love.graphics.setLine(10, 'rough')
+				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			end
 		end
 
-		if selection.type == 'edge' then
-			local graph = (selection.edge.side == 'left') and level.leftGraph or level.rightGraph
-			local endverts = graph.edges[selection.edge]
+		-- Now the vertices and edges.
+		local radius = 5
 
-			love.graphics.setLine(10, 'rough')
+		love.graphics.setLine(3, 'rough')
+		love.graphics.setColor(255, 0, 0, 255)
+
+		for vertex, _ in pairs(level.leftGraph.vertices) do
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		end
+
+		for edge, endverts in pairs(level.leftGraph.edges) do
+			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+		end
+
+		love.graphics.setColor(0, 0, 255, 255)
+
+		for vertex, _ in pairs(level.rightGraph.vertices) do
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		end
+
+		for edge, endverts in pairs(level.rightGraph.edges) do
+			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+		end
+
+		-- Now draw the tags.
+		for vertex, _ in pairs(level.leftGraph.vertices) do
+			_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+		end
+
+		for vertex, _ in pairs(level.rightGraph.vertices) do
+			_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+		end
+
+		-- If we're in edge mode draw a line to help.
+		if state.edge then
+			local vertex = state.selection.vertex
+			local mx, my = love.mouse.getX(), love.mouse.getY()
+			local coord = Vector.new { mx, my }
+
+			love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
+		end
+
+		local numLeft = table.count(level.leftGraph.vertices)
+		local numRight = table.count(level.rightGraph.vertices)
+		local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
+		local rightConnect = level.rightGraph:isConnected() and 't' or 'f'
+		_shadowf(10, 10, '#%d left:%d right:%d conn:%s %s',
+			state.index,
+			numLeft,
+			numRight,
+			leftConnect,
+			rightConnect)
+	else
+		if not state.graph then
+			local rules = {}
+			local nextRuleId = 1
+
+			for _, level in ipairs(state.stack) do
+				local pattern = level.leftGraph
+				local substitute = level.rightGraph
+				local map = level.map
+				local status, result = pcall(
+					function ()
+						return GraphGrammar.Rule.new(pattern, substitute, map)
+					end)
+
+				print(status, result)
+
+				if status then
+					local name = string.format("rule%d", nextRuleId)
+					printf('RULE %s!', name)
+					nextRuleId = nextRuleId + 1
+					rules[name] = result
+				else
+					print('RULE FAIL')
+				end
+			end
+
+			print('RULEZ', #state.stack, table.count(rules))
+
+			local grammar = GraphGrammar.new {
+				rules = rules,
+
+				springStrength = 1,
+				edgeLength = 100,
+				repulsion = 2,
+				maxDelta = 0.5,
+				convergenceDistance = 2,
+				drawYield = true,
+				replaceYield = true,
+			}
+
+			table.print(grammar)
+
+			state.coro = coroutine.create(
+				function ()
+					grammar:build(5, 20)
+				end)
+		end
+
+		if state.coro then
+			local status, result = coroutine.resume(state.coro)
+
+			if not status then
+				error(result)
+			end
+
+			if result == nil then
+				state.coro = nil
+			else
+				state.graph = result
+			end
+		end
+
+		love.graphics.setColor(0, 255, 0, 255)
+		love.graphics.setLine(3, 'rough')
+		local radius = 5
+
+		for vertex, _ in pairs(state.graph.vertices) do
+			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+		end
+
+		for edge, endverts in pairs(state.graph.edges) do
 			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 		end
 	end
-
-	-- Now the vertices and edges.
-	local radius = 5
-
-	love.graphics.setLine(3, 'rough')
-	love.graphics.setColor(255, 0, 0, 255)
-
-	for vertex, _ in pairs(level.leftGraph.vertices) do
-		love.graphics.circle('fill', vertex[1], vertex[2], radius)
-	end
-
-	for edge, endverts in pairs(level.leftGraph.edges) do
-		love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
-	end
-
-	love.graphics.setColor(0, 0, 255, 255)
-
-	for vertex, _ in pairs(level.rightGraph.vertices) do
-		love.graphics.circle('fill', vertex[1], vertex[2], radius)
-	end
-
-	for edge, endverts in pairs(level.rightGraph.edges) do
-		love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
-	end
-
-	-- Now draw the tags.
-	for vertex, _ in pairs(level.leftGraph.vertices) do
-		_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
-	end
-
-	for vertex, _ in pairs(level.rightGraph.vertices) do
-		_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
-	end
-
-	-- If we're in edge mode draw a line to help.
-	if state.edge then
-		local vertex = state.selection.vertex
-		local mx, my = love.mouse.getX(), love.mouse.getY()
-		local coord = Vector.new { mx, my }
-
-		love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
-	end
-
-	local numLeft = table.count(level.leftGraph.vertices)
-	local numRight = table.count(level.rightGraph.vertices)
-	local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
-	local rightConnect = level.rightGraph:isConnected() and 't' or 'f'
-	_shadowf(10, 10, '#%d left:%d right:%d conn:%s %s',
-		state.index,
-		numLeft,
-		numRight,
-		leftConnect,
-		rightConnect)
 end
 
 function graphmode.mousepressed( x, y, button )
@@ -496,17 +572,21 @@ function graphmode.keypressed( key )
 		file:close()
 	elseif key == 'f9' then
 		local file = love.filesystem.newFile("rules.txt")
-		file:open('r')
-		local code = file:read()
-		file:close()
+		if file:open('r') then
+			local code = file:read()
+			file:close()
 
-		local data = loadstring(code)()
+			local data = loadstring(code)()
 
-		table.print(data)
+			table.print(data)
 
-		state.stack = _load(data)
-		state.index = 1
-		state.edge = false
+			state.stack = _load(data)
+			state.index = 1
+			state.edge = false
+		end
+	elseif key == ' ' then
+		state.show = not state.show
+		state.graph = nil
 	end
 end
 

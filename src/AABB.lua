@@ -38,6 +38,18 @@ function AABB:intersects( other )
 	return xoverlap and yoverlap
 end
 
+function AABB:scale( factor )
+	local centre = self:centre()
+
+	local hw = self:width() * 0.5
+	local hh = self:height() * 0.5
+
+	self.xmin = self.xmin + (hw * factor)
+	self.xmax = self.xmax - (hw * factor)
+	self.ymin = self.ymin + (hh * factor)
+	self.ymax = self.ymax - (hh * factor)
+end
+
 local _axes = {
 	horz = 'horz',
 	vert = 'vert',
@@ -122,5 +134,13 @@ function AABB:contains( point )
 	return self.xmin <= x and x <= self.xmax and self.ymin <= y and y <= self.ymax
 end
 
+-- Take a point relative to the centre of self and transform it to the similar
+-- place in the other AABB.
+function AABB:lerpTo( point, other )
+	return Vector.new {
+		lerpf(point[1], self.xmin, self.xmax, other.xmin, other.xmax),
+		lerpf(point[2], self.ymin, self.ymax, other.ymin, other.ymax),
+	}
+end
 
 

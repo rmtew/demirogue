@@ -7,6 +7,7 @@
 require 'Graph'
 require 'Vector'
 require 'graphgen'
+require 'AABB'
 
 graph2D = {}
 
@@ -15,6 +16,25 @@ function graph2D.aabb( graph )
 	local ymin, ymax = math.huge, -math.huge
 
 	for vertex, _ in pairs(graph.vertices) do
+		xmin = math.min(xmin, vertex[1])
+		xmax = math.max(xmax, vertex[1])
+		ymin = math.min(ymin, vertex[2])
+		ymax = math.max(ymax, vertex[2])
+	end
+
+	return AABB.new {
+		xmin = xmin,
+		xmax = xmax,
+		ymin = ymin,
+		ymax = ymax,
+	}
+end
+
+function graph2D.matchAABB( match )
+	local xmin, xmax = math.huge, -math.huge
+	local ymin, ymax = math.huge, -math.huge
+
+	for _, vertex in pairs(match) do
 		xmin = math.min(xmin, vertex[1])
 		xmax = math.max(xmax, vertex[1])
 		ymin = math.min(ymin, vertex[2])
@@ -112,6 +132,88 @@ function graph2D.subdivide( graph, margin )
 	for _, sub in ipairs(subs) do
 		for i = 1, #sub.vertices-1 do
 			graph:addEdge({ length = sub.length }, sub.vertices[i], sub.vertices[i+1])
+		end
+	end
+end
+
+-- Moves the graphs vertices.
+function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield )
+	-- assert(convergenceDistance < maxDelta)
+
+	local forces = {}
+	local positions = {}
+	local vertices = {}
+
+	for vertex, _ in pairs(graph.vertices) do
+		forces[vertex] = Vector.new { 0, 0 }
+		positions[vertex] = Vector.new { 0, 0 }
+		vertices[#vertices+1] = vertex
+	end
+
+
+	local converged = false
+
+	while not converged do
+		for i = 1, #vertices do
+			local vertex = vertices[i]
+			local peers = graph.vertices[vertex]
+
+			for j = i+1, #vertices do
+				local other = vertices[j]
+				assert(vertex ~= other)
+
+				if peers[other] then
+					local to = Vector.to(vertex, other)
+					local d = to:length()
+
+					local f = -springStrength * math.log(d/edgeLength)
+
+					local vforce = forces[vertex]
+					local oforce = forces[other]
+
+					vforce[1] = vforce[1] - (to[1] * f)
+					vforce[2] = vforce[2] - (to[2] * f)
+
+					oforce[1] = oforce[1] + (to[1] * f)
+					oforce[2] = oforce[2] + (to[2] * f)
+				else
+					local to = Vector.to(vertex, other)
+					local d = to:length()
+
+					local f = repulsion / (d*d)
+
+					local vforce = forces[vertex]
+					local oforce = forces[other]
+
+					vforce[1] = vforce[1] - (to[1] * f)
+					vforce[2] = vforce[2] - (to[2] * f)
+
+					oforce[1] = oforce[1] + (to[1] * f)
+					oforce[2] = oforce[2] + (to[2] * f)
+				end
+			end
+		end
+
+		converged = true
+
+		for _, vertex in ipairs(vertices) do
+			local force = forces[vertex]
+			local l = force:length()
+
+			if l > convergenceDistance then
+				converged = false
+				if l > maxDelta then
+					force:scale(maxDelta/l)
+					-- assert(force:length() < l)
+				end
+			end
+
+			vertex[1] = vertex[1] + force[1]
+			vertex[2] = vertex[2] + force[2]
+		end
+
+		if yield then
+			coroutine.yield(graph)
 		end
 	end
 end
