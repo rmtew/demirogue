@@ -196,3 +196,125 @@ function Dampener:updatev( target )
 
 	return self.value
 end
+
+-------------------------------------------------------------------------------
+
+local _literals = {
+	boolean =
+		function ( value )
+			if value then
+				return 'true'
+			else
+				return 'false'
+			end
+		end,
+	number =
+		function ( value )
+			if math.floor(value) == value then
+				return string.format("%d", value)
+			else
+				return string.format("%.4f", value)
+			end
+		end,
+	string =
+		function ( value )
+			return string.format("%q", value)
+		end
+}
+
+function table.compile( tbl, option )
+	local parts = { 'return ' }
+	local pads = { [0] = '', '  ', '    ' }
+
+	local next = next
+	local string_rep = string.rep
+	local type = type
+	local _literals = _literals
+
+	local function aux( tbl, indent )
+		if next(tbl) == nil then
+			parts[#parts+1] = '{}'
+			return
+		end
+
+		parts[#parts+1] = '{\n'
+
+		local padding = pads[indent]
+
+		if not padding then
+			padding = string_rep(' ', indent)
+			pads[indent] = padding
+		end
+
+		local size = #tbl
+
+		-- First off let's do the array part.
+		for index = 1, size do
+			local v = tbl[index]
+
+			parts[#parts+1] = padding
+
+			local vt = type(v)
+
+			if vt ~= 'table' then
+				parts[#parts+1] = _literals[vt](v)
+			else
+				aux(v, indent + 2)
+			end
+
+			parts[#parts+1] = ',\n'
+		end
+
+		-- Now non-array parts. This uses secret knowledge of how lua works, the
+		-- next() function will iterate over array parts first so we can skip them.
+		local k = next(tbl, (size ~= 0) and size or nil)
+
+		while k ~= nil do
+			parts[#parts+1] = padding
+			parts[#parts+1] = '['
+
+			local kt = type(k)
+
+			if kt ~= 'table' then
+				parts[#parts+1] = _literals[kt](k)
+			else
+				aux(k, indent + 2)
+			end
+
+			parts[#parts+1] = '] = '
+
+			local v = tbl[k]
+			local vt = type(v)
+
+			if vt ~= 'table' then
+				parts[#parts+1] = _literals[vt](v)
+			else
+				aux(v, indent + 2)
+			end
+
+			parts[#parts+1] = ',\n'
+
+			k = next(tbl, k)
+		end
+
+		-- Closing braces are dedented.
+		indent = indent - 2
+		padding = pads[indent]
+
+		if not padding then
+			padding = string_rep(' ', indent)
+			pads[indent] = padding
+		end
+
+		if padding ~= '' then
+			parts[#parts+1] = padding
+		end
+		parts[#parts+1] = '}'
+	end
+
+	aux(tbl, 2)
+
+	local result = table.concat(parts)
+
+	return result
+end

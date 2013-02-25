@@ -31,6 +31,142 @@ local function _shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
+local function _save( state )
+	-- Make a nice to save version of the state.
+
+	-- { level }+
+	-- level = { leftGraph = graph, rightGraph = graph, map = map }
+	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
+	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
+	-- map = { [<index>] = <index> }*
+
+	local function _vertex( vertex )
+		return {
+			vertex[1],
+			vertex[2],
+			side = vertex.side,
+			tag = vertex.tag,
+			mapped = vertex.mapped,
+		}
+	end
+
+	local function _graph( graph )
+		local vertexIndices = {}
+		local nextVertexIndex = 1
+		local vertices = {}
+
+		for vertex, _ in pairs(graph.vertices) do
+			local copy = _vertex(vertex)
+			vertices[nextVertexIndex] = copy
+			vertexIndices[vertex] = nextVertexIndex
+			nextVertexIndex = nextVertexIndex + 1
+		end
+
+		local edges = {}
+
+		for edge, endverts in pairs(graph.edges) do
+			local vertex1Index = vertexIndices[endverts[1]]
+			local vertex2Index = vertexIndices[endverts[2]]
+
+			edges[#edges+1] = { vertex1Index, vertex2Index }
+		end
+
+		return { vertices = vertices, edges = edges }, vertexIndices
+	end
+
+	local function _level( level )
+		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
+		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
+
+		local map = {}
+
+		for leftVertex, rightVertex in pairs(level.map) do
+			map[leftVertexIndices[leftVertex]] = rightVertexIndices[rightVertex]
+		end
+
+		return {
+			leftGraph = leftGraph,
+			rightGraph = rightGraph,
+			map = map
+		}
+	end
+
+	local levels = {}
+
+	for index, level in ipairs(state.stack) do
+		local copy = _level(level)
+		levels[index] = copy
+	end
+
+	return table.compile(levels)	
+end
+
+local function _load( data )
+	-- Make a nice to save version of the state.
+
+	-- { level }+
+	-- level = { leftGraph = graph, rightGraph = graph, map = map }
+	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
+	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
+	-- map = { [<index>] = <index> }*
+
+	local function _vertex( vertex )
+		return {
+			vertex[1],
+			vertex[2],
+			side = vertex.side,
+			tag = vertex.tag,
+			mapped = vertex.mapped,
+		}
+	end
+
+	local function _graph( graph )
+		local vertexIndices = {}
+
+		local result = Graph.new()
+
+		for index, vertex in ipairs(graph.vertices) do
+			local copy = _vertex(vertex)
+			result:addVertex(copy)
+			vertexIndices[index] = copy
+		end
+
+		for _, edge in pairs(graph.edges) do
+			local side = vertexIndices[edge[1]].side
+			result:addEdge({ side = side }, vertexIndices[edge[1]], vertexIndices[edge[2]])
+		end
+
+		return result, vertexIndices
+	end
+
+	local function _level( level )
+		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
+		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
+
+		local map = {}
+
+		for leftVertexIndex, rightVertexIndex in pairs(level.map) do
+			map[leftVertexIndices[leftVertexIndex]] = rightVertexIndices[rightVertexIndex]
+		end
+
+		return {
+			leftGraph = leftGraph,
+			rightGraph = rightGraph,
+			map = map
+		}
+	end
+
+	local result = {}
+
+	for index, level in ipairs(data) do
+		local copy = _level(level)
+
+		result[index] = copy
+	end
+
+	return result	
+end
+
 local state = nil
 local time = 0
 
@@ -231,11 +367,22 @@ function graphmode.draw()
 
 	local numLeft = table.count(level.leftGraph.vertices)
 	local numRight = table.count(level.rightGraph.vertices)
-	_shadowf(10, 10, '#%d left:%d right:%d', state.index, numLeft, numRight)
+	local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
+	local rightConnect = level.rightGraph:isConnected() and 't' or 'f'
+	_shadowf(10, 10, '#%d left:%d right:%d conn:%s %s',
+		state.index,
+		numLeft,
+		numRight,
+		leftConnect,
+		rightConnect)
 end
 
 function graphmode.mousepressed( x, y, button )
-	-- THis stop vertices being placed too close to other vertices.
+	if button ~= 'l' then
+		return
+	end
+
+	-- This stop vertices being placed too close to other vertices.
 	if state.selection and state.selection.vertex then
 		return
 	end
@@ -246,6 +393,8 @@ function graphmode.mousepressed( x, y, button )
 
 	local level = state.stack[state.index]
 
+	-- If we're adding a vertex to the left graph we need to add a
+	-- corresponding to the right graph.
 	if state.leftPane:contains(coord) then
 		print('left pane')
 		local leftVertex = {
@@ -336,8 +485,28 @@ function graphmode.keypressed( key )
 				map = {},
 			}
 		end
-	else key == 'f6' then
-		
+	elseif key == 'f5' then
+		local code = _save(state)
+
+		print(code)
+
+		local file = love.filesystem.newFile("rules.txt")
+		file:open('w')
+		file:write(code)
+		file:close()
+	elseif key == 'f9' then
+		local file = love.filesystem.newFile("rules.txt")
+		file:open('r')
+		local code = file:read()
+		file:close()
+
+		local data = loadstring(code)()
+
+		table.print(data)
+
+		state.stack = _load(data)
+		state.index = 1
+		state.edge = false
 	end
 end
 

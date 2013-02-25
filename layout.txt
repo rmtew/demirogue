@@ -87,5 +87,62 @@ Action points.
 - Need subgraph matching for grammar rules.
   - There are planar graph matching algorithms but I think they use the
     placements of the edges.
+    - Eppstein's planar subgraph isomorphsim doesn't use a planar
+      representation. It is very complex though.
 
 
+Basic Rule Editor
+-----------------
+
+- Theme
+  - Rule
+    - Pattern
+    - Substitute
+
+
++-------------------------------------------------+
+|theme - rule            |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
+|                        |                        |
++-------------------------------------------------+
+
+a new force-directed graph drawing method based on edge-edge repulsion
+- interesting paper, nice results.
+
+
+Just got a great idea from talking to Phil.
+- Use an incremental force based graph drawing.
+  - The rules have to have coordinates.
+  - These are used to stitch in the new verts and edges.
+  - Then run a force based drawing algorithm to convergence.
+  - As long as new edges are not added overlapping previous ones it should look
+    good.
+    - Need to be able to transform from rule space to graph space.
+    - Some know when inserting new edges whether they overlap and if so scale
+      down in some way.
+      - Calculate the host space centroid of the pattern graph.
+      - Remove pattern verts and edges from the host graph.
+      - Create bounding geometry (AABB, circle, hull) for the right hand side.
+      - Rotate point the right direction.
+        - This is the trickiest step I think.
+          - May be possible to derive it if the left-hand rule is context
+            sensitive. Could use an edge to orient things.
+      - Query the host graph with the rotated bounding geometry.
+        - Scale down to avoid any vertices or edges.
+      - Insert scaled down substitute vert and edges.
+      - Reattach to host graph.
+      - Run force directed algorithm to covergence.
+      - Transform the 
+      - If any other
