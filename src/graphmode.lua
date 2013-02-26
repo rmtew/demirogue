@@ -293,6 +293,12 @@ end
 
 function graphmode.draw()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+	local screen = AABB.new {
+		xmin = 0,
+		xmax = w,
+		ymin = 0,
+		ymax = h,
+	}
 
 	if not state.show then
 			local hw = w * 0.5
@@ -391,8 +397,6 @@ function graphmode.draw()
 						return GraphGrammar.Rule.new(pattern, substitute, map)
 					end)
 
-				print(status, result)
-
 				if status then
 					local name = string.format("rule%d", nextRuleId)
 					printf('RULE %s!', name)
@@ -401,6 +405,8 @@ function graphmode.draw()
 				else
 					print('RULE FAIL')
 				end
+				
+				print(status, result)
 			end
 
 			print('RULEZ', #state.stack, table.count(rules))
@@ -426,7 +432,7 @@ function graphmode.draw()
 		end
 
 		if state.coro then
-			local status, result = coroutine.resume(state.coro)
+			local status, result, forces = coroutine.resume(state.coro)
 
 			if not status then
 				error(result)
@@ -439,16 +445,32 @@ function graphmode.draw()
 			end
 		end
 
+		-- TODO: need to scale this to stop distortion.
+		local aabb = graph2D.aabb(state.graph)
+		aabb = aabb:shrink(-10)
+		aabb:similarise(screen)
+
+		-- TODO: For debugging so remove...
+		screen = AABB.new(aabb)
+
 		love.graphics.setColor(0, 255, 0, 255)
 		love.graphics.setLine(3, 'rough')
 		local radius = 5
 
 		for vertex, _ in pairs(state.graph.vertices) do
-			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+			local pos = aabb:lerpTo(vertex, screen)
+			love.graphics.circle('fill', pos[1], pos[2], radius)
 		end
 
 		for edge, endverts in pairs(state.graph.edges) do
-			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			local pos1 = aabb:lerpTo(endverts[1], screen)
+			local pos2 = aabb:lerpTo(endverts[2], screen)
+			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+		end
+
+		for vertex, _ in pairs(state.graph.vertices) do
+			local pos = aabb:lerpTo(vertex, screen)
+			_shadowf(pos[1], pos[2], '%s', vertex.tag)
 		end
 	end
 end
@@ -564,7 +586,7 @@ function graphmode.keypressed( key )
 	elseif key == 'f5' then
 		local code = _save(state)
 
-		print(code)
+		-- print(code)
 
 		local file = love.filesystem.newFile("rules.txt")
 		file:open('w')
@@ -578,7 +600,7 @@ function graphmode.keypressed( key )
 
 			local data = loadstring(code)()
 
-			table.print(data)
+			-- table.print(data)
 
 			state.stack = _load(data)
 			state.index = 1
@@ -587,6 +609,8 @@ function graphmode.keypressed( key )
 	elseif key == ' ' then
 		state.show = not state.show
 		state.graph = nil
+	elseif key == 'return' then
+		gProgress = true
 	end
 end
 

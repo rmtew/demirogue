@@ -7,6 +7,8 @@
 --   assigned so that general 2-elements arrys can use this library.
 -- 
 
+-- require 'AABB'
+
 Vector = {}
 Vector.__index = Vector
 
@@ -143,10 +145,29 @@ function Vector.perp( self )
 	return _Vector_new { -self[2], self[1] }
 end
 
+-- Same as calling perp() three times.
+function Vector.antiPerp( self )
+	return _Vector_new { self[2], -self[1] }
+end
+
+function Vector.signedAngle( self, other )
+	local perpDot = (self[1] * other[2]) - (self[2] * other[1])
+ 
+	return math.atan2(perpDot, Vector.dot(self, other))
+end
+
 function Vector.__tostring( self )
 	return string.format("[%f, %f]", self[1], self[2])
 end
 
 Vector.tostring = __tostring
 
+local test1 = Vector.new { 0, 1 }
+local test2 = Vector.new { 1, 0 }
+local test3 = Vector.new { 0, -1 }
+local test4 = Vector.new { -1, 0 }
 
+print(test1, test1, test1:signedAngle(test1))
+print(test1, test2, test1:signedAngle(test2))
+print(test1, test3, test1:signedAngle(test3))
+print(test1, test4, test1:signedAngle(test4))

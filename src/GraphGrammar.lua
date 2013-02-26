@@ -73,6 +73,21 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		windings[patternVertex1] = winding
 	end
 
+	-- Only start rules can have one vertex in the pattern.
+	local start = false
+
+	if table.count(pattern.vertices) == 1 then
+		local patternVertex = next(pattern.vertices)
+		assert(patternVertex.tag == 's')
+
+		start = true
+	end
+
+	-- No substitute rule can have start vertices ('s' tag).
+	for substituteVertex, _ in pairs(substitute.vertices) do
+		assert(substituteVertex.tag ~= 's')
+	end
+
 	-- All pattern vertices should be mapped.
 	-- NOTE: If I changed this check and replaced it with 'at least one pattern
 	--       vertex must be mapped' it should still create connected graphs.
@@ -85,9 +100,11 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	-- Find out which vertices are 'modified', i.e. have increased valence.
 	
 	-- How many new vertices would be added by this rule. Useful for ensuring
-	-- we don;t create too many vertices.
+	-- we don't create too many vertices.
 	local delta = table.count(substitute.vertices) - table.count(pattern.vertices)
 	assert(delta >= 0)
+
+	local spurs = graph2D.spurs(pattern)
 
 	-- Useful in replace().
 	local inverseMap = {}
@@ -102,6 +119,8 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		inverseMap = inverseMap,
 		windings = windings,
 		delta = delta,
+		start = start,
+		spurs = spurs,
 	}
 
 	setmetatable(result, GraphGrammar.Rule)
@@ -118,7 +137,8 @@ function GraphGrammar.Rule:matches( graph )
 	local success, result = graph:matches(self.pattern, _vertexEq)
 
 	-- The following bit of code is flawed...
-	if success and false then
+	-- TODO: doesn't work! Boo, make it work future me!
+	if success then
 		-- Iterate backwards because we may be removing matches.
 		for index = #result, 1, -1 do
 			local match = result[index]
@@ -132,59 +152,54 @@ function GraphGrammar.Rule:matches( graph )
 				edgeMap[patternEdge] = graph.vertices[graphVertex1][graphVertex2]
 			end
 
-			-- Now calculate the windings for the host graph.
-			for patternVertex1, patternPeers in pairs(self.pattern.vertices) do
-				local graphVertex1 = match[patternVertex1]
+			-- Now we check that the signs of the signed angles match.
+			-- TODO: better comment...
 
-				local graphWinding = {}
+			local success = true
 
-				for patternVertex2, patternEdge in pairs(patternPeers) do
-					local graphVertex2 = match[patternVertex2]
-					local to = Vector.to(graphVertex1, graphVertex2)
-					local angle = math.atan2(to[2], to[1])
-					graphWinding[#graphWinding+1] = {
-						angle = angle,
-						edge = edgeMap[patternEdge]
-					}
-				end
+			for patternVertex, spur in pairs(self.spurs) do
+				for _, patternEdgePair in ipairs(spur) do
+					local patternEdge1 = patternEdgePair.edge1
+					local patternEdge2 = patternEdgePair.edge2
+					local patternSignedAngle = patternEdgePair.signedAngle
 
-				table.sort(graphWinding,
-						function ( lhs, rhs )
-							return lhs.angle < rhs.angle
-						end)
-
-				-- Check that the edges in the host and the pattern have the
-				-- same winding order.
-				local winding = self.windings[patternVertex1]
-				local success = true
-
-				print('#WINDING', #winding)
-
-				for i = 1, #graphWinding-1 do
-					local graphEdge1 = graphWinding[i]
-					local graphEdge2 = graphWinding[i+1]
-
-					for j, patternEdge in ipairs(winding) do
-						if edgeMap[patternEdge] == graphEdge1 then
-							local nj = (j == #winding) and 1 or j + 1
-
-							if graphEdge2 ~= edgeMap[winding[nj]] then
-								print('WIND FAIL')
-								success = false
-								break
-							end
-						end
+					local graphVertex = match[patternVertex]
+					
+					local graphEdge1EndVerts = graph.edges[edgeMap[patternEdge1]]
+					local graphEdge1End = graphEdge1EndVerts[1]
+					if graphEdge1End == graphVertex then
+						graphEdge1End = graphEdge1EndVerts[2]
+					end
+					
+					local graphEdge2EndVerts = graph.edges[edgeMap[patternEdge2]]
+					local graphEdge2End = graphEdge2EndVerts[1]
+					if graphEdge2End == graphVertex then
+						graphEdge2End = graphEdge2EndVerts[2]
 					end
 
-					if not success then
+					local to1 = Vector.to(graphVertex, graphEdge1End)
+					local to2 = Vector.to(graphVertex, graphEdge2End)
+
+					local graphSignedAngle = to1:signedAngle(to2)
+
+					local sameSigns = math.sign(patternSignedAngle) == math.sign(graphSignedAngle)
+					-- print('[signed]', math.deg(patternSignedAngle), math.deg(graphSignedAngle), sameSigns)
+
+					if not sameSigns then
+						success = false
 						break
 					end
+
 				end
 
 				if not success then
-					matches[index] = matches[#matches]
-					matches[#matches] = nil
+					break
 				end
+			end
+
+			if not success then
+				result[index] = result[#result]
+				result[#result] = nil
 			end
 		end
 
@@ -256,29 +271,121 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- Add the, initially unconnected, substitute graph vertices.
 	local substitute = self.substitute
 	local substituteAABB = graph2D.aabb(substitute)
-	-- { [substitute.vertex] = fresh copy of the vertex }
+	-- We make copies of the substitute vertices so we need a map from
+	-- subsitute vertices to their copies. 
 	local vertexEmbedding = {}
 	local inverseMap = self.inverseMap
 	for substituteVertex, _ in pairs(substitute.vertices) do
+		-- TODO: use a specified vertex copy function.
 		local copy = table.copy(substituteVertex)
 
 		-- If the substitute vertex is replacing a pattern vertex
 		-- just use the already calculated position.
 		local position = substitutePositions[substituteVertex]
+		local projected = false
 		if position then
 			copy[1], copy[2] = position[1], position[2]
 		else
-			-- If this a new substitute vertex lerp to position.
-			-- TODO: need to rotate
-			local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
-			-- NaN checks.
-			assert(coord[1] == coord[1])
-			assert(coord[2] == coord[2])
-			copy[1], copy[2] = coord[1], coord[2]
+			-- The substitute vertex is not replacing a current graph vertex
+			-- so we need to create the position.
+
+			if self.start then
+				-- For start rules we can just map the position from substitute
+				-- to graph space.
+				local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
+				-- NaN checks.
+				assert(coord[1] == coord[1])
+				assert(coord[2] == coord[2])
+				copy[1], copy[2] = coord[1], coord[2]
+			else
+				-- For non-start rules we must take rotation into account.
+				-- Luckily all non-start rules must have at least one edge in
+				-- the pattern graph so we can use the edge to orient
+				-- ourselves.
+
+				-- TODO: this doesn't work properly :^(
+
+				local patternEdge, patternEndVerts = next(self.pattern.edges)
+				assert(patternEdge)
+
+				local substituteOrigin = Vector.new(map[patternEndVerts[1]])
+				local substituteBasisX = Vector.to(substituteOrigin, map[patternEndVerts[2]])
+				substituteBasisX:normalise()
+				local substituteBasisY = substituteBasisX:perp()
+				
+				local relSubstitutePos = Vector.to(substituteOrigin, substituteVertex)
+				local xProj = substituteBasisX:dot(relSubstitutePos)
+				local yProj = substituteBasisY:dot(relSubstitutePos)
+
+				local graphOrigin = Vector.new(match[patternEndVerts[1]])
+				local graphBasisXDir = Vector.to(graphOrigin, match[patternEndVerts[2]])
+				local graphBasisX = graphBasisXDir:normal()
+				local graphBasisY = graphBasisX:perp()
+
+				graphBasisX:scale(xProj)
+				graphBasisY:scale(yProj)
+
+				local coord = Vector.new {
+					graphOrigin[1] + graphBasisX[1] + graphBasisY[1],
+					graphOrigin[2] + graphBasisX[2] + graphBasisY[2],
+				}
+
+				projected = true
+
+				if params.replaceYield then
+					local x11, y11 = graphOrigin[1], graphOrigin[2]
+					local x12, y12 = x11 + graphBasisXDir[1], y11 + graphBasisXDir[2]
+
+					local x21, y21 = graphOrigin[1], graphOrigin[2]
+					local x22, y22 = x21 + graphBasisX[1], y21 + graphBasisX[2]
+
+					local x31, y31 = graphOrigin[1], graphOrigin[2]
+					local x32, y32 = x31 + graphBasisY[1], y31 + graphBasisY[2]
+
+					local x41, y41 = graphOrigin[1], graphOrigin[2]
+					local x42, y42 = coord[1], coord[2]
+
+					while not gProgress do
+						love.graphics.setLineWidth(5)
+						
+						love.graphics.setColor(255, 0, 255, 255)
+						love.graphics.line(x11, y11, x12, y12)
+						
+						love.graphics.setLineWidth(3)
+						
+						love.graphics.setColor(255, 0, 0, 255)
+						love.graphics.line(x21, y21, x22, y22)
+						
+						love.graphics.setColor(0, 0, 255, 255)
+						love.graphics.line(x31, y31, x32, y32)
+
+						love.graphics.setColor(255, 255, 255, 255)
+						love.graphics.line(x41, y41, x42, y42)
+						coroutine.yield(graph)
+					end
+					gProgress = false
+				end
+
+				-- local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
+				-- -- NaN checks.
+				-- assert(coord[1] == coord[1])
+				-- assert(coord[2] == coord[2])
+				copy[1], copy[2] = coord[1], coord[2]
+
+				-- If this a new substitute vertex lerp to position.
+				-- TODO: need to rotate
+			end
 		end
 
 		vertexEmbedding[substituteVertex] = copy
 		graph:addVertex(copy)
+
+		if params.replaceYield and projected then
+			while not gProgress do
+				coroutine.yield(graph)
+			end
+			gProgress = false
+		end
 	end
 
 	-- Now the substitute edges.
@@ -303,13 +410,13 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	end
 
 	if params.replaceYield then
-		while not love.keyboard.isDown('tab') do
+		while not gProgress do
 			love.graphics.setLine(3, 'rough')
 			love.graphics.setColor(0, 0, 255, 255)
 			love.graphics.rectangle('line', matchAABB.xmin, matchAABB.ymin, matchAABB:width(), matchAABB:height())
 			coroutine.yield(graph)
 		end
-		coroutine.yield(graph)
+		gProgress = false
 	end
 
 	-- Now make it pretty.
@@ -333,10 +440,15 @@ function GraphGrammar.new( params )
 	local drawYield = params.drawYield or false
 	local replaceYield = params.replaceYield or false
 
-	-- TODO:
-	-- - Check we have at least one start rule.
-	--   - One start tagged vertex in the pattern graph.
-	--   - No start tagged vertices in any substitute graphs.
+	local numStartRules = 0
+
+	for name, rule in pairs(rules) do
+		if rule.start then
+			numStartRules = numStartRules + 1
+		end
+	end
+
+	assert(numStartRules > 0)
 
 	local result = {
 		rules = rules,
@@ -355,7 +467,6 @@ function GraphGrammar.new( params )
 	return result
 end
 
--- TODO: Need to maintain a generator DAG.
 function GraphGrammar:build( maxIterations, maxVertices )
 	local graph = Graph.new()
 	graph:addVertex { 400, 300, tag = 's' }
@@ -393,10 +504,10 @@ function GraphGrammar:build( maxIterations, maxVertices )
 		local match = ruleMatch.matches[math.random(1, #ruleMatch.matches)]
 
 		if self.replaceYield then
-			while not love.keyboard.isDown('return') do
+			while not gProgress do
 				coroutine.yield(graph)
 			end
-			coroutine.yield(graph)
+			gProgress = false
 		end
 
 		ruleMatch.rule:replace(graph, match, self)

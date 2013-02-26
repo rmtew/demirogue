@@ -143,4 +143,40 @@ function AABB:lerpTo( point, other )
 	}
 end
 
+-- Englarge the AABB to be able to fit the AABB at any possible rotation.
+function AABB:rotationSafe()
+	local diagonal = Vector.new { self:width(), self:height() }
+	local halfDiagonalLength = diagonal:length() * 0.5
+
+	local centre = self:centre()
+
+	self.xmin = centre[1] - halfDiagonalLength
+	self.xmax = centre[1] + halfDiagonalLength
+	self.ymin = centre[2] - halfDiagonalLength
+	self.ymax = centre[2] + halfDiagonalLength
+end
+
+-- Grow self to have the same proportions as other.
+function AABB:similarise( other )
+	local w, h = self:width(), self:height()
+	local aspect = w / h
+	local otherAspect = self:width() / self:height()
+	local centre = self:centre()
+
+	if aspect < otherAspect then
+		-- So self is taller, make it wider.
+		local factor = otherAspect / aspect
+		local offset = h * 0.5 * factor
+
+		self.ymin = centre[2] - offset
+		self.ymax = centre[2] + offset
+	else
+		-- So self is wider, make it taller.
+		local factor = aspect / otherAspect
+		local offset = w * 0.5 * factor
+
+		self.xmin = centre[1] - offset
+		self.xmax = centre[1] + offset
+	end
+end
 

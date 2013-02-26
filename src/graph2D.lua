@@ -91,6 +91,52 @@ function graph2D.connect( graph, rooms )
 	end
 end
 
+-- For each vertex with more than one incident edge sort the edges by their
+-- angle and calculate the signed angle between neighboring edges.
+function graph2D.spurs( graph )
+	-- { [vertex] = { { edge1 , edge2, signedAngle} }+ }*
+	local result = {}
+	for vertex, peers in pairs(graph.vertices) do
+		-- Create an array of edges, sorted by their angle.
+		local winding = {}
+
+		for other, edge in pairs(peers) do
+			local to = Vector.to(vertex, other)
+			local angle = math.atan2(to[2], to[1])
+			winding[#winding+1] = { angle = angle, edge = edge, to = to }
+		end
+
+		if #winding >= 2 then
+			table.sort(winding,
+				function ( lhs, rhs )
+					return lhs.angle < rhs.angle
+				end)
+
+			local edgePairs = {}
+
+			-- Now create the lists of edge pairs with signed angles between them.
+			for index = 1, #winding do
+				local winding1 = winding[index]
+				local nextIndex = (index < #winding) and index or 1
+				local winding2 = winding[nextIndex]
+
+				local edge1, to1 = winding1.edge, winding1.to
+				local edge2, to2 = winding2.edge, winding2.to
+
+				edgePairs[#edgePairs+1] = {
+					edge1 = edge1,
+					edge2 = edge2,
+					signedAngle = to1:signedAngle(to2),
+				}
+			end
+
+			result[vertex] = edgePairs
+		end
+	end
+
+	return result
+end
+
 function graph2D.subdivide( graph, margin )
 	local subs = {}
 
@@ -152,6 +198,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 
 	local converged = false
+	local edgeForces = false
 
 	while not converged do
 		for i = 1, #vertices do
@@ -166,6 +213,9 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 				if peers[other] then
 					local to = Vector.to(vertex, other)
 					local d = to:length()
+
+					-- Really short vectors cause trouble.
+					d = math.max(d, 0.5)
 
 					local f = -springStrength * math.log(d/edgeLength)
 
@@ -183,6 +233,9 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
+					-- Really short vectors cause trouble.
+					d = math.max(d, 0.5)
+
 					local f = repulsion / (d*d)
 
 					--print('repulse', f)
@@ -198,38 +251,60 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 				end
 
 			end
-			
-			-- Now edge-edge forces.
-			local edges = {}
-			for other, edge in pairs(peers) do
-				local to = Vector.to(vertex, other)
-				local angle = math.atan2(to[2], to[1])
 
-				edges[#edges+1] = { angle, edge, other, to }
-			end
+			if edgeForces then
+				-- Now edge-edge forces.
+				local edges = {}
+				for other, edge in pairs(peers) do
+					local to = Vector.to(vertex, other)
+					local angle = math.atan2(to[2], to[1])
 
-			if #edges >= 2 then
-				table.sort(edges,
-					function ( lhs, rhs )
-						return lhs[1] < rhs[1]
-					end)
+					edges[#edges+1] = { angle, edge, other, to }
+				end
 
-				for index = 1, #edges do
-					local angle1, edge1, other1, to1 = unpack(edges[index])
-					local nextIndex = (index == #edges) and 1 or index+1
-					local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
+				if #edges >= 2 then
+					-- This puts the edges into counter-clockwise order.
+					table.sort(edges,
+						function ( lhs, rhs )
+							return lhs[1] < rhs[1]
+						end)
 
-					local edgeRepulse = 1
-					-- local edgeLength = ...
-					local to1Length = to1:length()
-					local to2Length = to2:length()
-					local el = edgeLength
-					local angleRepulse = 1
+					for index = 1, #edges do
+						local angle1, edge1, other1, to1 = unpack(edges[index])
+						local nextIndex = (index == #edges) and 1 or index+1
+						local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
 
-					local fEdge = edgeRepulse * (math.atan(to1Length/el) + math.atan(to2Length/el))
-					local theta = math.acos(to1:dot(to2)) / (to1Length * to2Length)
-					local fTheta = angleRepulse * (1/math.tan(theta * 0.5))
+						local edgeRepulse = 3
+						-- -- local edgeLength = ...
+						-- local to1Length = to1:length()
+						-- local to2Length = to2:length()
+						-- local el = edgeLength
+						-- local angleRepulse = 1
 
+						-- local fEdge = edgeRepulse * (math.atan(to1Length/el) + math.atan(to2Length/el))
+						-- local theta = math.acos(to1:dot(to2)) / (to1Length * to2Length)
+						-- local fTheta = angleRepulse * (1/math.tan(theta * 0.5))
+
+						if to1:length() > 0.001 and to2:length() > 0.001 then
+							to1:normalise()
+							to2:normalise()
+							local dot = to1:dot(to2)
+
+							local f = edgeRepulse * dot
+
+							local o1force = forces[other1]
+							local o2force = forces[other2]
+
+							local dir1 = to1:antiPerp()
+							local dir2 = to2:perp()
+
+							o1force[1] = o1force[1] + (dir1[1] * f)
+							o1force[2] = o1force[2] + (dir1[2] * f)
+
+							o2force[1] = o2force[1] + (dir2[1] * f)
+							o2force[2] = o2force[2] + (dir2[2] * f)
+						end
+					end
 				end
 			end
 		end
@@ -252,8 +327,15 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 			vertex[2] = vertex[2] + force[2]
 		end
 
+		-- TODO: got a weird problem where the edgeForces make the graph fly
+		--       off in the same direction for ever :^(
+		-- if converged and not edgeForces then
+		-- 	converged = false
+		-- 	edgeForces = true
+		-- end
+
 		if yield then
-			coroutine.yield(graph)
+			coroutine.yield(graph, forces)
 		end
 	end
 end

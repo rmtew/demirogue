@@ -9,6 +9,14 @@ function math.round( value )
 	return math.floor(0.5 + value)
 end
 
+function math.sign( value )
+	if value < 0 then
+		return -1
+	else
+		return 1
+	end
+end
+
 function table.keys( tbl )
 	local result = {}
 
