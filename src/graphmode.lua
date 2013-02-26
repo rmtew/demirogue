@@ -291,6 +291,8 @@ function graphmode.update()
 	end
 end
 
+local tabbed = false
+
 function graphmode.draw()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 	local screen = AABB.new {
@@ -418,12 +420,10 @@ function graphmode.draw()
 				edgeLength = 100,
 				repulsion = 500,
 				maxDelta = 0.5,
-				convergenceDistance = 1,
+				convergenceDistance = 2,
 				drawYield = true,
 				replaceYield = true,
 			}
-
-			table.print(grammar)
 
 			state.coro = coroutine.create(
 				function ()
@@ -432,6 +432,10 @@ function graphmode.draw()
 		end
 
 		if state.coro then
+			if tabbed then
+				gProgress = true
+			end
+
 			local status, result, forces = coroutine.resume(state.coro)
 
 			if not status then
@@ -447,11 +451,15 @@ function graphmode.draw()
 
 		-- TODO: need to scale this to stop distortion.
 		local aabb = graph2D.aabb(state.graph)
+		-- In case of zero area AABB.
 		aabb = aabb:shrink(-10)
+		-- print('pre', aabb.xmin, aabb.xmax, aabb:width(), aabb:height())
+		-- aabb:scale(0.75)
 		aabb:similarise(screen)
+		-- print('post', aabb.xmin, aabb.xmax, aabb:width(), aabb:height())
 
 		-- TODO: For debugging so remove...
-		screen = AABB.new(aabb)
+		-- screen = AABB.new(aabb)
 
 		love.graphics.setColor(0, 255, 0, 255)
 		love.graphics.setLine(3, 'rough')
@@ -611,6 +619,8 @@ function graphmode.keypressed( key )
 		state.graph = nil
 	elseif key == 'return' then
 		gProgress = true
+	elseif key == 'tab' then
+		tabbed = not tabbed
 	end
 end
 

@@ -160,23 +160,68 @@ end
 function AABB:similarise( other )
 	local w, h = self:width(), self:height()
 	local aspect = w / h
-	local otherAspect = self:width() / self:height()
+	local otherAspect = other:width() / other:height()
 	local centre = self:centre()
+
+	-- Low aspect ratios are taller.
+	-- High aspects rations are wider.
 
 	if aspect < otherAspect then
 		-- So self is taller, make it wider.
 		local factor = otherAspect / aspect
-		local offset = h * 0.5 * factor
-
-		self.ymin = centre[2] - offset
-		self.ymax = centre[2] + offset
-	else
-		-- So self is wider, make it taller.
-		local factor = aspect / otherAspect
+		-- print('taller', factor)
 		local offset = w * 0.5 * factor
 
 		self.xmin = centre[1] - offset
 		self.xmax = centre[1] + offset
+	else
+		-- So self is wider, make it taller.
+		-- local factor = aspect / otherAspect
+		local factor = aspect / otherAspect
+		-- print('wider', factor)
+		local offset = h * 0.5 * factor
+
+		self.ymin = centre[2] - offset
+		self.ymax = centre[2] + offset
 	end
+
+	-- assert(self:width() > w or self:height() > h)
 end
 
+local test1 = AABB.new {
+	xmin = 0,
+	xmax = 2,
+	ymin = 0,
+	ymax = 1
+}
+
+local test2 = AABB.new {
+	xmin = 0,
+	xmax = 1,
+	ymin = 0,
+	ymax = 2,
+}
+
+print(test1:width(), test1:height())
+print(test2:width(), test2:height())
+test1:similarise(test2)
+print(test1:width(), test1:height())
+
+local test1 = AABB.new {
+	xmin = 0,
+	xmax = 1,
+	ymin = 0,
+	ymax = 3
+}
+
+local test2 = AABB.new {
+	xmin = 0,
+	xmax = 3,
+	ymin = 0,
+	ymax = 1,
+}
+
+print(test1:width(), test1:height())
+print(test2:width(), test2:height())
+test1:similarise(test2)
+print(test1:width(), test1:height())

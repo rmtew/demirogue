@@ -311,9 +311,13 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 		converged = true
 
+		local maxForce = -math.huge
+
 		for _, vertex in ipairs(vertices) do
 			local force = forces[vertex]
 			local l = force:length()
+
+			maxForce = math.max(l, maxForce)
 
 			if l > convergenceDistance then
 				converged = false
@@ -326,6 +330,8 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 			vertex[1] = vertex[1] + force[1]
 			vertex[2] = vertex[2] + force[2]
 		end
+
+		printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
 
 		-- TODO: got a weird problem where the edgeForces make the graph fly
 		--       off in the same direction for ever :^(

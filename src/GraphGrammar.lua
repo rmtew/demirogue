@@ -220,7 +220,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	local inverseMatch = {}
 	for patternVertex, graphVertex in pairs(match) do
 		inverseMatch[graphVertex] = patternVertex
-		print(patternVertex[1], patternVertex[2], graphVertex[1], graphVertex[2])
 	end
 
 	local matchAABB = graph2D.matchAABB(match)
@@ -472,8 +471,10 @@ function GraphGrammar:build( maxIterations, maxVertices )
 	graph:addVertex { 400, 300, tag = 's' }
 
 	local rules = self.rules
+	local totalTime = 0
 
 	for iteration = 1, maxIterations do
+		local start = love.timer.getMicroTime()
 		-- local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
 		
 		local rulesMatches = {}
@@ -515,7 +516,15 @@ function GraphGrammar:build( maxIterations, maxVertices )
 		-- local dotFile = graph:dotFile('G' .. iteration, function ( vertex ) return vertex.tag end)
 		-- f:write(dotFile)
 		-- f:close()
+
+		local finish = love.timer.getMicroTime()
+		local delta = finish - start
+		totalTime = totalTime + delta
+
+		printf('  %.2fs', delta)
 	end
+
+	printf('  total:%.2fs', totalTime)
 
 	return graph
 end
