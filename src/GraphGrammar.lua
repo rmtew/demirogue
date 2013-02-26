@@ -134,11 +134,13 @@ end
 
 function GraphGrammar.Rule:matches( graph )
 	-- TODO: Probably need an edgeEq as well..
+	local start = love.timer.getMicroTime()
 	local success, result = graph:matches(self.pattern, _vertexEq)
+	local finish = love.timer.getMicroTime()
+	printf('    subgraph:%.4fs', finish-start)
 
-	-- The following bit of code is flawed...
-	-- TODO: doesn't work! Boo, make it work future me!
 	if success then
+		local start = love.timer.getMicroTime()
 		-- Iterate backwards because we may be removing matches.
 		for index = #result, 1, -1 do
 			local match = result[index]
@@ -203,6 +205,9 @@ function GraphGrammar.Rule:matches( graph )
 			end
 		end
 
+		local finish = love.timer.getMicroTime()
+		printf('    orient:%.4fs', finish-start)
+
 		if #result == 0 then
 			return false
 		end
@@ -216,6 +221,8 @@ end
 --
 -- TODO: May need a specific vertex copy function.
 function GraphGrammar.Rule:replace( graph, match, params )
+	local start = love.timer.getMicroTime()
+
 	-- We need the inverse of the matching map.
 	local inverseMatch = {}
 	for patternVertex, graphVertex in pairs(match) do
@@ -417,6 +424,9 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		end
 		gProgress = false
 	end
+
+	local finish = love.timer.getMicroTime()
+	printf('    replace:%.4fs', finish-start)
 
 	-- Now make it pretty.
 	local springStrength = params.springStrength

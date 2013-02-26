@@ -420,7 +420,7 @@ function graphmode.draw()
 				edgeLength = 100,
 				repulsion = 500,
 				maxDelta = 0.5,
-				convergenceDistance = 2,
+				convergenceDistance = 4,
 				drawYield = true,
 				replaceYield = true,
 			}

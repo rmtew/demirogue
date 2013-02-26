@@ -186,6 +186,8 @@ end
 function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield )
 	-- assert(convergenceDistance < maxDelta)
 
+	local start = love.timer.getMicroTime()
+
 	local forces = {}
 	local positions = {}
 	local vertices = {}
@@ -196,9 +198,11 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 		vertices[#vertices+1] = vertex
 	end
 
+	local paths = graph:allPairsShortestPaths()
 
 	local converged = false
 	local edgeForces = false
+	local count = 0
 
 	while not converged do
 		for i = 1, #vertices do
@@ -236,7 +240,9 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					-- Really short vectors cause trouble.
 					d = math.max(d, 0.5)
 
-					local f = repulsion / (d*d)
+					local gd = paths[vertex][other]
+
+					local f = (gd * repulsion) / (d*d)
 
 					--print('repulse', f)
 
@@ -252,7 +258,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 			end
 
-			if edgeForces then
+			if edgeForces or true then
 				-- Now edge-edge forces.
 				local edges = {}
 				for other, edge in pairs(peers) do
@@ -274,7 +280,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 						local nextIndex = (index == #edges) and 1 or index+1
 						local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
 
-						local edgeRepulse = 3
+						local edgeRepulse = 1
 						-- -- local edgeLength = ...
 						-- local to1Length = to1:length()
 						-- local to2Length = to2:length()
@@ -331,7 +337,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 			vertex[2] = vertex[2] + force[2]
 		end
 
-		printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
+		-- printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
 
 		-- TODO: got a weird problem where the edgeForces make the graph fly
 		--       off in the same direction for ever :^(
@@ -343,5 +349,15 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 		if yield then
 			coroutine.yield(graph, forces)
 		end
+
+		count = count + 1
+
+		if count % 100 == 0 then
+			printf('  #%d maxForce:%.2f', count, maxForce)
+		end
 	end
+
+	local finish = love.timer.getMicroTime()
+	local delta = finish-start
+	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
 end
