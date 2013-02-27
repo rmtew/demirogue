@@ -49,30 +49,6 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		inverse[substituteVertex] = patternVertex
 	end
 
-	-- Now we create the edge winding order lists.
-	local windings = {}
-	for patternVertex1, patternPeers in pairs(pattern.vertices) do
-		local winding = {}
-
-		for patternVertex2, patternEdge in pairs(patternPeers) do
-			local to = Vector.to(patternVertex1, patternVertex2)
-			local angle = math.atan2(to[2], to[1])
-			winding[#winding+1] = { angle = angle, edge = patternEdge }
-		end
-
-		table.sort(winding,
-				function ( lhs, rhs )
-					return lhs.angle < rhs.angle
-				end)
-
-		-- Don't need the angles, just the edges in order.
-		for index = 1, #winding do
-			winding[index] = winding[index].edge
-		end
-
-		windings[patternVertex1] = winding
-	end
-
 	-- Only start rules can have one vertex in the pattern.
 	local start = false
 
@@ -106,18 +82,10 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	local spurs = graph2D.spurs(pattern)
 
-	-- Useful in replace().
-	local inverseMap = {}
-	for patterVertex, substituteVertex in pairs(map) do
-		inverseMap[substituteVertex] = patternVertex
-	end
-
 	local result = {
 		pattern = pattern,
 		substitute = substitute,
 		map = map,
-		inverseMap = inverseMap,
-		windings = windings,
 		delta = delta,
 		start = start,
 		spurs = spurs,
@@ -280,7 +248,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- We make copies of the substitute vertices so we need a map from
 	-- subsitute vertices to their copies. 
 	local vertexEmbedding = {}
-	local inverseMap = self.inverseMap
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		-- TODO: use a specified vertex copy function.
 		local copy = table.copy(substituteVertex)
@@ -476,9 +443,15 @@ function GraphGrammar.new( params )
 	return result
 end
 
-function GraphGrammar:build( maxIterations, maxVertices )
+function GraphGrammar:build( maxIterations, minVertices, maxVertices )
+	assert(0 < minVertices)
+	assert(minVertices <= maxVertices)
+	assert(math.floor(minVertices) == minVertices)
+	assert(math.floor(maxVertices) == maxVertices)
+
 	local graph = Graph.new()
-	graph:addVertex { 400, 300, tag = 's' }
+	graph:addVertex { 0, 0, tag = 's' }
+	local numVertices = 1
 
 	local rules = self.rules
 	local totalTime = 0
@@ -492,46 +465,60 @@ function GraphGrammar:build( maxIterations, maxVertices )
 		printf('#%d', iteration)
 
 		for name, rule in pairs(rules) do
-			local success, result = rule:matches(graph)
+			if numVertices + rule.delta > maxVertices then
+				printf('  %s would pop vertex count', name)
+			else
+				local success, matches = rule:matches(graph)
 
-			if success then
-				rulesMatches[#rulesMatches+1] = {
-					name = name,
-					rule = rule,
-					matches = result
-				}
+				if success then
+					rulesMatches[#rulesMatches+1] = {
+						name = name,
+						rule = rule,
+						matches = matches
+					}
+				end
+
+				printf('  %s #%d', name, not success and 0 or #matches)
 			end
-
-			printf('  %s #%d', name, not success and 0 or #result)
 		end
 
-		-- If this is ever 0 it means the building process has stalled.
-		assert(#rulesMatches > 0)
+		-- If we have zero matches then we cannot progress. Another iteration
+		-- has no chance of getting more matches.
+		local stalled = #rulesMatches == 0
+		local enoughVertices = numVertices >= minVertices
 
-		local ruleMatch = rulesMatches[math.random(1, #rulesMatches)]
-
-		printf('  %s', ruleMatch.name)
-
-		local match = ruleMatch.matches[math.random(1, #ruleMatch.matches)]
-
-		if self.replaceYield then
-			while not gProgress do
-				coroutine.yield(graph)
+		if stalled then
+			if not enoughVertices then
+				error('bulidng has stalled without enough vertices')
 			end
-			gProgress = false
+		else
+			local ruleMatch = rulesMatches[math.random(1, #rulesMatches)]
+
+			printf('  %s', ruleMatch.name)
+
+			local match = ruleMatch.matches[math.random(1, #ruleMatch.matches)]
+
+			if self.replaceYield then
+				while not gProgress do
+					coroutine.yield(graph)
+				end
+				gProgress = false
+			end
+
+			ruleMatch.rule:replace(graph, match, self)
+
+			numVertices = numVertices + ruleMatch.rule.delta
 		end
-
-		ruleMatch.rule:replace(graph, match, self)
-
-		-- local dotFile = graph:dotFile('G' .. iteration, function ( vertex ) return vertex.tag end)
-		-- f:write(dotFile)
-		-- f:close()
 
 		local finish = love.timer.getMicroTime()
 		local delta = finish - start
 		totalTime = totalTime + delta
 
 		printf('  %.2fs', delta)
+
+		if numVertices == maxVertices or (stalled and enoughVertices) then
+			break
+		end
 	end
 
 	printf('  total:%.2fs', totalTime)
@@ -669,5 +656,8 @@ if arg and false then
 		}
 	}
 
-	local result = grammar:build(50, 20)
+	local maxIterations = 50
+	local minVertices = 10
+	local maxVertices = 20
+	local result = grammar:build(maxIterations, minVertices, maxVertices)
 end

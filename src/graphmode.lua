@@ -427,7 +427,11 @@ function graphmode.draw()
 
 			state.coro = coroutine.create(
 				function ()
-					grammar:build(20, 20)
+					-- TODO: these should be specified by the rule set.
+					local maxIterations = 20
+					local minVertices = 10
+					local maxVertices = 20
+					grammar:build(maxIterations, minVertices, maxVertices)
 				end)
 		end
 
@@ -449,17 +453,13 @@ function graphmode.draw()
 			end
 		end
 
-		-- TODO: need to scale this to stop distortion.
-		local aabb = graph2D.aabb(state.graph)
+		local aabb = AABB.new { xmin = 0, xmax = 0, ymin = 0, ymax = 0 }
+		if not state.graph:isEmpty() then
+			aabb = graph2D.aabb(state.graph)
+		end
 		-- In case of zero area AABB.
 		aabb = aabb:shrink(-10)
-		-- print('pre', aabb.xmin, aabb.xmax, aabb:width(), aabb:height())
-		-- aabb:scale(0.75)
 		aabb:similarise(screen)
-		-- print('post', aabb.xmin, aabb.xmax, aabb:width(), aabb:height())
-
-		-- TODO: For debugging so remove...
-		-- screen = AABB.new(aabb)
 
 		love.graphics.setColor(0, 255, 0, 255)
 		love.graphics.setLine(3, 'rough')
@@ -488,7 +488,7 @@ function graphmode.mousepressed( x, y, button )
 		return
 	end
 
-	-- This stop vertices being placed too close to other vertices.
+	-- This stops vertices being placed too close to other vertices.
 	if state.selection and state.selection.vertex then
 		return
 	end

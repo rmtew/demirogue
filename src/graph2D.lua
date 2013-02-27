@@ -12,6 +12,8 @@ require 'AABB'
 graph2D = {}
 
 function graph2D.aabb( graph )
+	assert(not graph:isEmpty())
+
 	local xmin, xmax = math.huge, -math.huge
 	local ymin, ymax = math.huge, -math.huge
 
@@ -198,7 +200,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 		vertices[#vertices+1] = vertex
 	end
 
-	local paths = graph:allPairsShortestPaths()
+	-- local paths = graph:allPairsShortestPaths()
 
 	local converged = false
 	local edgeForces = false
@@ -240,9 +242,9 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					-- Really short vectors cause trouble.
 					d = math.max(d, 0.5)
 
-					local gd = paths[vertex][other]
-
-					local f = (gd * repulsion) / (d*d)
+					-- local gd = paths[vertex][other]
+					-- local f = (gd * repulsion) / (d*d)
+					local f = repulsion / (d*d)
 
 					--print('repulse', f)
 
@@ -258,7 +260,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 			end
 
-			if edgeForces or true then
+			if edgeForces then
 				-- Now edge-edge forces.
 				local edges = {}
 				for other, edge in pairs(peers) do
@@ -317,7 +319,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 		converged = true
 
-		local maxForce = -math.huge
+		local maxForce = 0
 
 		for _, vertex in ipairs(vertices) do
 			local force = forces[vertex]
@@ -325,12 +327,15 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 			maxForce = math.max(l, maxForce)
 
+			-- Are we there yet?
 			if l > convergenceDistance then
+				-- No...
 				converged = false
-				if l > maxDelta then
-					force:scale(maxDelta/l)
-					-- assert(force:length() < l)
-				end
+			end
+
+			-- Don't allow too much movement.
+			if l > maxDelta then
+				force:scale(maxDelta/l)
 			end
 
 			vertex[1] = vertex[1] + force[1]
@@ -353,7 +358,12 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 		count = count + 1
 
 		if count % 100 == 0 then
-			printf('  #%d maxForce:%.2f', count, maxForce)
+			-- TODO: maybe make this a parameter.
+			-- TEST: I've noticed that when this takes a long time to converge
+			--       the output is still pretty good a long time before it
+			--       converges so let's step up the convergence distance.
+			convergenceDistance = convergenceDistance * 2
+			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
 		end
 	end
 

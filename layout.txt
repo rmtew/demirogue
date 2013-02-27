@@ -1,148 +1,137 @@
 Layout
 ------
 
-I'm having issues trying to come up with a more controlled layout generation
-system that doesn't need either a graph drawing algorithm (slow and imperfect)
-or provides the right mix of control and generative power.
+So I have a basic graph grammar and force based graph drawing level gen system.
 
-Maybe looking at some simpler systems in more detail would help:
+The limits on the graph grammar rules are:
+- Only start rules can have one vertex in the pattern, which must be tagged 's'.
+- No 's' tagged vertices can appear in substitute graphs.
+- All non-start rules must be context-senstive, i.e. have more than one vertex
+- All pattern and substitute graphs must be connected.
+- There must be a bijective map from pattern vertices to susbstitute vertices.
+  - So the number of substitute vertices is >= the number of pattern vertices.
 
-- Automatic GUI style layout system based on tree-of-boxes and tree-grammars.
+Some points on the algorithm used:
 
-- The main restriction on any system is that it produces graphs that can be
-  rendered and have certain properties.
-  - Planar graphs in the 2D case.
-  - Size restrictions.
+- The subgraph matches have to be whittled down to avoid a problem with
+  'flipped' patterns. For example consider a triangle pattern graph:
 
- Here's some pseudo-code for a box based graph rendering algorithm
+  a - b
+    \ |
+      b
 
- function layout( node, margin )
- 	if node.leaf then
- 		node.points = gen(node)
- 		local aabb = bounds(node.points)
- 		node.width, node.height = aabb:width(), aabb:height()
- 	else
- 		local maxWidth = 0
- 		local maxHeight = 0
+  There are two ways this can be mapped to a host graph. One of the matches is
+  a 'rotation' the other is a 'flipped' rotation because the b tagged vertices
+  can be mapped in either order. I use the signed angle between edges to
+  eliminate the flipped matches (graph.spurs() calculates them). Flipped
+  matches cause a problem because when the neighbourhood edges are
+  re-established they will intersect the subsitute and the graph drawing cannot
+  fix the issue reliably.
 
- 		for _, child in ipairs(node.children) do
- 			layout(child)
- 			maxWidth = math.max(node.width, maxWidth)
- 			maxHeight = math.max(node.height, maxHeight)
- 		end
+- The substitute vertices that are mapped to pattern vertices take the
+  positions of the host graph vertices. The 'fresh' vertices introduced in a
+  substitute graph are created relative to an edge in the pattern graph. This
+  is essentially a 'rotation'. This is why non-start rules must be context
+  sensitive, to allow an edge to be used as a basis.
 
- 		if node.horz then
- 			-- We centre the nodes within the max height.
-			for child in pairs(node.children) do
+- The current editor forces the positions of mapped subsitute vertices to be
+  similar to their pattern vertices. This isn't checked in the rules but is
+  implcitly assumed by the flip detection logic.
 
- 			end 			
- 		elseif node.vert then
+- The force based graph drawing is the slowest part of the process by a very
+  large margin. Not sure how much scope there is for optimising it either.
 
- 		end
- 	end
+  May be able to use more aggressive paramters (higher maxDelta) if the
+  upscaling insertion mentioned below is implemented.
 
- 	if node.root then
- 	end
- end
+Some ideas for future work:
 
+- The force based graph drawing seems to be a lot better at 'contracting'
+  graphs than expanding them. So it might be worth scaling up the entire graph
+  when inserting new subgraphs to avoid overlapping issues.
 
+  This may be due to the log based spring calculation. Short edges are very
+  forcefully pushed out but long edges are smoothly pulled closer. It might be
+  worth experimenting with a sigmoid function based spring instead.
 
+- Because the graph drawing algorithms tends to straigten everything out we
+  need to be able to add cosmetic edges (to constrain the shape) that will not
+  become corridors. The connectivity pre-conditions of the rules need to take
+  this into account (so you can't split a level with a cosmetic edge).
 
+  Also cosmetic edges should not be matched with non-cosmetic edges. Can use
+  the edgeEq parameter to Graph:matches() to enforce this.
 
+- When rooms are created for the vertices we'll need to scale up the graph to
+  fit them without overlaps. This could be done by setting per-edge length
+  factors that multiply the base desired edge length in graph drawing.
 
-Graph Grammar Rules
-- Planarity: the left and right hand of rules must be planar.
-- Conext sensitive: graphs can be on the left side of rules, not just nodes.
-  - Gives more control and expressive power to the designer.
-- Connected: both the left and right hand graphs in rules must have a single
-             connected component.
-- Generative/Projective: the right hand of rules can only add to the left hand.
-  - Removing nodes or massively changing topology make rendering a lot harder.
-- Non-colliding: any vertex that has added neighbours in the right hand rule
-                 must have the exact valence described in the left hand rule.
-  - This avoids the following issue
+  Could use the same feature in the rules to control edge lengths, especially
+  useful for cosmetic edges one would think. For example we could calculate the
+  proportionate edge length in the substitute graph as a multiplier for edge
+  lengths. This would make subdividing rules smaller.
 
-  1: A -- B => A -- C -- B
-                    |
-                    D
-
-Problem
--------
-
-S1 --- F1 =>  S1 --- R1
-               |     |
-               |     |
-              R2 --- F1
-
-
-Action points.
---------------
-
-1. Implement context-free box grammar and generator.
-2. Implement context-sensitive box grammar and generator.
-3. 
-
-- Need planarity testing for grammar rules.
-  - There are linear algorithms, not sure how complex though.
-- Need subgraph matching for grammar rules.
-  - There are planar graph matching algorithms but I think they use the
-    placements of the edges.
-    - Eppstein's planar subgraph isomorphsim doesn't use a planar
-      representation. It is very complex though.
+- Optional valence check on mapped vertices. If a substitute vertex has the
+  option enabled it only allows it to be applied if the host vertex has the
+  same valence as in the pattern graph. See the issue below about tassles for
+  the motivation.
 
 
-Basic Rule Editor
------------------
+Some unresolved issues:
 
-- Theme
-  - Rule
-    - Pattern
-    - Substitute
+- It's easy to cause issues by connecting edges in the substitute graph that
+  aren't connected in the pattern, e.g.
 
+  a - b     a - b
+      |  =>   \ |
+      c         c
 
-+-------------------------------------------------+
-|theme - rule            |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-|                        |                        |
-+-------------------------------------------------+
+  It can easily create 'knots' that the graph drawing can't undo. Might be
+  worth stopping this from happening by adding another condition on the rules.
 
-a new force-directed graph drawing method based on edge-edge repulsion
-- interesting paper, nice results.
+- Substitute graphs can intersect other parts of the host graph which get fixed
+  only some of the time by the graph drawing code. The upscaling idea mentioned
+  above might solve this though.
 
+- It's too easy to create 'tassles', e.g.
 
-Just got a great idea from talking to Phil.
-- Use an incremental force based graph drawing.
-  - The rules have to have coordinates.
-  - These are used to stitch in the new verts and edges.
-  - Then run a force based drawing algorithm to convergence.
-  - As long as new edges are not added overlapping previous ones it should look
-    good.
-    - Need to be able to transform from rule space to graph space.
-    - Some know when inserting new edges whether they overlap and if so scale
-      down in some way.
-      - Calculate the host space centroid of the pattern graph.
-      - Remove pattern verts and edges from the host graph.
-      - Create bounding geometry (AABB, circle, hull) for the right hand side.
-      - Rotate point the right direction.
-        - This is the trickiest step I think.
-          - May be possible to derive it if the left-hand rule is context
-            sensitive. Could use an edge to orient things.
-      - Query the host graph with the rotated bounding geometry.
-        - Scale down to avoid any vertices or edges.
-      - Insert scaled down substitute vert and edges.
-      - Reattach to host graph.
-      - Run force directed algorithm to covergence.
-      - Transform the 
-      - If any other
+  a - b     a - b
+    \ |  =>   \ |
+      b         b - c
+
+  The above can be matched to the same part of the host graph many times so you
+  can get a lot of 'c' vertices hanging off the same 'b' vertex. Could be fixed
+  by changing the tag of the 'b' vertex that 'c' is attched to though.
+
+  This issue also made me consider a rule that any vertex that changes valence
+  in the substitute must have the same valence in the host graph as it does in
+  the pattern. This would stop tassles but also make obviously fine rules not
+  work as intended, e.g.
+
+               b
+              / \
+  a - a  =>  a   a
+              \ /
+               b
+
+  The 'a' vertices increase in valence but so this rule could only be applied
+  to a host graph that looked exactly like the pattern graph.
+
+  Could add the valence rule as a optional vertex attribute though. In fact I
+  think this might be the best solution...
+
+- Sometimes the valence of vertices gets to high for the graph drawing to
+  handle, e.g.
+
+  a - b     a - b
+    \ |  => | \ |
+      b     b - b
+
+  Can subdivide add an extra spoke to a 'wheel' of triangles indeifnitely.
+  Eventually the circumference of the wheel will collapse and edges start
+  intersecting. May be worth adding a maxValence paramter to the builder so
+  that this isn't allowed to happen. In any case we don't want the valence to
+  get too high for gameplay reasons anyway.
+
+  Could be a per-vertex attribute I suppose but feels a little untidy.
+  
