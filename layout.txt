@@ -76,6 +76,30 @@ Some ideas for future work:
   same valence as in the pattern graph. See the issue below about tassles for
   the motivation.
 
+  NOTE: Tried this and it's not very useful. See below in tassles.
+
+- A few times it would have been useful to specify a set of tags in the pattern
+  instead of just a single tag. For example a vertex tagged '*' could match any
+  other vertex. A vertex tagged 'a|b' could match to vertices tagged as either
+  'a' or 'b'. (Wonder whether 'anything but a or b' is needed...)
+
+  UI: If you hold shift while pressing a key for the vertex add it to the tag
+      set. Without shift just replace with a singleton tag set.
+
+  This does raise an issue about what tag the substitute should have when
+  mapped to a tag set. A simple solution is to say that it keeps the tag it has
+  in the host graph, e.g.
+
+  host: a -- b 
+  rule: * - * => * - * - c
+
+  Could create:
+
+  a - b - c  or c - a - b
+
+  But it would be possible to override it as well. Need to be able to undo an
+  overridden vertex tag though.
+
 
 Some unresolved issues:
 
@@ -120,6 +144,43 @@ Some unresolved issues:
   Could add the valence rule as a optional vertex attribute though. In fact I
   think this might be the best solution...
 
+  Actually this isn't a great solution. You need to add a lot of extra guff to
+  the pattern graph to make it work, which reduces flexibility.
+
+  A better solution might be something I've seen in a few graph grammar systems
+  where you can specify vertices that shouldn't be in the host, e.g.
+
+  a - b         a - b
+    \ |      =>   \ |
+      b - !c        b - c
+
+  The !c means don't match if there's a c tagged vertex connected to the lower
+  'b' vertex. This will be tricky to implement though:
+
+  - The blocked nodes shouldn't appear in the actual matching graph otherwise
+    it will only match graphs with an extra neighbour but just only if it's not
+    tagged as 'c'.
+  - The following case could cause issues:
+
+    a - b         a - b
+      \ |      =>   \ |
+        b - !b        b - b
+
+    The matching would have to be able to distinguish between the higher b in
+    the pattern and the blocked b.
+
+  So here's a rough algorithm:
+  - A pattern vertex is allowed only one blocked neighbour and a blocked
+    vertex can only be attached to one non-blocked vertex.
+  - Allow an extra argument to the rules that is a map from pattern vertices to
+    a blocked peer tag (or tag sets).
+  - In GraphGrammer.Rule:matches() there's a filtering step.
+    - If the rule has any blocked vertices.
+      - Find the edges in the host not matched.
+        - For all matched vertices
+          - Is their a peer of the graph vertex not in the match
+            - Add the edge to the unmatched peer to the list.
+
 - Sometimes the valence of vertices gets to high for the graph drawing to
   handle, e.g.
 
@@ -134,4 +195,3 @@ Some unresolved issues:
   get too high for gameplay reasons anyway.
 
   Could be a per-vertex attribute I suppose but feels a little untidy.
-  

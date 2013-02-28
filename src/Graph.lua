@@ -73,6 +73,27 @@ function Graph:_invariant()
 	end
 end
 
+function Graph:clone( vertexClone, edgeClone )
+	local result = Graph.new()
+
+	local clones = {}
+
+	for vertex, _ in pairs(self.vertices) do
+		local cloneVertex = vertexClone(vertex)
+		result:addVertex(cloneVertex)
+		clones[vertex] = cloneVertex
+	end
+
+	for edge, endverts in pairs(self.edges) do
+		local cloneVertex1 = clones[endverts[1]]
+		local cloneVertex2 = clones[endverts[2]]
+		local cloneEdge = edgeClone(edge)
+		result:addEdge(cloneEdge, cloneVertex1, cloneVertex2)
+	end
+
+	return result
+end
+
 function Graph:isPeer( vertex1, vertex2 )
 	assert(self.vertices[vertex1])
 	assert(self.vertices[vertex2])

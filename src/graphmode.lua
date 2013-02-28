@@ -48,6 +48,7 @@ local function _save( state )
 			side = vertex.side,
 			tag = vertex.tag,
 			mapped = vertex.mapped,
+			lock = vertex.lock and true or false,
 		}
 	end
 
@@ -118,6 +119,7 @@ local function _load( data )
 			side = vertex.side,
 			tag = vertex.tag,
 			mapped = vertex.mapped,
+			lock = vertex.lock and true or false
 		}
 	end
 
@@ -173,6 +175,14 @@ local time = 0
 
 function graphmode.update()
 	time = time + love.timer.getDelta()
+
+	if love.keyboard.isDown('!') then
+		print('!')
+	end
+
+	if love.keyboard.isDown('1') then
+		print('1')
+	end
 
 	if not state then
 		local w, h = love.graphics.getWidth(), love.graphics.getHeight()
@@ -341,6 +351,12 @@ function graphmode.draw()
 
 		for vertex, _ in pairs(level.leftGraph.vertices) do
 			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+
+			if vertex.lock then
+				local extent = 15
+				local halfExtent = extent * 0.5
+				love.graphics.rectangle('line', vertex[1] - halfExtent, vertex[2] - halfExtent, extent, extent)
+			end
 		end
 
 		for edge, endverts in pairs(level.leftGraph.edges) do
@@ -351,6 +367,12 @@ function graphmode.draw()
 
 		for vertex, _ in pairs(level.rightGraph.vertices) do
 			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+
+			if vertex.lock then
+				local extent = 10
+				local halfExtent = extent * 0.5
+				love.graphics.rectangle('line', vertex[1] - halfExtent, vertex[2] - halfExtent, extent, extent)
+			end
 		end
 
 		for edge, endverts in pairs(level.rightGraph.edges) do
@@ -508,6 +530,7 @@ function graphmode.mousepressed( x, y, button )
 			y,
 			side = 'left',
 			tag = 'a',
+			lock = false,
 		}
 
 		local rightVertex = {
@@ -516,6 +539,7 @@ function graphmode.mousepressed( x, y, button )
 			side = 'right',
 			mapped = true,
 			tag = 'a',
+			lock = false,
 		}
 
 		level.leftGraph:addVertex(leftVertex)
@@ -530,6 +554,7 @@ function graphmode.mousepressed( x, y, button )
 			side = 'right',
 			mapped = false,
 			tag = 'a',
+			lock = false,
 		}
 		level.rightGraph:addVertex(rightVertex)
 	end
@@ -617,6 +642,12 @@ function graphmode.keypressed( key )
 	elseif key == ' ' then
 		state.show = not state.show
 		state.graph = nil
+	elseif key == '=' then
+		local selection = state.selection
+		if selection and selection.type == 'vertex' and selection.vertex.side == 'left' then
+			print('locked!')
+			selection.vertex.lock = not selection.vertex.lock
+		end
 	elseif key == 'return' then
 		gProgress = true
 	elseif key == 'tab' then

@@ -97,6 +97,13 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 end
 
 local function _vertexEq( host, hostVertex, pattern, patterVertex )
+	-- TODO: lock should probably be called valenceLock or something.
+	if patterVertex.lock then
+		if pattern.valences[patterVertex] ~= host.valences[hostVertex] then
+			return false
+		end
+	end
+
 	return hostVertex.tag == patterVertex.tag
 end
 
@@ -107,6 +114,21 @@ function GraphGrammar.Rule:matches( graph )
 	local finish = love.timer.getMicroTime()
 	printf('    subgraph:%.4fs', finish-start)
 
+	-- If we have some matches we need to apply some more checks and reject
+	-- those which will cause us issues:
+	-- - We check the signed angles between edges to ensure we don't allow
+	--   'flipped' matches though. For example a triangle graph:
+	--
+	--   a - a
+	--     \ |
+	--       a
+	--
+	--   Can be matches to another trangle in the host graph in six ways. Three
+	--   of the matches are rotations but the other three are 'flipped' (in
+	--   geometric terms mirrored). These cause the re-established
+	--   neighbourhood edges to intersect.
+	--
+	-- - TODO: need to add blocked neighbours checking.
 	if success then
 		local start = love.timer.getMicroTime()
 		-- Iterate backwards because we may be removing matches.
@@ -122,8 +144,8 @@ function GraphGrammar.Rule:matches( graph )
 				edgeMap[patternEdge] = graph.vertices[graphVertex1][graphVertex2]
 			end
 
-			-- Now we check that the signs of the signed angles match.
-			-- TODO: better comment...
+			-- Now we check that the signs of the signed angles match. See 
+			-- comment above about flipped matches to see why.
 
 			local success = true
 
@@ -186,8 +208,6 @@ end
 
 -- Match should be one of the members of a result array from the matches()
 -- method. If not, all bets are off and you better know what you're doing.
---
--- TODO: May need a specific vertex copy function.
 function GraphGrammar.Rule:replace( graph, match, params )
 	local start = love.timer.getMicroTime()
 
@@ -247,17 +267,17 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	local substituteAABB = graph2D.aabb(substitute)
 	-- We make copies of the substitute vertices so we need a map from
 	-- subsitute vertices to their copies. 
-	local vertexEmbedding = {}
+	local vertexClones = {}
+	local cloneVertex = params.cloneVertex
 	for substituteVertex, _ in pairs(substitute.vertices) do
-		-- TODO: use a specified vertex copy function.
-		local copy = table.copy(substituteVertex)
+		local clone = cloneVertex(substituteVertex)
 
 		-- If the substitute vertex is replacing a pattern vertex
 		-- just use the already calculated position.
 		local position = substitutePositions[substituteVertex]
 		local projected = false
 		if position then
-			copy[1], copy[2] = position[1], position[2]
+			clone[1], clone[2] = position[1], position[2]
 		else
 			-- The substitute vertex is not replacing a current graph vertex
 			-- so we need to create the position.
@@ -269,7 +289,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				-- NaN checks.
 				assert(coord[1] == coord[1])
 				assert(coord[2] == coord[2])
-				copy[1], copy[2] = coord[1], coord[2]
+				clone[1], clone[2] = coord[1], coord[2]
 			else
 				-- For non-start rules we must take rotation into account.
 				-- Luckily all non-start rules must have at least one edge in
@@ -339,19 +359,15 @@ function GraphGrammar.Rule:replace( graph, match, params )
 					gProgress = false
 				end
 
-				-- local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
 				-- -- NaN checks.
 				-- assert(coord[1] == coord[1])
 				-- assert(coord[2] == coord[2])
-				copy[1], copy[2] = coord[1], coord[2]
-
-				-- If this a new substitute vertex lerp to position.
-				-- TODO: need to rotate
+				clone[1], clone[2] = coord[1], coord[2]
 			end
 		end
 
-		vertexEmbedding[substituteVertex] = copy
-		graph:addVertex(copy)
+		vertexClones[substituteVertex] = clone
+		graph:addVertex(clone)
 
 		if params.replaceYield and projected then
 			while not gProgress do
@@ -362,20 +378,18 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	end
 
 	-- Now the substitute edges.
-	local edgeEmbedding = {}
 	-- { [substitute.edge] = fresh copy of the edge }
+	local cloneEdge = params.cloneEdge
 	for substituteEdge, substituteEdgeEnds in pairs(substitute.edges) do
-		-- TODO: this feels a bit dirty...
-		local copy = table.copy(substituteEdge)
-		edgeEmbedding[substituteEdge] = copy
+		local clone = cloneEdge(substituteEdge)
 		local substituteVertex1, substituteVertex2 = substituteEdgeEnds[1], substituteEdgeEnds[2]
-		graph:addEdge(copy, vertexEmbedding[substituteVertex1], vertexEmbedding[substituteVertex2])
+		graph:addEdge(clone, vertexClones[substituteVertex1], vertexClones[substituteVertex2])
 	end
 
 	-- Now the dangling edges.
 	for patternVertex, dangles in pairs(danglers) do
 		for _, graphVertex in ipairs(dangles) do
-			local embeddedVertex = vertexEmbedding[map[patternVertex]]
+			local embeddedVertex = vertexClones[map[patternVertex]]
 
 			-- TODO: Need to copy edge properties or something.
 			graph:addEdge({}, embeddedVertex, graphVertex)
@@ -405,8 +419,24 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	graph2D.forceDraw(graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield)
 end
 
+-- TODO: this is only used on substitute vertices, rename to highlight that.
+local function _defaultCloneVertex( vertex )
+	return {
+		vertex[1],
+		vertex[2],
+		tag = vertex.tag
+	}
+end
+
+-- TODO: this is only used on substitute edges, rename to highlight that.
+local function _defaultCloneEdge( edge )
+	return {}
+end
+
 function GraphGrammar.new( params )
 	local rules = params.rules
+	local cloneVertex = params.cloneVertex or _defaultCloneVertex
+	local cloneEdge = params.cloneEdge or _defaultCloneEdge
 
 	local springStrength = params.springStrength or 1
 	local edgeLength = params.edgeLength or 50
@@ -428,12 +458,15 @@ function GraphGrammar.new( params )
 
 	local result = {
 		rules = rules,
-		graph = nil,
+		cloneVertex = cloneVertex,
+		cloneEdge = cloneEdge,
+		
 		springStrength = springStrength,
 		edgeLength = edgeLength,
 		repulsion = repulsion,
 		maxDelta = maxDelta,
 		convergenceDistance = convergenceDistance,
+
 		drawYield = drawYield,
 		replaceYield = replaceYield,
 	}

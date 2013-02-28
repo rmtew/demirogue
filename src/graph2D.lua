@@ -184,7 +184,7 @@ function graph2D.subdivide( graph, margin )
 	end
 end
 
--- Moves the graphs vertices.
+-- This sets the vertex position as a side effect.
 function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield )
 	-- assert(convergenceDistance < maxDelta)
 
@@ -220,7 +220,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
-					-- Really short vectors cause trouble.
+					-- Really short edges cause trouble.
 					d = math.max(d, 0.5)
 
 					local f = -springStrength * math.log(d/edgeLength)
@@ -239,7 +239,7 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
-					-- Really short vectors cause trouble.
+					-- Really short edges cause trouble.
 					d = math.max(d, 0.5)
 
 					-- local gd = paths[vertex][other]
@@ -257,7 +257,6 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 					oforce[1] = oforce[1] + (to[1] * f)
 					oforce[2] = oforce[2] + (to[2] * f)
 				end
-
 			end
 
 			if edgeForces then
