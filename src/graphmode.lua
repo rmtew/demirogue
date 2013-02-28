@@ -592,7 +592,7 @@ end
 
 function graphmode.keypressed( key )
 	key = key:lower()
-	
+
 	if key == 'lshift' or key == 'rshift' then
 		if state.selection and state.selection.type == 'vertex' then
 			state.edge = true
@@ -631,7 +631,8 @@ function graphmode.keypressed( key )
 
 				print('left side', append)
 
-				if append then
+				-- It makes no sense to have start vertices be in a tag set.
+				if append and key ~= 's' then
 					vertex.tags[key] = true
 				else
 					vertex.tags = { [key] = true }
