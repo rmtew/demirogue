@@ -24,7 +24,7 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	-- Check that the pattern and substitute graphs have tags.
 	for vertex, _ in pairs(pattern.vertices) do
-		assert(vertex.tag)
+		assert(vertex.tags)
 		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1])
 		assert(vertex[1] == vertex[1])
 		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2])
@@ -54,9 +54,17 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	if table.count(pattern.vertices) == 1 then
 		local patternVertex = next(pattern.vertices)
-		assert(patternVertex.tag == 's')
+		assert(table.count(patternVertex.tags) == 1)
+		assert(next(patternVertex.tags) == 's')
 
 		start = true
+	end
+
+	-- No pattern non-start pattern rule can have start vertices ('s' tag).
+	if not start then
+		for patternVertex, _ in pairs(pattern.vertices) do
+			assert(not patternVertex.tags.s)
+		end
 	end
 
 	-- No substitute rule can have start vertices ('s' tag).
@@ -104,7 +112,7 @@ local function _vertexEq( host, hostVertex, pattern, patterVertex )
 		end
 	end
 
-	return hostVertex.tag == patterVertex.tag
+	return patterVertex.tags[hostVertex.tag]
 end
 
 function GraphGrammar.Rule:matches( graph )
@@ -557,140 +565,4 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices )
 	printf('  total:%.2fs', totalTime)
 
 	return graph
-end
-
-if arg and false then
-	local pattern1 = Graph.new()
-	local start = { 0, 0, tag = 's' }
-	pattern1:addVertex(start)
-
-	--     p
-	--   / | \
-	-- p - a - p
-	--   \ | /
-	--     p
-
-	local substitute1 = Graph.new()
-	local abyss = { 0, 0, tag = 'abyss' }
-	local p1 = { 0, -1, tag = 'p' }
-	local p2 = { 1, 0, tag = 'p' }
-	local p3 = { 0, 1, tag = 'p' }
-	local p4 = { -1, 0, tag = 'p' }
-
-	substitute1:addVertex(abyss)
-	substitute1:addVertex(p1)
-	substitute1:addVertex(p2)
-	substitute1:addVertex(p3)
-	substitute1:addVertex(p4)
-
-	substitute1:addEdge({}, abyss, p1)
-	substitute1:addEdge({}, abyss, p2)
-	substitute1:addEdge({}, abyss, p3)
-	substitute1:addEdge({}, abyss, p4)
-	substitute1:addEdge({}, p1, p2)
-	substitute1:addEdge({}, p2, p3)
-	substitute1:addEdge({}, p3, p4)
-	substitute1:addEdge({}, p4, p1)
-
-	local init = GraphGrammar.Rule.new(pattern1, substitute1, { [start] = abyss })
-
-	--     p
-	--   / |
-	-- p - a
-	local pattern2 = Graph.new()
-	local pabyss = { 0, 0, tag = 'abyss' }
-	local pp1 = { 0, -1, tag = 'p' }
-	local pp2 = { -1, 0, tag = 'p' }
-	
-	pattern2:addVertex(pabyss)
-	pattern2:addVertex(pp1)
-	pattern2:addVertex(pp2)
-	
-	pattern2:addEdge({}, pabyss, pp1)
-	pattern2:addEdge({}, pabyss, pp2)
-	pattern2:addEdge({}, pp1, pp2)
-
-	--     p
-	--   / | \
-	-- p - a - p
-	local substitute2 = Graph.new()
-	local sabyss = { 0, 0, tag = 'abyss' }
-	local sp1 = { -1, 0, tag = 'p' }
-	local sp2 = { 1, 0, tag = 'p' }
-	local sp3 = { 0, -1, tag = 'p' }
-	
-	substitute2:addVertex(sabyss)
-	substitute2:addVertex(sp1)
-	substitute2:addVertex(sp2)
-	substitute2:addVertex(sp3)
-	
-	substitute2:addEdge({}, sabyss, sp1)
-	substitute2:addEdge({}, sabyss, sp2)
-	substitute2:addEdge({}, sabyss, sp3)
-	substitute2:addEdge({}, sp1, sp3)
-	substitute2:addEdge({}, sp2, sp3)
-
-	local map = {
-		[pabyss] = sabyss,
-		[pp1] = sp1,
-		[pp2] = sp2,
-	}
-
-	local subdiv = GraphGrammar.Rule.new(pattern2, substitute2, map)
-
-	--     p
-	--   / |
-	-- p - a
-	local pattern3 = Graph.new()
-	local pabyss = { 0, 0, tag = 'abyss' }
-	local pp1 = { 0, -1, tag = 'p' }
-	local pp2 = { -1, 0, tag = 'p' }
-	
-	pattern3:addVertex(pabyss)
-	pattern3:addVertex(pp1)
-	pattern3:addVertex(pp2)
-	
-	pattern3:addEdge({}, pabyss, pp1)
-	pattern3:addEdge({}, pabyss, pp2)
-	pattern3:addEdge({}, pp1, pp2)
-
-	-- c - p
-	--   / | 
-	-- p - a 
-	local substitute3 = Graph.new()
-	local sabyss = { 0, 0, tag = 'abyss' }
-	local sp1 = { 0, -1, tag = 'p' }
-	local sp2 = { -1, 0, tag = 'p' }
-	local sc = { -1, -1, tag = 'c' }
-	
-	substitute3:addVertex(sabyss)
-	substitute3:addVertex(sp1)
-	substitute3:addVertex(sp2)
-	substitute3:addVertex(sc)
-	
-	substitute3:addEdge({}, sabyss, sp1)
-	substitute3:addEdge({}, sabyss, sp2)
-	substitute3:addEdge({}, sp1, sp2)
-	substitute3:addEdge({}, sp1, sc)
-
-	local map = {
-		[pabyss] = sabyss,
-		[pp1] = sp1,
-		[pp2] = sp2,
-	}
-
-	local crypt = GraphGrammar.Rule.new(pattern3, substitute3, map)
-
-	local grammar = GraphGrammar.new {
-		rules = {
-			init = init,
-			subdiv = subdiv,
-			crypt = crypt,
-		}
-	}
-
-	local maxIterations = 50
-	local minVertices = 10
-	local maxVertices = 20
-	local result = grammar:build(maxIterations, minVertices, maxVertices)
 end

@@ -42,14 +42,23 @@ local function _save( state )
 	-- map = { [<index>] = <index> }*
 
 	local function _vertex( vertex )
-		return {
-			vertex[1],
-			vertex[2],
-			side = vertex.side,
-			tag = vertex.tag,
-			mapped = vertex.mapped,
-			lock = vertex.lock and true or false,
-		}
+		if vertex.side == 'left' then
+			return {
+				vertex[1],
+				vertex[2],
+				side = 'left',
+				tags = table.copy(vertex.tags),
+				lock = vertex.lock and true or false,
+			}
+		else
+			return { 
+				vertex[1],
+				vertex[2],
+				side = 'right',
+				tag = vertex.tag,
+				mapped = vertex.mapped and true or false,
+			}
+		end
 	end
 
 	local function _graph( graph )
@@ -113,14 +122,23 @@ local function _load( data )
 	-- map = { [<index>] = <index> }*
 
 	local function _vertex( vertex )
-		return {
-			vertex[1],
-			vertex[2],
-			side = vertex.side,
-			tag = vertex.tag,
-			mapped = vertex.mapped,
-			lock = vertex.lock and true or false
-		}
+		if vertex.side == 'left' then
+			return {
+				vertex[1],
+				vertex[2],
+				side = 'left',
+				tags = table.copy(vertex.tags),
+				lock = vertex.lock and true or false,
+			}
+		else
+			return { 
+				vertex[1],
+				vertex[2],
+				side = 'right',
+				tag = vertex.tag,
+				mapped = vertex.mapped and true or false,
+			}
+		end
 	end
 
 	local function _graph( graph )
@@ -175,14 +193,6 @@ local time = 0
 
 function graphmode.update()
 	time = time + love.timer.getDelta()
-
-	if love.keyboard.isDown('!') then
-		print('!')
-	end
-
-	if love.keyboard.isDown('1') then
-		print('1')
-	end
 
 	if not state then
 		local w, h = love.graphics.getWidth(), love.graphics.getHeight()
@@ -303,6 +313,20 @@ end
 
 local tabbed = false
 
+local function _tags( vertex )
+	assert(vertex.side == 'left')
+
+	local parts = {}
+
+	for tag, _ in pairs(vertex.tags) do
+		parts[#parts+1] = tag
+	end
+
+	table.sort(parts)
+
+	return table.concat(parts, ',')
+end
+
 function graphmode.draw()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 	local screen = AABB.new {
@@ -313,7 +337,7 @@ function graphmode.draw()
 	}
 
 	if not state.show then
-			local hw = w * 0.5
+		local hw = w * 0.5
 
 		-- Dividing line.
 		love.graphics.setColor(255, 255, 255, 255)
@@ -381,7 +405,7 @@ function graphmode.draw()
 
 		-- Now draw the tags.
 		for vertex, _ in pairs(level.leftGraph.vertices) do
-			_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+			_shadowf(vertex[1], vertex[2], '%s', _tags(vertex))
 		end
 
 		for vertex, _ in pairs(level.rightGraph.vertices) do
@@ -434,6 +458,9 @@ function graphmode.draw()
 			end
 
 			print('RULEZ', #state.stack, table.count(rules))
+
+			-- TODO: need someway of setting drawYield and replaceYield to
+			--       false. Maybe shift+space.
 
 			local grammar = GraphGrammar.new {
 				rules = rules,
@@ -529,7 +556,7 @@ function graphmode.mousepressed( x, y, button )
 			x,
 			y,
 			side = 'left',
-			tag = 'a',
+			tags = { a = true },
 			lock = false,
 		}
 
@@ -563,9 +590,9 @@ end
 function graphmode.mousereleased( x, y, button )
 end
 
-local _tags = {}
-
 function graphmode.keypressed( key )
+	key = key:lower()
+	
 	if key == 'lshift' or key == 'rshift' then
 		if state.selection and state.selection.type == 'vertex' then
 			state.edge = true
@@ -592,14 +619,27 @@ function graphmode.keypressed( key )
 				graph:removeEdge(edge)
 			end
 		end
-	elseif key:find('^(%a)$') then
+	elseif key:find('^([a-z])$') then
+		print('taggy', key)
 		if state.selection and state.selection.type == 'vertex' then
 			local vertex = state.selection.vertex
-			vertex.tag = key
 
-			if vertex.side == 'left' then
-				local level = state.stack[state.index]
-				level.map[vertex].tag = key
+			if vertex.side == 'right' then
+				vertex.tag = key
+			else
+				local append = love.keyboard.isDown('lshift', 'rshift')
+
+				print('left side', append)
+
+				if append then
+					vertex.tags[key] = true
+				else
+					vertex.tags = { [key] = true }
+					local level = state.stack[state.index]
+					level.map[vertex].tag = key
+				end
+
+				table.print(vertex.tags)
 			end
 		end
 	elseif key == 'up' then
@@ -607,14 +647,19 @@ function graphmode.keypressed( key )
 			state.index = state.index - 1
 		end
 	elseif key == 'down' then
-		state.index = state.index + 1
+		local level = state.stack[state.index]
 
-		if not state.stack[state.index] then
-			state.stack[state.index] = {
-				leftGraph = Graph.new(),
-				rightGraph = Graph.new(),
-				map = {},
-			}
+		-- No point having loads of empty rules.
+		if not level.leftGraph:isEmpty() and not level.rightGraph:isEmpty() then
+			state.index = state.index + 1
+
+			if not state.stack[state.index] then
+				state.stack[state.index] = {
+					leftGraph = Graph.new(),
+					rightGraph = Graph.new(),
+					map = {},
+				}
+			end
 		end
 	elseif key == 'f5' then
 		local code = _save(state)
