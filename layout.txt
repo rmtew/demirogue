@@ -10,6 +10,8 @@ The limits on the graph grammar rules are:
 - All pattern and substitute graphs must be connected.
 - There must be a bijective map from pattern vertices to susbstitute vertices.
   - So the number of substitute vertices is >= the number of pattern vertices.
+- Pattern vertices (but not substitute or host vertices) have a tag set, so
+  they can match more than one different host graph tag.
 
 Some points on the algorithm used:
 
@@ -31,8 +33,8 @@ Some points on the algorithm used:
 - The substitute vertices that are mapped to pattern vertices take the
   positions of the host graph vertices. The 'fresh' vertices introduced in a
   substitute graph are created relative to an edge in the pattern graph. This
-  is essentially a 'rotation'. This is why non-start rules must be context
-  sensitive, to allow an edge to be used as a basis.
+  is essentially a 'rotation and scale'. This is why non-start rules must be
+  context sensitive, to allow an edge to be used as a basis.
 
 - The current editor forces the positions of mapped subsitute vertices to be
   similar to their pattern vertices. This isn't checked in the rules but is
@@ -113,6 +115,8 @@ Some unresolved issues:
   It can easily create 'knots' that the graph drawing can't undo. Might be
   worth stopping this from happening by adding another condition on the rules.
 
+  Actually this is sometimes very useful, so caveat emptor.
+
 - Substitute graphs can intersect other parts of the host graph which get fixed
   only some of the time by the graph drawing code. The upscaling idea mentioned
   above might solve this though.
@@ -181,7 +185,7 @@ Some unresolved issues:
           - Is their a peer of the graph vertex not in the match
             - Add the edge to the unmatched peer to the list.
 
-- Sometimes the valence of vertices gets to high for the graph drawing to
+- Sometimes the valence of vertices gets too high for the graph drawing to
   handle, e.g.
 
   a - b     a - b
@@ -195,3 +199,7 @@ Some unresolved issues:
   get too high for gameplay reasons anyway.
 
   Could be a per-vertex attribute I suppose but feels a little untidy.
+
+  Also I think the cause of the issue is that the spring forces in the graph
+  drawing are very strong when the edge is too short. This pushes other edges
+  into overlapping positions.

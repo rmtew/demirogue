@@ -188,6 +188,28 @@ local function _load( data )
 	return result	
 end
 
+-- This getting complicated enough to possibly require an object.
+--
+-- state = {
+--     leftPane = <AABB>,
+--     rightPane = <AABB>,
+--     index = [1..#stack],
+--     stack = {
+--        {
+--            leftGraph = <Graph>,
+--            rightGraph = <Graph>,
+--            map = { [<leftGraphVertex>] = <rightGraphVertex> },
+--        }
+--     }+,
+--     selection = nil
+--         | { type = 'vertex', vertex = <leftGraphVertex>|<rightGraphVertex> }
+--         | { type = 'edge', vertex = <leftGraphEdge>|<rightGraphEdge> },
+--     edge = <boolean>,
+--     show = <boolean>,
+--     graph = nil | <Graph>,
+-- }
+
+
 local state = nil
 local time = 0
 
@@ -228,6 +250,8 @@ function graphmode.update()
 			index = 1,
 			selection = nil,
 			edge = false,
+			show = false,
+			graph = nil,
 		}
 	end
 
