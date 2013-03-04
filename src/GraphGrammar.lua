@@ -78,15 +78,24 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	--       The map is really used for determining where and when to reconnect
 	--       dangling edges left by the removal of the pattern subgraph.
 	assert(table.count(pattern.vertices) == table.count(map))
-
-	-- TODO:
-	-- Maybe the 'modified vertex has exact valence' rule.
-	-- Find out which vertices are 'modified', i.e. have increased valence.
 	
 	-- How many new vertices would be added by this rule. Useful for ensuring
 	-- we don't create too many vertices.
-	local delta = table.count(substitute.vertices) - table.count(pattern.vertices)
-	assert(delta >= 0)
+	local vertexDelta = table.count(substitute.vertices) - table.count(pattern.vertices)
+	assert(vertexDelta >= 0)
+
+	-- How many edges are added (or removed) on mapped vertices by the
+	-- application of this rule. This is used to ensure we don't exceed the
+	-- maxValence specified when building.
+	local valenceDeltas = {}
+
+	for patternVertex, substituteVertex in pairs(map) do
+		local patternValence = pattern.valences[patternVertex]
+		local substituteValence = substitute.valences[substituteVertex]
+		local valenceDelta = substituteValence - patternValence
+
+		valenceDeltas[patternVertex] = valenceDelta
+	end
 
 	local spurs = graph2D.spurs(pattern)
 
@@ -94,7 +103,8 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		pattern = pattern,
 		substitute = substitute,
 		map = map,
-		delta = delta,
+		vertexDelta = vertexDelta,
+		valenceDeltas = valenceDeltas,
 		start = start,
 		spurs = spurs,
 	}
@@ -104,18 +114,18 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	return result
 end
 
-local function _vertexEq( host, hostVertex, pattern, patterVertex )
+local function _vertexEq( host, hostVertex, pattern, patternVertex )
 	-- TODO: lock should probably be called valenceLock or something.
-	if patterVertex.lock then
-		if pattern.valences[patterVertex] ~= host.valences[hostVertex] then
+	if patternVertex.lock then
+		if pattern.valences[patternVertex] ~= host.valences[hostVertex] then
 			return false
 		end
 	end
 
-	return patterVertex.tags[hostVertex.tag]
+	return patternVertex.tags[hostVertex.tag]
 end
 
-function GraphGrammar.Rule:matches( graph )
+function GraphGrammar.Rule:matches( graph, maxValence )
 	-- TODO: Probably need an edgeEq as well..
 	local start = love.timer.getMicroTime()
 	local success, result = graph:matches(self.pattern, _vertexEq)
@@ -124,6 +134,7 @@ function GraphGrammar.Rule:matches( graph )
 
 	-- If we have some matches we need to apply some more checks and reject
 	-- those which will cause us issues:
+	--
 	-- - We check the signed angles between edges to ensure we don't allow
 	--   'flipped' matches though. For example a triangle graph:
 	--
@@ -135,6 +146,10 @@ function GraphGrammar.Rule:matches( graph )
 	--   of the matches are rotations but the other three are 'flipped' (in
 	--   geometric terms mirrored). These cause the re-established
 	--   neighbourhood edges to intersect.
+	--
+	-- - If the valence of a vertex gets too high the graph drawing will create
+	--   a lot of intersecting edges. So we have a maxValence parameter and
+	--   check to see if it would be exceeded by the application of the rule.
 	--
 	-- - TODO: need to add blocked neighbours checking.
 	if success then
@@ -194,6 +209,16 @@ function GraphGrammar.Rule:matches( graph )
 
 				if not success then
 					break
+				end
+			end
+
+			-- Check that we're not exceeding the maxValence constraint.
+			for patternVertex, graphVertex in pairs(match) do
+				local graphValence = graph.valences[graphVertex]
+				local outputValence = graphValence + self.valenceDeltas[patternVertex]
+
+				if outputValence > maxValence then
+					success = false
 				end
 			end
 
@@ -484,7 +509,7 @@ function GraphGrammar.new( params )
 	return result
 end
 
-function GraphGrammar:build( maxIterations, minVertices, maxVertices )
+function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence )
 	assert(0 < minVertices)
 	assert(minVertices <= maxVertices)
 	assert(math.floor(minVertices) == minVertices)
@@ -506,10 +531,10 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices )
 		printf('#%d', iteration)
 
 		for name, rule in pairs(rules) do
-			if numVertices + rule.delta > maxVertices then
+			if numVertices + rule.vertexDelta > maxVertices then
 				printf('  %s would pop vertex count', name)
 			else
-				local success, matches = rule:matches(graph)
+				local success, matches = rule:matches(graph, maxValence)
 
 				if success then
 					rulesMatches[#rulesMatches+1] = {
@@ -548,14 +573,14 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices )
 
 			ruleMatch.rule:replace(graph, match, self)
 
-			numVertices = numVertices + ruleMatch.rule.delta
+			numVertices = numVertices + ruleMatch.rule.vertexDelta
 		end
 
 		local finish = love.timer.getMicroTime()
-		local delta = finish - start
-		totalTime = totalTime + delta
+		local duration = finish - start
+		totalTime = totalTime + duration
 
-		printf('  %.2fs', delta)
+		printf('  %.2fs', duration)
 
 		if numVertices == maxVertices or (stalled and enoughVertices) then
 			break

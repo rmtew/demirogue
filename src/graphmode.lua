@@ -209,6 +209,36 @@ end
 --     graph = nil | <Graph>,
 -- }
 
+local function _rules( stack )
+	local rules = {}
+	local nextRuleId = 1
+
+	for _, level in ipairs(stack) do
+		local pattern = level.leftGraph
+		local substitute = level.rightGraph
+		local map = level.map
+		local status, result = pcall(
+			function ()
+				return GraphGrammar.Rule.new(pattern, substitute, map)
+			end)
+
+		if status then
+			local name = string.format("rule%d", nextRuleId)
+			printf('RULE %s!', name)
+			nextRuleId = nextRuleId + 1
+			rules[name] = result
+		else
+			print('RULE FAIL')
+		end
+		
+		print(status, result)
+	end
+
+	print('RULEZ', #stack, table.count(rules))
+
+	return rules
+end
+
 
 local state = nil
 local time = 0
@@ -456,58 +486,6 @@ function graphmode.draw()
 			leftConnect,
 			rightConnect)
 	else
-		if not state.graph then
-			local rules = {}
-			local nextRuleId = 1
-
-			for _, level in ipairs(state.stack) do
-				local pattern = level.leftGraph
-				local substitute = level.rightGraph
-				local map = level.map
-				local status, result = pcall(
-					function ()
-						return GraphGrammar.Rule.new(pattern, substitute, map)
-					end)
-
-				if status then
-					local name = string.format("rule%d", nextRuleId)
-					printf('RULE %s!', name)
-					nextRuleId = nextRuleId + 1
-					rules[name] = result
-				else
-					print('RULE FAIL')
-				end
-				
-				print(status, result)
-			end
-
-			print('RULEZ', #state.stack, table.count(rules))
-
-			-- TODO: need someway of setting drawYield and replaceYield to
-			--       false. Maybe shift+space.
-
-			local grammar = GraphGrammar.new {
-				rules = rules,
-
-				springStrength = 1,
-				edgeLength = 100,
-				repulsion = 500,
-				maxDelta = 0.5,
-				convergenceDistance = 4,
-				drawYield = true,
-				replaceYield = true,
-			}
-
-			state.coro = coroutine.create(
-				function ()
-					-- TODO: these should be specified by the rule set.
-					local maxIterations = 20
-					local minVertices = 10
-					local maxVertices = 20
-					grammar:build(maxIterations, minVertices, maxVertices)
-				end)
-		end
-
 		if state.coro then
 			if tabbed then
 				gProgress = true
@@ -710,8 +688,67 @@ function graphmode.keypressed( key )
 			state.edge = false
 		end
 	elseif key == ' ' then
-		state.show = not state.show
-		state.graph = nil
+		local shift = love.keyboard.isDown('lshift', 'rshift')
+
+		-- If you're not holding shift we do a nice animated level construction
+		-- that shows the process. If you hold shift we do it as fast as
+		-- possible and display the final result.
+
+		local springStrength = 1
+		local edgeLength = 100
+		local repulsion = 500
+		local maxDelta = 0.5
+		local convergenceDistance = 4
+		
+		-- TODO: these should be specified by the rule set.
+		local maxIterations = 20
+		local minVertices = 10
+		local maxVertices = 40
+		local maxValence = 7
+
+		if not shift then
+			state.show = not state.show
+			state.graph = nil
+
+			if state.show then
+				local rules = _rules(state.stack)
+
+				local grammar = GraphGrammar.new {
+					rules = rules,
+
+					springStrength = springStrength,
+					edgeLength = edgeLength,
+					repulsion = repulsion,
+					maxDelta = maxDelta,
+					convergenceDistance = convergenceDistance,
+					drawYield = true,
+					replaceYield = true,
+				}
+
+				state.coro = coroutine.create(
+					function ()
+						grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+					end)
+			end
+		else
+			local rules = _rules(state.stack)
+
+			local grammar = GraphGrammar.new {
+				rules = rules,
+
+				springStrength = springStrength,
+				edgeLength = edgeLength,
+				repulsion = repulsion,
+				maxDelta = maxDelta,
+				convergenceDistance = convergenceDistance,
+				drawYield = false,
+				replaceYield = false,
+			}
+
+			state.graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+			state.show = true
+			state.coro = nil
+		end
 	elseif key == '=' then
 		local selection = state.selection
 		if selection and selection.type == 'vertex' and selection.vertex.side == 'left' then
