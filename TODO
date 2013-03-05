@@ -76,3 +76,13 @@ TODO
 - Need diagonal terrain matrix for how to handle edges between the cells.
   - For example hard edges (thick black lines say) should only be between certain cell types.
   - Also if I ever perturb the edges what happens depends on the abutting cell types.
+
+
+
+
+- Need neighbour blocking on graph grammars.
+- Need cosmetic edges.
+- May need to be able to set some edge properties, e.g. long path.
+- Need more than one rule set.
+- Need to complete the loop and have the graph grammar output into the voronoi.
+

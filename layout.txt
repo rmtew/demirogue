@@ -56,6 +56,11 @@ Some ideas for future work:
   forcefully pushed out but long edges are smoothly pulled closer. It might be
   worth experimenting with a sigmoid function based spring instead.
 
+  NOTE: I tried scaling the graph out and it had a strange result. It made the
+        graph stretch out and look quite bad. I think it might be due to the
+        log based spring forces being overwhelmed by the inverse square
+        repulsion forces.
+
 - Because the graph drawing algorithms tends to straigten everything out we
   need to be able to add cosmetic edges (to constrain the shape) that will not
   become corridors. The connectivity pre-conditions of the rules need to take

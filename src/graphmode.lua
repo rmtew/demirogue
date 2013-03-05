@@ -518,14 +518,29 @@ function graphmode.draw()
 
 		for vertex, _ in pairs(state.graph.vertices) do
 			local pos = aabb:lerpTo(vertex, screen)
-			love.graphics.circle('fill', pos[1], pos[2], radius)
+
+			if vertex.radius then
+				local scale = screen:width() / aabb:width()
+				love.graphics.circle('line', pos[1], pos[2], scale * vertex.radius)
+			else
+				love.graphics.circle('fill', pos[1], pos[2], radius)
+			end
 		end
 
 		for edge, endverts in pairs(state.graph.edges) do
 			local pos1 = aabb:lerpTo(endverts[1], screen)
 			local pos2 = aabb:lerpTo(endverts[2], screen)
+
+			if Vector.toLength(endverts[1], endverts[2]) > (edge.length or 100) then
+				love.graphics.setColor(0, 255, 0, 255)
+			else
+				love.graphics.setColor(0, 0, 255, 255)
+			end
+
 			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
 		end
+
+		love.graphics.setColor(0, 255, 0, 255)
 
 		for vertex, _ in pairs(state.graph.vertices) do
 			local pos = aabb:lerpTo(vertex, screen)
@@ -701,8 +716,8 @@ function graphmode.keypressed( key )
 		local convergenceDistance = 4
 		
 		-- TODO: these should be specified by the rule set.
-		local maxIterations = 20
-		local minVertices = 10
+		local maxIterations = 3
+		local minVertices = 1
 		local maxVertices = 40
 		local maxValence = 7
 
@@ -727,7 +742,63 @@ function graphmode.keypressed( key )
 
 				state.coro = coroutine.create(
 					function ()
-						grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+
+						-- TODO: this code needs factoring out to somewhere
+						--       sensible.
+
+						-- This is supposed to model assigning randomly sized
+						-- rooms to each vertex.
+						for vertex, _ in pairs(graph.vertices) do
+							-- TODO: actually make rooms.
+							local radius = math.random(20, 200)
+
+							vertex.radius = radius
+						end
+
+						local maxScale = 0
+
+						-- For each edge find out the desired length so the
+						-- 'rooms' don't intersect.
+						for edge, endverts in pairs(graph.edges) do
+							local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
+							local length = Vector.toLength(endverts[1], endverts[2])
+
+							local scale = distance / length
+							maxScale = math.max(maxScale, scale)
+
+							edge.length = distance
+						end
+
+						printf('maxScale:%.2f', maxScale)
+
+						-- Scale the graph up so that no rooms intersect.
+						local aabb = graph2D.aabb(graph)
+						local centre = aabb:centre()
+
+						for vertex, _ in pairs(graph.vertices) do
+							local disp = Vector.to(centre, vertex)
+							disp:scale(maxScale)
+
+							vertex[1], vertex[2] = centre[1] + disp[1], centre[2] + disp[2]
+						end
+
+						-- Use force drawing to relax the size of the graph.
+						local springStrength = 1
+						local edgeLength = 100
+						local repulsion = 500
+						local maxDelta = 0.5
+						local convergenceDistance = 2
+						local yield = true
+
+						graph2D.forceDraw(
+							state.graph,
+							springStrength,
+							edgeLength,
+							repulsion,
+							maxDelta,
+							convergenceDistance,
+							yield)
 					end)
 			end
 		else

@@ -100,12 +100,36 @@ function Vector.advance( self, target, distance )
 	self[2] = self[2] - disp[2]
 end
 
+-- AABB of an array of vectors.
 function Vector.aabb( vectors )
 	local xmin, xmax = math.huge, -math.huge
 	local ymin, ymax = math.huge, -math.huge
 
 	for i = 1, #vectors do
 		local vector  = vectors[i]
+		xmin = math.min(xmin, vector[1])
+		xmax = math.max(xmax, vector[1])
+		ymin = math.min(ymin, vector[2])
+		ymax = math.max(ymax, vector[2])
+	end
+
+	return AABB.new {
+		xmin = xmin,
+		xmax = xmax,
+		ymin = ymin,
+		ymax = ymax,
+	}
+end
+
+-- AABB of the keys of a table.
+function Vector.keysAABB( tbl )
+	-- Empty tables have no AABB.
+	assert(next(tbl))
+
+	local xmin, xmax = math.huge, -math.huge
+	local ymin, ymax = math.huge, -math.huge
+
+	for vector, _ in pairs(tbl) do
 		xmin = math.min(xmin, vector[1])
 		xmax = math.max(xmax, vector[1])
 		ymin = math.min(ymin, vector[2])

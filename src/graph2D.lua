@@ -185,7 +185,15 @@ function graph2D.subdivide( graph, margin )
 end
 
 -- This sets the vertex position as a side effect.
-function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDelta, convergenceDistance, yield )
+function graph2D.forceDraw(
+	graph,
+	springStrength,
+	edgeLength,
+	repulsion,
+	maxDelta,
+	convergenceDistance,
+	yield )
+
 	-- assert(convergenceDistance < maxDelta)
 
 	local start = love.timer.getMicroTime()
@@ -215,15 +223,25 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 			for j = i+1, #vertices do
 				local other = vertices[j]
 				assert(vertex ~= other)
+				local edge = peers[other]
 
-				if peers[other] then
+				if edge then
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
 					-- Really short edges cause trouble.
 					d = math.max(d, 0.5)
 
-					local f = -springStrength * math.log(d/edgeLength)
+					-- local desiredLength = edgeLength
+					local desiredLength = edge.length or edgeLength
+
+					local f = -springStrength * math.log(d/desiredLength)
+
+					if edge.length and d < edge.length then
+						-- If you specify a length we ensure it is never less
+						-- that what is provided.
+						f = 1000000
+					end
 
 					--print('spring', f)
 
@@ -345,13 +363,13 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 
 		-- TODO: got a weird problem where the edgeForces make the graph fly
 		--       off in the same direction for ever :^(
-		-- if converged and not edgeForces then
-		-- 	converged = false
-		-- 	edgeForces = true
-		-- end
+		if converged and not edgeForces then
+			converged = false
+			edgeForces = true
+		end
 
 		if yield then
-			coroutine.yield(graph, forces)
+			coroutine.yield(graph)
 		end
 
 		count = count + 1
@@ -369,4 +387,78 @@ function graph2D.forceDraw( graph, springStrength, edgeLength, repulsion, maxDel
 	local finish = love.timer.getMicroTime()
 	local delta = finish-start
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
+end
+
+-- genAABB( graph, vertex ) -> AABB
+function graph2D.assignVertexAABBsAndRelax(
+	graph,
+	genAABB,
+	-- The arguemnts below are the same as those to forceDraw() above.
+	springStrength,
+	edgeLength,
+	repulsion,
+	maxDelta,
+	convergenceDistance,
+	yield )
+
+	-- { [vertex] = aabb }
+	local result = {}
+
+	local radii = {}
+	for vertex, _ in pairs(graph.vertices) do
+		local aabb = genAABB(graph, vertex)
+		local radius = 0.5 * aabb:diagonal()
+
+		-- NOTE: this is so I can show some debugging visualisation.
+		vertex.radius = radius
+
+		result[vertex] = aabb
+		radii[vertex] = radius
+	end
+
+	local maxScale = 0
+
+	-- For each edge find out the desired length so the aabbs don't intersect.
+	for edge, endverts in pairs(graph.edges) do
+		-- TODO: the 1.1 is a fudge factor, should be a param.
+		local distance = 1.1 * (radii[endverts[1]] + radii[endverts[2]])
+		local length = Vector.toLength(endverts[1], endverts[2])
+
+		local scale = distance / length
+		maxScale = math.max(maxScale, scale)
+
+		edge.length = distance
+	end
+
+	-- printf('maxScale:%.2f', maxScale)
+
+	-- Scale the graph up so that no aabbs intersect.
+	local aabb = graph2D.aabb(graph)
+	local centre = aabb:centre()
+
+	for vertex, _ in pairs(graph.vertices) do
+		local disp = Vector.to(centre, vertex)
+		disp:scale(maxScale)
+
+		vertex[1], vertex[2] = centre[1] + disp[1], centre[2] + disp[2]
+	end
+
+	-- Use force drawing to relax the size of the graph.
+	local springStrength = 1
+	local edgeLength = 100
+	local repulsion = 500
+	local maxDelta = 0.5
+	local convergenceDistance = 2
+	local yield = true
+
+	graph2D.forceDraw(
+		state.graph,
+		springStrength,
+		edgeLength,
+		repulsion,
+		maxDelta,
+		convergenceDistance,
+		yield)
+
+	return aabbs
 end

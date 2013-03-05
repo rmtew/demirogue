@@ -31,6 +31,25 @@ function AABB:area()
 	return (self.xmax - self.xmin) * (self.ymax - self.ymin)
 end
 
+function AABB:diagonal()
+	local min = Vector.new { xmin, ymin }
+	local max = Vector.new { xmax, ymax }
+
+	return Vector.toLength(min, max)
+end
+
+-- This is a bad name but I like it.
+-- It moves the AABB so that the centre is 0,0 but keeps the width and height.
+function AABB:originate()
+	local hw = 0.5 * self:width()
+	local hh = 0.5 * self:height()
+
+	self.xmin = -hw
+	self.xmax = hw
+	self.ymin = -hh
+	self.ymax = hh
+end
+
 function AABB:intersects( other )
 	local xoverlap = (other.xmin < self.xmax) and (self.xmin < other.xmax)
 	local yoverlap = (other.ymin < self.ymax) and (self.ymin < other.ymax)

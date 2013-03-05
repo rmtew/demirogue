@@ -301,6 +301,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- We make copies of the substitute vertices so we need a map from
 	-- subsitute vertices to their copies. 
 	local vertexClones = {}
+	local insertions = {}
 	local cloneVertex = params.cloneVertex
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		local clone = cloneVertex(substituteVertex)
@@ -309,6 +310,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		-- just use the already calculated position.
 		local position = substitutePositions[substituteVertex]
 		local projected = false
+		local draw = nil
 		if position then
 			clone[1], clone[2] = position[1], position[2]
 		else
@@ -400,6 +402,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		end
 
 		vertexClones[substituteVertex] = clone
+		insertions[clone] = true
 		graph:addVertex(clone)
 
 		if params.replaceYield and projected then
@@ -428,6 +431,22 @@ function GraphGrammar.Rule:replace( graph, match, params )
 			graph:addEdge({}, embeddedVertex, graphVertex)
 		end
 	end
+
+	-- Now we move all the non-inserted vertices away from the inserted
+	-- vertcies. In an attempt to avoid overlaps.
+	-- local insertAABB = Vector.keysAABB(insertions)
+	-- local focus = insertAABB:centre()
+	-- local scale = 1.25
+
+	-- for graphVertex, _  in pairs(graph.vertices) do
+	-- 	if not insertions[graphVertex] then
+	-- 		local disp = Vector.to(focus, graphVertex)
+	-- 		disp:scale(scale)
+
+	-- 		graphVertex[1] = focus[1] + disp[1]
+	-- 		graphVertex[2] = focus[2] + disp[2]
+	-- 	end
+	-- end
 
 	if params.replaceYield then
 		while not gProgress do
