@@ -50,6 +50,17 @@ function AABB:originate()
 	self.ymax = hh
 end
 
+function AABB:moveTo( point )
+	local x, y = point[1], point[2]
+	local hw = 0.5 * self:width()
+	local hh = 0.5 * self:height()
+
+	self.xmin = x - hw
+	self.xmax = x + hw
+	self.ymin = y - hh
+	self.ymax = y + hh
+end
+
 function AABB:intersects( other )
 	local xoverlap = (other.xmin < self.xmax) and (self.xmin < other.xmax)
 	local yoverlap = (other.ymin < self.ymax) and (self.ymin < other.ymax)
@@ -205,6 +216,13 @@ function AABB:similarise( other )
 	end
 
 	-- assert(self:width() > w or self:height() > h)
+end
+
+function AABB:merge( other )
+	self.xmin = math.min(self.xmin, other.xmin)
+	self.xmax = math.max(self.xmax, other.xmax)
+	self.ymin = math.min(self.ymin, other.ymin)
+	self.ymax = math.max(self.ymax, other.ymax)
 end
 
 local test1 = AABB.new {

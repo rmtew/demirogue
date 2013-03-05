@@ -240,7 +240,7 @@ function graph2D.forceDraw(
 					if edge.length and d < edge.length then
 						-- If you specify a length we ensure it is never less
 						-- that what is provided.
-						f = 1000000
+						f = 100
 					end
 
 					--print('spring', f)

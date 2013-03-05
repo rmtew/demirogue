@@ -60,11 +60,11 @@ end
 function love.keypressed( key, unicode )
 	-- Printable ASCII is enough for now.
 	local ascii = nil
-	if unicode >= 32 and unicode <= 128 then
+	if unicode >= 32 and unicode <= 126 then
 		ascii = string.char(unicode)
 	end
 
-	printf('love.keypressed %s %x ascii:%s => %s', key, unicode, ascii or '', ascii or key)
+	printf('love.keypressed %s %d ascii:%s => %s', key, unicode, ascii or '', ascii or key)
 
 
 	if key == 'escape' then
