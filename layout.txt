@@ -269,3 +269,10 @@ Some unresolved issues:
 
   For mapped edges we copy the length
   factor from the host graph. For subdivided edges we 
+
+  NOTE: implemented a first pass of this, seems to work reasonably well but it
+        goes wrong if there's too much subdivision going on.
+
+- The circle relaxing pass can make vertices that aren't connected intersect.
+  It might be worth adding cosmetic edges between all unconnected nodes to stop
+  this happening but we'd need to somehow define an edge length between them.
