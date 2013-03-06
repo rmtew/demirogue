@@ -85,4 +85,7 @@ TODO
 - May need to be able to set some edge properties, e.g. long path.
 - Need more than one rule set.
 - Need to complete the loop and have the graph grammar output into the voronoi.
+- The pattern and substitute graphs are stored with screen based coords might
+  be worth 'normalising' them to a some specific bounds.
+- Also might be worth running a force draw on the pattern and subsititute.
 

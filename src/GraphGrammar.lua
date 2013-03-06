@@ -16,36 +16,44 @@ GraphGrammar.Rule.__index = GraphGrammar.Rule
 --   NOTE: this is used to reconnect dangling edges caused by the the removal
 --         of the pattern subgraph.
 
+-- Used when checking the pattern and subtitute graphs are connected.
+local function _edgeFilter( edge )
+	return not edge.cosmetic
+end
+
 function GraphGrammar.Rule.new( pattern, substitute, map )
-	assert(not pattern:isEmpty())
-	assert(not substitute:isEmpty())
-	assert(pattern:isConnected())
-	assert(substitute:isConnected())
+	assert(not pattern:isEmpty(), 'pattern graph is empty')
+	assert(not substitute:isEmpty(), 'subsitute graph is empty')
+
+	-- All vertices must be connected disregarding cosmetic edges.
+	-- TODO: we may need the concept of cosmetic vertex...
+	assert(pattern:isConnectedWithEdgeFilter(_edgeFilter), 'pattern is not connected')
+	assert(substitute:isConnectedWithEdgeFilter(_edgeFilter), 'substitute is not connected')
 
 	-- Check that the pattern and substitute graphs have tags.
 	for vertex, _ in pairs(pattern.vertices) do
-		assert(vertex.tags)
-		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1])
-		assert(vertex[1] == vertex[1])
-		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2])
-		assert(vertex[2] == vertex[2])
+		assert(vertex.tags, 'no tags for pattern vertex')
+		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1], 'pattern vertex has no X value')
+		assert(vertex[1] == vertex[1], 'pattern vertex X value is NaN')
+		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'pattern vertex has no Y value')
+		assert(vertex[2] == vertex[2], 'pattern vertex Y value is NaN')
 	end
 
 	for vertex, _ in pairs(substitute.vertices) do
-		assert(vertex.tag)
-		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1])
-		assert(vertex[1] == vertex[1])
-		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2])
-		assert(vertex[2] == vertex[2])
+		assert(vertex.tag, ' no tag for substitute vertex')
+		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1], 'substitute vertex has no X value')
+		assert(vertex[1] == vertex[1], 'substitute vertex X value is NaN')
+		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'substitute vertex has no X value')
+		assert(vertex[2] == vertex[2], 'substitute vertex Y value is NaN')
 	end
 
 	-- Check that the map uses valid vertices and is bijective.
 	local inverse = {}
 	for patternVertex, substituteVertex in pairs(map) do
-		assert(pattern.vertices[patternVertex])
-		assert(substitute.vertices[substituteVertex])
+		assert(pattern.vertices[patternVertex], 'invalid map pattern vertex')
+		assert(substitute.vertices[substituteVertex], 'invalid map substitute vertex')
 
-		assert(not inverse[substituteVertex])
+		assert(not inverse[substituteVertex], 'map is not bijective')
 		inverse[substituteVertex] = patternVertex
 	end
 
@@ -54,8 +62,8 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	if table.count(pattern.vertices) == 1 then
 		local patternVertex = next(pattern.vertices)
-		assert(table.count(patternVertex.tags) == 1)
-		assert(next(patternVertex.tags) == 's')
+		assert(table.count(patternVertex.tags) == 1, 'single vertex pattern needs a single s tag')
+		assert(next(patternVertex.tags) == 's', 'single vertex pattern needs a single s tag')
 
 		start = true
 	end
@@ -63,13 +71,13 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	-- No pattern non-start pattern rule can have start vertices ('s' tag).
 	if not start then
 		for patternVertex, _ in pairs(pattern.vertices) do
-			assert(not patternVertex.tags.s)
+			assert(not patternVertex.tags.s, 'non-start pattern has an s tag')
 		end
 	end
 
 	-- No substitute rule can have start vertices ('s' tag).
 	for substituteVertex, _ in pairs(substitute.vertices) do
-		assert(substituteVertex.tag ~= 's')
+		assert(substituteVertex.tag ~= 's', 'no s tag allowed in substitute')
 	end
 
 	-- All pattern vertices should be mapped.
@@ -77,12 +85,12 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	--       vertex must be mapped' it should still create connected graphs.
 	--       The map is really used for determining where and when to reconnect
 	--       dangling edges left by the removal of the pattern subgraph.
-	assert(table.count(pattern.vertices) == table.count(map))
+	assert(table.count(pattern.vertices) == table.count(map), 'substitute has less vertices than the pattern')
 	
 	-- How many new vertices would be added by this rule. Useful for ensuring
 	-- we don't create too many vertices.
 	local vertexDelta = table.count(substitute.vertices) - table.count(pattern.vertices)
-	assert(vertexDelta >= 0)
+	assert(vertexDelta >= 0, 'substitute has less vertices than the pattern')
 
 	-- How many edges are added (or removed) on mapped vertices by the
 	-- application of this rule. This is used to ensure we don't exceed the
@@ -99,6 +107,27 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	local spurs = graph2D.spurs(pattern)
 
+	-- Which edges in the pattern are present in the substitute?
+	-- { [substituteEdge] = patternEdge }
+	local mappedEdges = {}
+
+	for substituteEdge, _ in pairs(substitute.edges) do
+		if substituteEdge.subdivide then
+			local lengthFactor = substituteEdge.lengthFactor
+			assert(type(lengthFactor) == 'number' and lengthFactor > 0)
+		end
+	end
+
+	for patternEdge, patternEndVerts in pairs(pattern.edges) do
+		local patternVertex1 = patternEndVerts[1]
+		local patternVertex2 = patternEndVerts[2]
+		local substituteEdge = pattern.vertices[patternVertex1][patternVertex2]
+
+		if substituteEdge then
+			mappedEdges[substituteEdge] = patternEdge
+		end
+	end
+
 	local result = {
 		pattern = pattern,
 		substitute = substitute,
@@ -107,6 +136,7 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		valenceDeltas = valenceDeltas,
 		start = start,
 		spurs = spurs,
+		mappedEdges = mappedEdges,
 	}
 
 	setmetatable(result, GraphGrammar.Rule)
@@ -125,10 +155,14 @@ local function _vertexEq( host, hostVertex, pattern, patternVertex )
 	return patternVertex.tags[hostVertex.tag]
 end
 
+local function _edgeEq( host, hostEdge, pattern, patternEdge )
+	return hostEdge.cosmetic == patternEdge.cosmetic
+end
+
 function GraphGrammar.Rule:matches( graph, maxValence )
 	-- TODO: Probably need an edgeEq as well..
 	local start = love.timer.getMicroTime()
-	local success, result = graph:matches(self.pattern, _vertexEq)
+	local success, result = graph:matches(self.pattern, _vertexEq, _edgeEq)
 	local finish = love.timer.getMicroTime()
 	printf('    subgraph:%.4fs', finish-start)
 
@@ -155,6 +189,10 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 	if success then
 		local start = love.timer.getMicroTime()
 		-- Iterate backwards because we may be removing matches.
+
+		local numFlipFails = 0
+		local numValenceFails = 0
+
 		for index = #result, 1, -1 do
 			local match = result[index]
 			
@@ -202,6 +240,7 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 
 					if not sameSigns then
 						success = false
+						numFlipFails = numFlipFails + 1
 						break
 					end
 
@@ -217,7 +256,10 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 				local graphValence = graph.valences[graphVertex]
 				local outputValence = graphValence + self.valenceDeltas[patternVertex]
 
+				-- print('valence: ', graphValence, self.valenceDeltas[patternVertex], outputValence, maxValence, outputValence > maxValence)
+
 				if outputValence > maxValence then
+					numValenceFails = numValenceFails + 1
 					success = false
 				end
 			end
@@ -229,7 +271,7 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 		end
 
 		local finish = love.timer.getMicroTime()
-		printf('    orient:%.4fs', finish-start)
+		printf('    filter:%.4fs #flip:%d #:valence:%d', finish-start, numFlipFails, numValenceFails)
 
 		if #result == 0 then
 			return false
@@ -243,6 +285,32 @@ end
 -- method. If not, all bets are off and you better know what you're doing.
 function GraphGrammar.Rule:replace( graph, match, params )
 	local start = love.timer.getMicroTime()
+
+	-- Calculate the mean length of the matched edges.
+	local totalHostEdgeLength = 0
+	local numPatternVertices = 0
+	-- { [patternEdge] = <number> }
+	local hostLengthFactors = {}
+
+	for patternEdge, patternEndVerts in pairs(self.pattern.edges) do
+		local graphVertex1 = match[patternEndVerts[1]]
+		local graphVertex2 = match[patternEndVerts[2]]
+		assert(graphVertex1)
+		assert(graphVertex2)
+
+		local hostEdgeLength = Vector.toLength(graphVertex1, graphVertex2)
+
+		totalHostEdgeLength = totalHostEdgeLength + hostEdgeLength
+		numPatternVertices = numPatternVertices + 1
+
+		local graphEdge = graph.vertices[graphVertex1][graphVertex2]
+		hostLengthFactors[patternEdge] = graphEdge.lengthFactor
+	end
+
+	local meanHostEdgeLength = params.edgeLength
+	if numPatternVertices > 0 then
+		meanHostEdgeLength = totalHostEdgeLength / numPatternVertices
+	end
 
 	-- We need the inverse of the matching map.
 	local inverseMatch = {}
@@ -271,6 +339,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- First off let's find out which edges we'll need to re-establish.
 	-- { [patternVertex] = { graphVertex }* }
 	local danglers = {}
+	local cloneEdge = params.cloneEdge
 	for patternVertex, graphVertex in pairs(match) do
 		local dangles = {}
 
@@ -278,7 +347,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 			-- If a graph vertex has a peer that isn't in the match we'll need
 			-- to reconnect it later.
 			if not inverseMatch[graphPeer] then
-				dangles[#dangles+1] = graphPeer
+				dangles[#dangles+1] = {
+					graphVertex = graphPeer,
+					graphEdge = cloneEdge(graphEdge),
+				}
 			end
 		end
 
@@ -350,8 +422,17 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				local graphBasisX = graphBasisXDir:normal()
 				local graphBasisY = graphBasisX:perp()
 
-				graphBasisX:scale(xProj)
-				graphBasisY:scale(yProj)
+				local normedXProj = xProj / math.max(xProj, yProj)
+				local normedYProj = yProj / math.max(xProj, yProj)
+
+				normedXProj = normedXProj * meanHostEdgeLength
+				normedYProj = normedYProj * meanHostEdgeLength
+
+				-- graphBasisX:scale(xProj)
+				-- graphBasisY:scale(yProj)
+
+				graphBasisX:scale(normedXProj)
+				graphBasisY:scale(normedYProj)
 
 				local coord = Vector.new {
 					graphOrigin[1] + graphBasisX[1] + graphBasisY[1],
@@ -415,20 +496,39 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 	-- Now the substitute edges.
 	-- { [substitute.edge] = fresh copy of the edge }
-	local cloneEdge = params.cloneEdge
+	local mappedEdges = self.mappedEdges
+	local edgeLength = params.edgeLength
+	local meanHostEdgeLengthFactor = meanHostEdgeLength / edgeLength
 	for substituteEdge, substituteEdgeEnds in pairs(substitute.edges) do
 		local clone = cloneEdge(substituteEdge)
+
+		local patternEdge = mappedEdges[substituteEdge]
+
+		if patternEdge then
+			clone.lengthFactor = hostLengthFactors[patternEdge]
+			assert(clone.lengthFactor)
+		elseif substituteEdge.subdivide then
+			assert(clone.lengthFactor)
+
+			printf('lf:%.2f => %.2f ', clone.lengthFactor, clone.lengthFactor * meanHostEdgeLengthFactor)
+			printf('  mhelf:%.2f mhel:%.2f el:%.2f ', meanHostEdgeLengthFactor, meanHostEdgeLength, edgeLength)
+
+			clone.lengthFactor = clone.lengthFactor * meanHostEdgeLengthFactor
+		end
+
 		local substituteVertex1, substituteVertex2 = substituteEdgeEnds[1], substituteEdgeEnds[2]
 		graph:addEdge(clone, vertexClones[substituteVertex1], vertexClones[substituteVertex2])
 	end
 
 	-- Now the dangling edges.
 	for patternVertex, dangles in pairs(danglers) do
-		for _, graphVertex in ipairs(dangles) do
+		for _, graphVertexAndEdge in ipairs(dangles) do
 			local embeddedVertex = vertexClones[map[patternVertex]]
 
-			-- TODO: Need to copy edge properties or something.
-			graph:addEdge({}, embeddedVertex, graphVertex)
+			local graphVertex = graphVertexAndEdge.graphVertex
+			local graphEdge = graphVertexAndEdge.graphEdge
+			
+			graph:addEdge(graphEdge, embeddedVertex, graphVertex)
 		end
 	end
 
@@ -482,7 +582,11 @@ end
 
 -- TODO: this is only used on substitute edges, rename to highlight that.
 local function _defaultCloneEdge( edge )
-	return {}
+	return {
+		cosmetic = edge.cosmetic,
+		lengthFactor = edge.lengthFactor,
+		subdivide = edge.subdivide,
+	}
 end
 
 function GraphGrammar.new( params )

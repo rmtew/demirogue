@@ -234,6 +234,7 @@ function graph2D.forceDraw(
 
 					-- local desiredLength = edgeLength
 					local desiredLength = edge.length or edgeLength
+					desiredLength = desiredLength * (edge.lengthFactor or 1)
 
 					local f = -springStrength * math.log(d/desiredLength)
 
@@ -379,7 +380,7 @@ function graph2D.forceDraw(
 			-- TEST: I've noticed that when this takes a long time to converge
 			--       the output is still pretty good a long time before it
 			--       converges so let's step up the convergence distance.
-			convergenceDistance = convergenceDistance * 2
+			convergenceDistance = convergenceDistance * 1.5
 			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
 		end
 	end
@@ -389,10 +390,9 @@ function graph2D.forceDraw(
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
 end
 
--- genAABB( graph, vertex ) -> AABB
-function graph2D.assignVertexAABBsAndRelax(
+-- TODO: needs a passed in function that generates AABBs for each vertex.
+function graph2D.assignVertexRadiusAndRelax(
 	graph,
-	genAABB,
 	-- The arguemnts below are the same as those to forceDraw() above.
 	springStrength,
 	edgeLength,
@@ -401,27 +401,19 @@ function graph2D.assignVertexAABBsAndRelax(
 	convergenceDistance,
 	yield )
 
-	-- { [vertex] = aabb }
-	local result = {}
-
-	local radii = {}
 	for vertex, _ in pairs(graph.vertices) do
-		local aabb = genAABB(graph, vertex)
-		local radius = 0.5 * aabb:diagonal()
+		local radius = 0.5 * math.random(20, 500)
 
 		-- NOTE: this is so I can show some debugging visualisation.
 		vertex.radius = radius
-
-		result[vertex] = aabb
-		radii[vertex] = radius
 	end
 
 	local maxScale = 0
 
-	-- For each edge find out the desired length so the aabbs don't intersect.
+	-- Find out the desired edge length so the circles don't intersect.
 	for edge, endverts in pairs(graph.edges) do
 		-- TODO: the 1.1 is a fudge factor, should be a param.
-		local distance = 1.1 * (radii[endverts[1]] + radii[endverts[2]])
+		local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
 		local length = Vector.toLength(endverts[1], endverts[2])
 
 		local scale = distance / length
@@ -444,15 +436,8 @@ function graph2D.assignVertexAABBsAndRelax(
 	end
 
 	-- Use force drawing to relax the size of the graph.
-	local springStrength = 1
-	local edgeLength = 100
-	local repulsion = 500
-	local maxDelta = 0.5
-	local convergenceDistance = 2
-	local yield = true
-
 	graph2D.forceDraw(
-		state.graph,
+		graph,
 		springStrength,
 		edgeLength,
 		repulsion,
@@ -460,5 +445,21 @@ function graph2D.assignVertexAABBsAndRelax(
 		convergenceDistance,
 		yield)
 
-	return aabbs
+	return graph
+end
+
+function graph2D.meanEdgeLength( graph )
+	local totalLength = 0
+	local count = 0
+
+	for edge, endverts in pairs(graph.edges) do
+		totalLength = totalLength + Vector.toLength(endverts[1], endverts[2])
+		count = count + 1
+	end
+
+	if count == 0 then
+		return 0
+	else
+		return totalLength / count
+	end
 end

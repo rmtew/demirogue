@@ -12,6 +12,8 @@ The limits on the graph grammar rules are:
   - So the number of substitute vertices is >= the number of pattern vertices.
 - Pattern vertices (but not substitute or host vertices) have a tag set, so
   they can match more than one different host graph tag.
+- There is a maxValence parameter that stops rules from exceeding it. However
+  if a substitute graph has a greater valence it can still be used.
 
 Some points on the algorithm used:
 
@@ -46,6 +48,9 @@ Some points on the algorithm used:
   May be able to use more aggressive paramters (higher maxDelta) if the
   upscaling insertion mentioned below is implemented.
 
+  NOTE: While it is still the slowest part if you run it as fast as possible
+        (no yielding) it is actually very fast.
+
 Some ideas for future work:
 
 - The force based graph drawing seems to be a lot better at 'contracting'
@@ -78,6 +83,9 @@ Some ideas for future work:
   proportionate edge length in the substitute graph as a multiplier for edge
   lengths. This would make subdividing rules smaller.
 
+  NOTE: this has been implemented in a basic way (the rooms are modelled as
+        circles).
+
 - Optional valence check on mapped vertices. If a substitute vertex has the
   option enabled it only allows it to be applied if the host vertex has the
   same valence as in the pattern graph. See the issue below about tassles for
@@ -106,6 +114,8 @@ Some ideas for future work:
 
   But it would be possible to override it as well. Need to be able to undo an
   overridden vertex tag though.
+
+  NOTE: this has been partially implemented.
 
 
 Some unresolved issues:
@@ -208,3 +218,54 @@ Some unresolved issues:
   Also I think the cause of the issue is that the spring forces in the graph
   drawing are very strong when the edge is too short. This pushes other edges
   into overlapping positions.
+
+- What about setting edge length factors at the end of each force draw?
+
+- There is an issue with subdividing rules. Because the desired edge length for
+  all edges is the same it is common for the 'inside' vertices of a subdivding
+  substitute graph to be pushed outside.
+
+  It would be possible to control this with a per-edge 'length factor' that
+  multiplies the base desired edge length. If the internal edges of the
+  substitute graph have length factors less than 1 it should hold the internal
+  vertices in place.
+
+  One problem with that is that rules can be recursively applied and length
+  factors are absolute. So if a subdividing rule is applied twice the same
+  problem will reappear.
+
+  One possible solution is to copy the length factor for mapped edges (i.e.
+  edges in the substitute whose vertices are mapped and the edge exists in the
+  pattern). But for unmapped edges we base the length factor on the mean edge
+  length in the pattern.
+
+  So in the graph editor we calculate the avage length of lines in the pattern.
+  Then for each 'subdivided' edge in the substitute we can get the length
+  factor by:
+
+      lengthFactor = edgeLength / meanPatternEdgeLength
+
+  If the rule is a start rule (so no edges in the pattern) use the mean length
+  for the subsitute instead.
+
+  If the edge is not marked as 'subdivided' the length factor is 1.
+
+  When inserting edges into the host graph we find the mean length of the edges
+  in the host mapped by the pattern graph. We then divide it by the edgeLength
+  passed into the forceDraw stage to get the meanHostLengthFactor.
+
+  When adding substitute edges we have the following properties:
+  - Mapped. The vertices substitute edge are both mapped and an edge exists
+    btween them in the pattern.  
+  - Subdivided edge. The susbstitute edge is marked as subdivided and has a
+    length factor specified.
+  - NOTE: can a mapped edge be subdivided? Does it matter if it is?
+    - Mapped edges should always take the length factor from the host.
+  - Not mapped and not subdivided edge.
+
+  - For mapped edges we use the length factor of the host edge we're replacing.
+  - For subdivided edges we need to calul
+
+
+  For mapped edges we copy the length
+  factor from the host graph. For subdivided edges we 

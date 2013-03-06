@@ -15,6 +15,18 @@ graphmode = {}
 
 local config = {
 	tolerance = 30,
+
+	springStrength = 1,
+	edgeLength = 1,
+	repulsion = 1,
+	maxDelta = 0.01,
+	convergenceDistance = 0.05,
+
+	relaxSpringStrength = 1,
+	relaxEdgeLength = 100,
+	relaxRepulsion = 500,
+	relaxMaxDelta = 1,
+	relaxConvergenceDistance = 2,
 }
 
 local function _shadowf( x, y, ... )
@@ -78,8 +90,15 @@ local function _save( state )
 		for edge, endverts in pairs(graph.edges) do
 			local vertex1Index = vertexIndices[endverts[1]]
 			local vertex2Index = vertexIndices[endverts[2]]
+			local cosmetic = edge.cosmetic and true or false
+			local subdivide = edge.subdivide and true or false
 
-			edges[#edges+1] = { vertex1Index, vertex2Index }
+			edges[#edges+1] = {
+				vertex1Index,
+				vertex2Index,
+				cosmetic = cosmetic,
+				subdivide = subdivide,
+			}
 		end
 
 		return { vertices = vertices, edges = edges }, vertexIndices
@@ -154,7 +173,14 @@ local function _load( data )
 
 		for _, edge in pairs(graph.edges) do
 			local side = vertexIndices[edge[1]].side
-			result:addEdge({ side = side }, vertexIndices[edge[1]], vertexIndices[edge[2]])
+			local cosmetic = edge.cosmetic and true or false
+			local subdivide = edge.subdivide and true or false
+			local newEdge = {
+				side = side,
+				cosmetic = cosmetic,
+				subdivide = subdivide,
+			} 
+			result:addEdge(newEdge, vertexIndices[edge[1]], vertexIndices[edge[2]])
 		end
 
 		return result, vertexIndices
@@ -209,7 +235,41 @@ end
 --     graph = nil | <Graph>,
 -- }
 
+local function _calculateLengthFactors( stack )
+	for _, level in ipairs(stack) do
+		local leftGraph = level.leftGraph
+		local rightGraph = level.rightGraph
+
+		local meanLeftEdgeLength = graph2D.meanEdgeLength(leftGraph)
+		local meanRightEdgeLength = graph2D.meanEdgeLength(rightGraph)
+
+		-- print('length factors', meanLeftEdgeLength, meanRightEdgeLength)
+
+		local meanEdgeLength = meanLeftEdgeLength
+
+		if meanEdgeLength == 0 then
+			meanEdgeLength = meanRightEdgeLength
+		end
+
+		if meanEdgeLength > 0 then
+			for rightEdge, rightEndVerts in pairs(rightGraph.edges) do
+				if rightEdge.subdivide then
+					local edgeLength = Vector.toLength(rightEndVerts[1], rightEndVerts[2])
+
+					local lengthFactor = edgeLength / meanEdgeLength
+
+					-- print(edgeLength, meanEdgeLength, lengthFactor)
+
+					rightEdge.lengthFactor = lengthFactor
+				end
+			end
+		end
+	end
+end
+
 local function _rules( stack )
+	_calculateLengthFactors(stack)
+
 	local rules = {}
 	local nextRuleId = 1
 
@@ -365,7 +425,7 @@ function graphmode.update()
 	end
 end
 
-local tabbed = false
+local autoProgress = false
 
 local function _tags( vertex )
 	assert(vertex.side == 'left')
@@ -438,6 +498,11 @@ function graphmode.draw()
 		end
 
 		for edge, endverts in pairs(level.leftGraph.edges) do
+			if edge.cosmetic then
+				love.graphics.setColor(128, 128, 128, 128)
+			else
+				love.graphics.setColor(255, 0, 0, 255)
+			end
 			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 		end
 
@@ -454,8 +519,21 @@ function graphmode.draw()
 		end
 
 		for edge, endverts in pairs(level.rightGraph.edges) do
+			if edge.cosmetic and not edge.subdivide then
+				love.graphics.setColor(128, 128, 128, 128)
+			elseif edge.subdivide then
+				if edge.cosmetic then
+					love.graphics.setColor(255, 128, 255, 128)
+				else
+					love.graphics.setColor(255, 0, 255, 255)
+				end
+			else
+				love.graphics.setColor(0, 0, 255, 255)
+			end
 			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 		end
+
+		love.graphics.setColor(255, 255, 255, 255)
 
 		-- Now draw the tags.
 		for vertex, _ in pairs(level.leftGraph.vertices) do
@@ -487,7 +565,7 @@ function graphmode.draw()
 			rightConnect)
 	else
 		if state.coro then
-			if tabbed then
+			if autoProgress then
 				gProgress = true
 			end
 
@@ -509,7 +587,19 @@ function graphmode.draw()
 			aabb = graph2D.aabb(state.graph)
 		end
 		-- In case of zero area AABB.
-		aabb = aabb:shrink(-10)
+		aabb = aabb:shrink(-1)
+
+		-- If there are any vertices with circles, exapnd the AABB to fit them.
+		local maxRadius = 0
+
+		for vertex, _ in pairs(state.graph.vertices) do
+			maxRadius = math.max(maxRadius, vertex.radius or 0)
+		end
+
+		aabb = aabb:shrink(-maxRadius)
+
+		-- Grow the AABB to be in the same proportions as the screen so when we
+		-- lerp vertex positions it doesn't scale the graph.
 		aabb:similarise(screen)
 
 		love.graphics.setColor(0, 255, 0, 255)
@@ -531,13 +621,23 @@ function graphmode.draw()
 			local pos1 = aabb:lerpTo(endverts[1], screen)
 			local pos2 = aabb:lerpTo(endverts[2], screen)
 
-			if Vector.toLength(endverts[1], endverts[2]) > (edge.length or 100) then
+			if edge.cosmetic then
+				love.graphics.setColor(128, 128, 128, 128)
+			elseif Vector.toLength(endverts[1], endverts[2]) > (edge.length or 1) then
 				love.graphics.setColor(0, 255, 0, 255)
 			else
 				love.graphics.setColor(0, 0, 255, 255)
 			end
 
 			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+
+			if edge.lengthFactor then
+				local mid = Vector.to(pos1, pos2)
+				mid:scale(0.5)
+				mid[1] = mid[1] + pos1[1]
+				mid[2] = mid[2] + pos1[2]
+				_shadowf(mid[1], mid[2], '%.2f', edge.lengthFactor)
+			end
 		end
 
 		love.graphics.setColor(0, 255, 0, 255)
@@ -584,6 +684,7 @@ function graphmode.mousepressed( x, y, button )
 			mapped = true,
 			tag = 'a',
 			lock = false,
+			subdivide = false,
 		}
 
 		level.leftGraph:addVertex(leftVertex)
@@ -599,6 +700,7 @@ function graphmode.mousepressed( x, y, button )
 			mapped = false,
 			tag = 'a',
 			lock = false,
+			subdivide = false,
 		}
 		level.rightGraph:addVertex(rightVertex)
 	end
@@ -703,6 +805,7 @@ function graphmode.keypressed( key )
 			state.edge = false
 		end
 	elseif key == ' ' then
+		autoProgress = false
 		local shift = love.keyboard.isDown('lshift', 'rshift')
 
 		-- If you're not holding shift we do a nice animated level construction
@@ -713,13 +816,25 @@ function graphmode.keypressed( key )
 		local edgeLength = 100
 		local repulsion = 500
 		local maxDelta = 0.5
-		local convergenceDistance = 4
+		local convergenceDistance = 2
+
+		-- local springStrength = 1
+		-- local edgeLength = 1
+		-- local repulsion = 1
+		-- local maxDelta = 0.01
+		-- local convergenceDistance = 0.05
+
+		local relaxSpringStrength = 1
+		local relaxEdgeLength = 100
+		local relaxRepulsion = 500
+		local relaxMaxDelta = 1
+		local relaxConvergenceDistance = 2
 		
 		-- TODO: these should be specified by the rule set.
-		local maxIterations = 3
+		local maxIterations = 10
 		local minVertices = 1
 		local maxVertices = 40
-		local maxValence = 7
+		local maxValence = 8
 
 		if not shift then
 			state.show = not state.show
@@ -744,61 +859,15 @@ function graphmode.keypressed( key )
 					function ()
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
-						-- TODO: this code needs factoring out to somewhere
-						--       sensible.
-
-						-- This is supposed to model assigning randomly sized
-						-- rooms to each vertex.
-						for vertex, _ in pairs(graph.vertices) do
-							-- TODO: actually make rooms.
-							local radius = math.random(20, 200)
-
-							vertex.radius = radius
-						end
-
-						local maxScale = 0
-
-						-- For each edge find out the desired length so the
-						-- 'rooms' don't intersect.
-						for edge, endverts in pairs(graph.edges) do
-							local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
-							local length = Vector.toLength(endverts[1], endverts[2])
-
-							local scale = distance / length
-							maxScale = math.max(maxScale, scale)
-
-							edge.length = distance
-						end
-
-						printf('maxScale:%.2f', maxScale)
-
-						-- Scale the graph up so that no rooms intersect.
-						local aabb = graph2D.aabb(graph)
-						local centre = aabb:centre()
-
-						for vertex, _ in pairs(graph.vertices) do
-							local disp = Vector.to(centre, vertex)
-							disp:scale(maxScale)
-
-							vertex[1], vertex[2] = centre[1] + disp[1], centre[2] + disp[2]
-						end
-
-						-- Use force drawing to relax the size of the graph.
-						local springStrength = 1
-						local edgeLength = 100
-						local repulsion = 500
-						local maxDelta = 0.5
-						local convergenceDistance = 2
 						local yield = true
-
-						graph2D.forceDraw(
-							state.graph,
-							springStrength,
-							edgeLength,
-							repulsion,
-							maxDelta,
-							convergenceDistance,
-							yield)
+						graph2D.assignVertexRadiusAndRelax(
+							graph,
+							relaxSpringStrength,
+							relaxEdgeLength,
+							relaxRepulsion,
+							relaxMaxDelta,
+							relaxConvergenceDistance,
+							yield )
 					end)
 			end
 		else
@@ -817,6 +886,17 @@ function graphmode.keypressed( key )
 			}
 
 			state.graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+
+			local yield = false
+			graph2D.assignVertexRadiusAndRelax(
+				state.graph,
+				relaxSpringStrength,
+				relaxEdgeLength,
+				relaxRepulsion,
+				relaxMaxDelta,
+				relaxConvergenceDistance,
+				yield)
+
 			state.show = true
 			state.coro = nil
 		end
@@ -829,7 +909,22 @@ function graphmode.keypressed( key )
 	elseif key == 'return' then
 		gProgress = true
 	elseif key == 'tab' then
-		tabbed = not tabbed
+		if state.show then
+			autoProgress = not autoProgress
+		end
+	elseif key == '~' then
+		local selection = state.selection
+		if selection and selection.type == 'edge' then
+			local edge = selection.edge
+			edge.cosmetic = not edge.cosmetic
+		end
+	elseif key == '$' then
+		local selection = state.selection
+		if selection and selection.type == 'edge' and selection.edge.side == 'right' then
+			local edge = selection.edge
+			edge.subdivide = not edge.subdivide
+			print('subdivide')
+		end
 	end
 end
 
