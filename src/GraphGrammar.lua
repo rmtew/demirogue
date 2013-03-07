@@ -288,9 +288,11 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 	-- Calculate the mean length of the matched edges.
 	local totalHostEdgeLength = 0
-	local numPatternVertices = 0
 	-- { [patternEdge] = <number> }
 	local hostLengthFactors = {}
+
+	local totalLengthFactors = 0
+	local numPatternEdges = 0
 
 	for patternEdge, patternEndVerts in pairs(self.pattern.edges) do
 		local graphVertex1 = match[patternEndVerts[1]]
@@ -301,15 +303,20 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		local hostEdgeLength = Vector.toLength(graphVertex1, graphVertex2)
 
 		totalHostEdgeLength = totalHostEdgeLength + hostEdgeLength
-		numPatternVertices = numPatternVertices + 1
 
 		local graphEdge = graph.vertices[graphVertex1][graphVertex2]
 		hostLengthFactors[patternEdge] = graphEdge.lengthFactor
+
+		local graphEdge = graph.vertices[graphVertex1][graphVertex2]
+		totalLengthFactors = totalLengthFactors + (graphEdge.lengthFactor or 1)
+		numPatternEdges = numPatternEdges + 1
 	end
 
 	local meanHostEdgeLength = params.edgeLength
-	if numPatternVertices > 0 then
-		meanHostEdgeLength = totalHostEdgeLength / numPatternVertices
+	local meanLengthFactor = 1
+	if numPatternEdges > 0 then
+		meanHostEdgeLength = totalHostEdgeLength / numPatternEdges
+		meanLengthFactor = totalLengthFactors / numPatternEdges
 	end
 
 	-- We need the inverse of the matching map.
@@ -425,8 +432,8 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				local normedXProj = xProj / math.max(xProj, yProj)
 				local normedYProj = yProj / math.max(xProj, yProj)
 
-				normedXProj = normedXProj * meanHostEdgeLength
-				normedYProj = normedYProj * meanHostEdgeLength
+				-- normedXProj = normedXProj * meanHostEdgeLength
+				-- normedYProj = normedYProj * meanHostEdgeLength
 
 				-- graphBasisX:scale(xProj)
 				-- graphBasisY:scale(yProj)
@@ -497,8 +504,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- Now the substitute edges.
 	-- { [substitute.edge] = fresh copy of the edge }
 	local mappedEdges = self.mappedEdges
-	local edgeLength = params.edgeLength
-	local meanHostEdgeLengthFactor = meanHostEdgeLength / edgeLength
 	for substituteEdge, substituteEdgeEnds in pairs(substitute.edges) do
 		local clone = cloneEdge(substituteEdge)
 
@@ -510,10 +515,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		elseif substituteEdge.subdivide then
 			assert(clone.lengthFactor)
 
-			printf('lf:%.2f => %.2f ', clone.lengthFactor, clone.lengthFactor * meanHostEdgeLengthFactor)
-			printf('  mhelf:%.2f mhel:%.2f el:%.2f ', meanHostEdgeLengthFactor, meanHostEdgeLength, edgeLength)
-
-			clone.lengthFactor = clone.lengthFactor * meanHostEdgeLengthFactor
+			-- This does slightly improve results...
+			-- local tax = (meanLengthFactor ~= 1) and 0.75 or 1
+			-- clone.lengthFactor = clone.lengthFactor * meanLengthFactor * tax
+			clone.lengthFactor = clone.lengthFactor * meanLengthFactor
 		end
 
 		local substituteVertex1, substituteVertex2 = substituteEdgeEnds[1], substituteEdgeEnds[2]
@@ -534,6 +539,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 	-- Now we move all the non-inserted vertices away from the inserted
 	-- vertcies. In an attempt to avoid overlaps.
+	-- NOTE: this makes everything go very wrong...
 	-- local insertAABB = Vector.keysAABB(insertions)
 	-- local focus = insertAABB:centre()
 	-- local scale = 1.25

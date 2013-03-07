@@ -17,10 +17,10 @@ local config = {
 	tolerance = 30,
 
 	springStrength = 1,
-	edgeLength = 1,
-	repulsion = 1,
-	maxDelta = 0.01,
-	convergenceDistance = 0.05,
+	edgeLength = 100,
+	repulsion = 500,
+	maxDelta = 0.5,
+	convergenceDistance = 4,
 
 	relaxSpringStrength = 1,
 	relaxEdgeLength = 100,
@@ -29,7 +29,8 @@ local config = {
 	relaxConvergenceDistance = 2,
 }
 
-local function _shadowf( x, y, ... )
+local function _shadowf(font, x, y, ... )
+	love.graphics.setFont(font)
 	love.graphics.setColor(0, 0, 0, 255)
 
 	local text = string.format(...)
@@ -537,11 +538,11 @@ function graphmode.draw()
 
 		-- Now draw the tags.
 		for vertex, _ in pairs(level.leftGraph.vertices) do
-			_shadowf(vertex[1], vertex[2], '%s', _tags(vertex))
+			_shadowf(gFont30, vertex[1], vertex[2], '%s', _tags(vertex))
 		end
 
 		for vertex, _ in pairs(level.rightGraph.vertices) do
-			_shadowf(vertex[1], vertex[2], '%s', vertex.tag)
+			_shadowf(gFont30, vertex[1], vertex[2], '%s', vertex.tag)
 		end
 
 		-- If we're in edge mode draw a line to help.
@@ -557,7 +558,7 @@ function graphmode.draw()
 		local numRight = table.count(level.rightGraph.vertices)
 		local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
 		local rightConnect = level.rightGraph:isConnected() and 't' or 'f'
-		_shadowf(10, 10, '#%d left:%d right:%d conn:%s %s',
+		_shadowf(gFont15, 10, 10, '#%d left:%d right:%d conn:%s %s',
 			state.index,
 			numLeft,
 			numRight,
@@ -586,6 +587,10 @@ function graphmode.draw()
 		if not state.graph:isEmpty() then
 			aabb = graph2D.aabb(state.graph)
 		end
+
+		local width = math.ceil(aabb:width())
+		local height = math.ceil(aabb:height())
+
 		-- In case of zero area AABB.
 		aabb = aabb:shrink(-1)
 
@@ -621,9 +626,11 @@ function graphmode.draw()
 			local pos1 = aabb:lerpTo(endverts[1], screen)
 			local pos2 = aabb:lerpTo(endverts[2], screen)
 
+			local expectedLength = (edge.length or config.edgeLength) * (edge.lengthFactor or 1)
+
 			if edge.cosmetic then
 				love.graphics.setColor(128, 128, 128, 128)
-			elseif Vector.toLength(endverts[1], endverts[2]) > (edge.length or 1) then
+			elseif Vector.toLength(endverts[1], endverts[2]) > expectedLength then
 				love.graphics.setColor(0, 255, 0, 255)
 			else
 				love.graphics.setColor(0, 0, 255, 255)
@@ -636,7 +643,7 @@ function graphmode.draw()
 				mid:scale(0.5)
 				mid[1] = mid[1] + pos1[1]
 				mid[2] = mid[2] + pos1[2]
-				_shadowf(mid[1], mid[2], '%.2f', edge.lengthFactor)
+				_shadowf(gFont15, mid[1], mid[2], '%.3f', edge.lengthFactor)
 			end
 		end
 
@@ -644,8 +651,10 @@ function graphmode.draw()
 
 		for vertex, _ in pairs(state.graph.vertices) do
 			local pos = aabb:lerpTo(vertex, screen)
-			_shadowf(pos[1], pos[2], '%s', vertex.tag)
+			_shadowf(gFont30, pos[1], pos[2], '%s', vertex.tag)
 		end
+
+		_shadowf(gFont15, 0, 0, 'w:%d h:%d', width, height)
 	end
 end
 
@@ -812,11 +821,11 @@ function graphmode.keypressed( key )
 		-- that shows the process. If you hold shift we do it as fast as
 		-- possible and display the final result.
 
-		local springStrength = 1
-		local edgeLength = 100
-		local repulsion = 500
-		local maxDelta = 0.5
-		local convergenceDistance = 2
+		local springStrength = config.springStrength
+		local edgeLength = config.edgeLength
+		local repulsion = config.repulsion
+		local maxDelta = config.maxDelta
+		local convergenceDistance = config.convergenceDistance
 
 		-- local springStrength = 1
 		-- local edgeLength = 1
@@ -824,11 +833,11 @@ function graphmode.keypressed( key )
 		-- local maxDelta = 0.01
 		-- local convergenceDistance = 0.05
 
-		local relaxSpringStrength = 1
-		local relaxEdgeLength = 100
-		local relaxRepulsion = 500
-		local relaxMaxDelta = 1
-		local relaxConvergenceDistance = 2
+		local relaxSpringStrength = config.relaxSpringStrength
+		local relaxEdgeLength = config.relaxEdgeLength
+		local relaxRepulsion = config.relaxRepulsion
+		local relaxMaxDelta = config.relaxMaxDelta
+		local relaxConvergenceDistance = config.relaxConvergenceDistance
 		
 		-- TODO: these should be specified by the rule set.
 		local maxIterations = 10

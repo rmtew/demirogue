@@ -33,8 +33,9 @@ local modes = {
 local mode = voronoimode
 
 function love.load()
-	font = love.graphics.newFont('resources/inconsolata.otf', 30)
-	love.graphics.setFont(font)
+	gFont30 = love.graphics.newFont('resources/inconsolata.otf', 30)
+	gFont15 = love.graphics.newFont('resources/inconsolata.otf', 15)
+	love.graphics.setFont(gFont30)
 end
 
 function love.update()

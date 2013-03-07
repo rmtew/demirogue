@@ -234,45 +234,26 @@ Some unresolved issues:
   factors are absolute. So if a subdividing rule is applied twice the same
   problem will reappear.
 
-  One possible solution is to copy the length factor for mapped edges (i.e.
-  edges in the substitute whose vertices are mapped and the edge exists in the
-  pattern). But for unmapped edges we base the length factor on the mean edge
-  length in the pattern.
-
-  So in the graph editor we calculate the avage length of lines in the pattern.
-  Then for each 'subdivided' edge in the substitute we can get the length
-  factor by:
-
-      lengthFactor = edgeLength / meanPatternEdgeLength
-
-  If the rule is a start rule (so no edges in the pattern) use the mean length
-  for the subsitute instead.
+  This can be combatted by calculating the mean length factor of the matched
+  part of the host graph.
 
   If the edge is not marked as 'subdivided' the length factor is 1.
 
-  When inserting edges into the host graph we find the mean length of the edges
-  in the host mapped by the pattern graph. We then divide it by the edgeLength
-  passed into the forceDraw stage to get the meanHostLengthFactor.
-
   When adding substitute edges we have the following properties:
-  - Mapped. The vertices substitute edge are both mapped and an edge exists
-    btween them in the pattern.  
+  - Mapped. The vertices of the substitute edge are both mapped and an edge
+    exists between them in the pattern. Such edges use the length factor of the
+    host edge it replaces.
   - Subdivided edge. The susbstitute edge is marked as subdivided and has a
-    length factor specified.
-  - NOTE: can a mapped edge be subdivided? Does it matter if it is?
-    - Mapped edges should always take the length factor from the host.
-  - Not mapped and not subdivided edge.
-
-  - For mapped edges we use the length factor of the host edge we're replacing.
-  - For subdivided edges we need to calul
-
-
-  For mapped edges we copy the length
-  factor from the host graph. For subdivided edges we 
-
+    length factor specified. This has to be multiplied by the mean length
+    factor.
+ 
   NOTE: implemented a first pass of this, seems to work reasonably well but it
-        goes wrong if there's too much subdivision going on.
+        goes wrong if there's too much subdivision going on. As a rule of thumb
+        it starts to break down after three subdivisions.
 
 - The circle relaxing pass can make vertices that aren't connected intersect.
   It might be worth adding cosmetic edges between all unconnected nodes to stop
   this happening but we'd need to somehow define an edge length between them.
+
+  NOTE: this doesn't seem to work at all. The extra edges just pull everthing
+        into a ball.
