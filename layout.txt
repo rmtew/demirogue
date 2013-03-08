@@ -221,6 +221,8 @@ Some unresolved issues:
 
 - What about setting edge length factors at the end of each force draw?
 
+  This is a pretty random idea
+
 - There is an issue with subdividing rules. Because the desired edge length for
   all edges is the same it is common for the 'inside' vertices of a subdivding
   substitute graph to be pushed outside.
@@ -257,3 +259,6 @@ Some unresolved issues:
 
   NOTE: this doesn't seem to work at all. The extra edges just pull everthing
         into a ball.
+
+  NOTE: I added the circle radii to the repulsion stage of the graph drawing,
+        seems to work most of the time.

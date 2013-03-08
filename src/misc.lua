@@ -17,6 +17,10 @@ function math.sign( value )
 	end
 end
 
+function math.logb( x, base )
+	return math.log(x) / math.log(base)
+end
+
 function table.keys( tbl )
 	local result = {}
 

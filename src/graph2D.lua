@@ -233,14 +233,15 @@ function graph2D.forceDraw(
 					d = math.max(d, 0.5)
 
 					-- local desiredLength = edgeLength
-					local desiredLength = edge.length or edgeLength
-					desiredLength = desiredLength * (edge.lengthFactor or 1)
+					local desiredLength = (edge.length or edgeLength) * (edge.lengthFactor or 1)
 
-					local f = -springStrength * math.log(d/desiredLength)
+					local f = -springStrength * math.logb(d/desiredLength, math.sqrt(2))
+					-- local delta = 0.25
+					-- local f = delta * (desiredLength - d)
 
+					-- If you specify a length we ensure it is never less that
+					-- what is provided.
 					if edge.length and d < edge.length then
-						-- If you specify a length we ensure it is never less
-						-- that what is provided.
 						f = 100
 					end
 
@@ -258,12 +259,20 @@ function graph2D.forceDraw(
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
+					local c = (vertex.radius or 0) + (other.radius or 0)
+					d = d - c
+
 					-- Really short edges cause trouble.
 					d = math.max(d, 0.5)
 
+
+					-- This 'normalises' the repulsive force which means we
+					-- don't need to scale it when we change edgeLength.
+					d = d / edgeLength
+
 					-- local gd = paths[vertex][other]
 					-- local f = (gd * repulsion) / (d*d)
-					local f = repulsion / (d*d)
+					local f = repulsion * (1 / (d*d))
 
 					--print('repulse', f)
 
@@ -381,6 +390,7 @@ function graph2D.forceDraw(
 			--       the output is still pretty good a long time before it
 			--       converges so let's step up the convergence distance.
 			convergenceDistance = convergenceDistance * 1.5
+			--repulsion = repulsion * 0.5
 			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
 		end
 	end

@@ -16,15 +16,15 @@ graphmode = {}
 local config = {
 	tolerance = 30,
 
-	springStrength = 1,
+	springStrength = 2,
 	edgeLength = 100,
-	repulsion = 500,
+	repulsion = 0.05,
 	maxDelta = 0.5,
 	convergenceDistance = 4,
 
 	relaxSpringStrength = 1,
 	relaxEdgeLength = 100,
-	relaxRepulsion = 500,
+	relaxRepulsion = 5,
 	relaxMaxDelta = 1,
 	relaxConvergenceDistance = 2,
 }
@@ -623,14 +623,17 @@ function graphmode.draw()
 		end
 
 		for edge, endverts in pairs(state.graph.edges) do
+			local length = Vector.toLength(endverts[1], endverts[2])
+			
 			local pos1 = aabb:lerpTo(endverts[1], screen)
 			local pos2 = aabb:lerpTo(endverts[2], screen)
 
-			local expectedLength = (edge.length or config.edgeLength) * (edge.lengthFactor or 1)
+			local lengthFactor = edge.lengthFactor or 1
+			local desiredLength = (edge.length or config.edgeLength) * lengthFactor
 
 			if edge.cosmetic then
 				love.graphics.setColor(128, 128, 128, 128)
-			elseif Vector.toLength(endverts[1], endverts[2]) > expectedLength then
+			elseif length > desiredLength then
 				love.graphics.setColor(0, 255, 0, 255)
 			else
 				love.graphics.setColor(0, 0, 255, 255)
@@ -638,13 +641,12 @@ function graphmode.draw()
 
 			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
 
-			if edge.lengthFactor then
-				local mid = Vector.to(pos1, pos2)
-				mid:scale(0.5)
-				mid[1] = mid[1] + pos1[1]
-				mid[2] = mid[2] + pos1[2]
-				_shadowf(gFont15, mid[1], mid[2], '%.3f', edge.lengthFactor)
-			end
+			local mid = Vector.to(pos1, pos2)
+			mid:scale(0.5)
+			mid[1] = mid[1] + pos1[1]
+			mid[2] = mid[2] + pos1[2]
+			local scale = length / desiredLength
+			_shadowf(gFont15, mid[1], mid[2], '%.3f x%.2f', lengthFactor, scale)
 		end
 
 		love.graphics.setColor(0, 255, 0, 255)
@@ -840,7 +842,7 @@ function graphmode.keypressed( key )
 		local relaxConvergenceDistance = config.relaxConvergenceDistance
 		
 		-- TODO: these should be specified by the rule set.
-		local maxIterations = 10
+		local maxIterations = 3
 		local minVertices = 1
 		local maxVertices = 40
 		local maxValence = 8
