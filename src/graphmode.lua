@@ -18,7 +18,7 @@ local config = {
 
 	springStrength = 2,
 	edgeLength = 100,
-	repulsion = 0.05,
+	repulsion = 1,
 	maxDelta = 0.5,
 	convergenceDistance = 4,
 
@@ -935,6 +935,11 @@ function graphmode.keypressed( key )
 			local edge = selection.edge
 			edge.subdivide = not edge.subdivide
 			print('subdivide')
+		end
+	elseif key == '-' then
+		local selection = state.selection
+		if selection and selection.type == 'vertex' and selection.vertex.side == 'right' then
+			selection.vertex.tag = '-'
 		end
 	end
 end

@@ -343,7 +343,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	-- Shrink to a quarter of the size.
 	-- matchAABB:scale(0.95)
 
-	-- First off let's find out which edges we'll need to re-establish.
+	-- First off let's find out which edges we'll need to re-establish. 
 	-- { [patternVertex] = { graphVertex }* }
 	local danglers = {}
 	local cloneEdge = params.cloneEdge
@@ -366,11 +366,13 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 	-- Now we remove the matched vertices from the graph, while we're at it
 	-- stash the postions of the removed vertices for when they're replaced by
-	-- substitute vertices.
+	-- substitute vertices. We also store the graph tags.
 	local substitutePositions = {}
+	local graphTags = {}
 	local map = self.map
 	for patternVertex, graphVertex in pairs(match) do
 		substitutePositions[map[patternVertex]] = Vector.new(graphVertex)
+		graphTags[map[patternVertex]] = graphVertex.tag
 		graph:removeVertex(graphVertex)
 	end
 
@@ -384,6 +386,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	local cloneVertex = params.cloneVertex
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		local clone = cloneVertex(substituteVertex)
+
+		if clone.tag == '-' then
+			clone.tag = graphTags[substituteVertex]
+		end
 
 		-- If the substitute vertex is replacing a pattern vertex
 		-- just use the already calculated position.
