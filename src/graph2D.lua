@@ -215,7 +215,7 @@ function graph2D.forceDraw(
 	local count = 0
 
 	while not converged do
-		for i = 1, #vertices do
+		for i = 1, #vertices-1 do
 			local vertex = vertices[i]
 			local peers = graph.vertices[vertex]
 
@@ -412,7 +412,7 @@ function graph2D.assignVertexRadiusAndRelax(
 	yield )
 
 	for vertex, _ in pairs(graph.vertices) do
-		local radius = 0.5 * math.random(20, 500)
+		local radius = 0.5 * math.random(20, 80)
 
 		-- NOTE: this is so I can show some debugging visualisation.
 		vertex.radius = radius
@@ -472,4 +472,72 @@ function graph2D.meanEdgeLength( graph )
 	else
 		return totalLength / count
 	end
+end
+
+function graph2D.isSelfIntersecting( graph )
+	local vertices = {}
+	for vertex, _ in pairs(graph.vertices) do
+		vertices[#vertices+1] = vertex
+	end
+
+	local edges = {}
+	for edge, _ in pairs(graph.edges) do
+		if not edge.cosmetic then
+			edges[#edges+1] = edge
+		end
+	end
+
+	-- Any circles intersect?
+	for i = 1, #vertices-1 do
+		for j = i+1, #vertices do
+			local vertex1 = vertices[i]
+			local vertex2 = vertices[j]
+
+			local d = Vector.toLength(vertex1, vertex2)
+			local s = (vertex1.radius or 0) + (vertex2.radius or 0)
+
+			if d < s then
+				return true, 'circles'
+			end
+		end
+	end
+
+	-- Any circles intersect non-cosmetic lines they aren't attached to?
+	for i, vertex in ipairs(vertices) do
+		local peers = graph.vertices[vertex]
+		local radius  = vertex.radius or 0
+		
+		for _, edge in ipairs(edges) do
+			local endverts = graph.edges[edge]
+			if not edge.cosmetic and vertex ~= endverts[1] and vertex ~= endverts[2] then
+				local point = geometry.closestPointOnLine(endverts[1], endverts[2], vertex)
+				local d = Vector.toLength(vertex, point)
+
+				if d < radius then
+					return true, 'circle line'
+				end
+			end
+		end
+	end
+
+	-- Any non-cosmetic edges, that don't share a vertex, intersect?
+	for i = 1, #edges-1 do
+		local edge1 = edges[i]
+		local endverts1 = graph.edges[edge1]
+		local e11, e12 = endverts1[1], endverts1[2]
+
+		for j = i+1, #edges do
+			local edge2 = edges[j]
+			local endverts2 = graph.edges[edge2]
+			local e21, e22 = endverts2[1], endverts2[2]
+
+			if e11 ~= e21 and e11 ~= e22 and e12 ~= e21 and e12 ~= e22 then
+				if geometry.lineLineIntersection(e11, e12, e21, e22) then
+					return true, 'line line'
+				end
+			end
+		end
+	end
+
+	return false
 end

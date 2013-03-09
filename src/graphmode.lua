@@ -16,17 +16,17 @@ graphmode = {}
 local config = {
 	tolerance = 30,
 
-	springStrength = 2,
+	springStrength = 1,
 	edgeLength = 100,
 	repulsion = 1,
 	maxDelta = 0.5,
 	convergenceDistance = 4,
 
-	relaxSpringStrength = 1,
+	relaxSpringStrength = 10,
 	relaxEdgeLength = 100,
-	relaxRepulsion = 5,
-	relaxMaxDelta = 1,
-	relaxConvergenceDistance = 2,
+	relaxRepulsion = 0.05,
+	relaxMaxDelta = 2,
+	relaxConvergenceDistance = 4,
 }
 
 local function _shadowf(font, x, y, ... )
@@ -344,6 +344,16 @@ function graphmode.update()
 			show = false,
 			graph = nil,
 		}
+
+		local files = love.filesystem.enumerate('')
+
+		for _, file in ipairs(files) do
+			print('', file)
+		end
+
+		if not love.filesystem.isDirectory('themes') then
+			love.filesystem.mkdir('themes')
+		end
 	end
 
 	local level = state.stack[state.index]
@@ -554,6 +564,8 @@ function graphmode.draw()
 			love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
 		end
 
+		-- TODO: got to try and build a GraphGrammar Rule and tell the user if
+		--       it fails or succeeds.
 		local numLeft = table.count(level.leftGraph.vertices)
 		local numRight = table.count(level.rightGraph.vertices)
 		local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
@@ -570,7 +582,7 @@ function graphmode.draw()
 				gProgress = true
 			end
 
-			local status, result, forces = coroutine.resume(state.coro)
+			local status, result = coroutine.resume(state.coro)
 
 			if not status then
 				error(result)
@@ -657,6 +669,10 @@ function graphmode.draw()
 		end
 
 		_shadowf(gFont15, 0, 0, 'w:%d h:%d', width, height)
+
+		local failed, msg = graph2D.isSelfIntersecting(state.graph)
+
+		_shadowf(gFont15, 0, 15, 'ok: %s - %s', tostring(not failed), msg or '')
 	end
 end
 
@@ -727,6 +743,12 @@ function graphmode.keypressed( key )
 		if state.selection and state.selection.type == 'vertex' then
 			state.edge = true
 		end
+	elseif key == 'delete' then
+		state.stack[state.index] = {
+			leftGraph = Graph.new(),
+			rightGraph = Graph.new(),
+			map = {},
+		}
 	elseif key == 'backspace' then
 		if state.selection then
 			local selection = state.selection
@@ -818,6 +840,7 @@ function graphmode.keypressed( key )
 	elseif key == ' ' then
 		autoProgress = false
 		local shift = love.keyboard.isDown('lshift', 'rshift')
+		local ctrl = love.keyboard.isDown('lctrl', 'rctrl')
 
 		-- If you're not holding shift we do a nice animated level construction
 		-- that shows the process. If you hold shift we do it as fast as
@@ -842,12 +865,12 @@ function graphmode.keypressed( key )
 		local relaxConvergenceDistance = config.relaxConvergenceDistance
 		
 		-- TODO: these should be specified by the rule set.
-		local maxIterations = 3
+		local maxIterations = 10
 		local minVertices = 1
-		local maxVertices = 40
+		local maxVertices = 20
 		local maxValence = 8
 
-		if not shift then
+		if not shift and not ctrl then
 			state.show = not state.show
 			state.graph = nil
 
@@ -881,7 +904,7 @@ function graphmode.keypressed( key )
 							yield )
 					end)
 			end
-		else
+		elseif shift then
 			local rules = _rules(state.stack)
 
 			local grammar = GraphGrammar.new {
@@ -910,6 +933,59 @@ function graphmode.keypressed( key )
 
 			state.show = true
 			state.coro = nil
+		elseif ctrl then
+			local rules = _rules(state.stack)
+
+			local grammar = GraphGrammar.new {
+				rules = rules,
+
+				springStrength = springStrength,
+				edgeLength = edgeLength,
+				repulsion = repulsion,
+				maxDelta = maxDelta,
+				convergenceDistance = convergenceDistance,
+				drawYield = false,
+				replaceYield = false,
+			}
+
+			state.coro = coroutine.create(
+				function ()
+					local numFailures = 0
+					local numSucceesses = 0
+					local start = love.timer.getMicroTime()
+					while true do
+						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+
+						local yield = false
+						graph2D.assignVertexRadiusAndRelax(
+							graph,
+							relaxSpringStrength,
+							relaxEdgeLength,
+							relaxRepulsion,
+							relaxMaxDelta,
+							relaxConvergenceDistance,
+							yield)
+
+						local failed, msg = graph2D.isSelfIntersecting(graph)
+
+						if failed then
+							numFailures = numFailures + 1
+						else
+							numSucceesses = numSucceesses + 1
+						end
+
+						local total = numFailures + numSucceesses
+						local percentage = math.round((numSucceesses / total) * 100)
+						local duration = love.timer.getMicroTime() - start
+						_shadowf(gFont30, 0, 40, 'SUCCESS: %d%% (%d/%d) %.2f/s', percentage, numSucceesses, total, total / duration)
+
+						if not failed then
+							coroutine.yield(graph)
+						end
+					end
+				end)
+
+			state.show = true
 		end
 	elseif key == '=' then
 		local selection = state.selection
@@ -938,8 +1014,14 @@ function graphmode.keypressed( key )
 		end
 	elseif key == '-' then
 		local selection = state.selection
-		if selection and selection.type == 'vertex' and selection.vertex.side == 'right' then
-			selection.vertex.tag = '-'
+		if selection and selection.type == 'vertex' then
+			local vertex = selection.vertex
+
+			if vertex.side == 'right' and vertex.mapped then
+				vertex.tag = '-'
+			elseif vertex.side == 'left' then
+				vertex.tags = { ['-'] = true }
+			end
 		end
 	end
 end

@@ -76,8 +76,10 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	end
 
 	-- No substitute rule can have start vertices ('s' tag).
+	-- Only mapped substitute vertices can have a '-' tag.
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		assert(substituteVertex.tag ~= 's', 'no s tag allowed in substitute')
+		assert(substituteVertex.tag ~= '-' or inverse[substituteVertex], "only mapped substitute vertex can have '-' tag")
 	end
 
 	-- All pattern vertices should be mapped.
@@ -150,6 +152,10 @@ local function _vertexEq( host, hostVertex, pattern, patternVertex )
 		if pattern.valences[patternVertex] ~= host.valences[hostVertex] then
 			return false
 		end
+	end
+
+	if patternVertex.tags['-'] then
+		return true
 	end
 
 	return patternVertex.tags[hostVertex.tag]

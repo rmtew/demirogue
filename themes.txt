@@ -1,0 +1,9 @@
+Themes
+======
+
+I think we need two files for each theme:
+
+<theme>.rules - file containing serialised gramphmode ruleset.
+<theme>.constraints - constraints for the rules and so on.
+
+Due to Love having restricted file writing support (only to a sandbox)
