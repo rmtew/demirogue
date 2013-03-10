@@ -14,6 +14,8 @@ require 'graph2D'
 graphmode = {}
 
 local config = {
+	rulesetsDir = 'rulesets',
+
 	tolerance = 30,
 
 	springStrength = 1,
@@ -234,65 +236,73 @@ end
 --     edge = <boolean>,
 --     show = <boolean>,
 --     graph = nil | <Graph>,
+--     coro = <coroutine>,
+--     rulesets = { }
 -- }
 
-local function _calculateLengthFactors( stack )
-	for _, level in ipairs(stack) do
-		local leftGraph = level.leftGraph
-		local rightGraph = level.rightGraph
+local function _calculateLengthFactors( level )
+	local leftGraph = level.leftGraph
+	local rightGraph = level.rightGraph
 
-		local meanLeftEdgeLength = graph2D.meanEdgeLength(leftGraph)
-		local meanRightEdgeLength = graph2D.meanEdgeLength(rightGraph)
+	local meanLeftEdgeLength = graph2D.meanEdgeLength(leftGraph)
+	local meanRightEdgeLength = graph2D.meanEdgeLength(rightGraph)
 
-		-- print('length factors', meanLeftEdgeLength, meanRightEdgeLength)
+	-- print('length factors', meanLeftEdgeLength, meanRightEdgeLength)
 
-		local meanEdgeLength = meanLeftEdgeLength
+	local meanEdgeLength = meanLeftEdgeLength
 
-		if meanEdgeLength == 0 then
-			meanEdgeLength = meanRightEdgeLength
-		end
+	if meanEdgeLength == 0 then
+		meanEdgeLength = meanRightEdgeLength
+	end
 
-		if meanEdgeLength > 0 then
-			for rightEdge, rightEndVerts in pairs(rightGraph.edges) do
-				if rightEdge.subdivide then
-					local edgeLength = Vector.toLength(rightEndVerts[1], rightEndVerts[2])
+	if meanEdgeLength > 0 then
+		for rightEdge, rightEndVerts in pairs(rightGraph.edges) do
+			if rightEdge.subdivide then
+				local edgeLength = Vector.toLength(rightEndVerts[1], rightEndVerts[2])
 
-					local lengthFactor = edgeLength / meanEdgeLength
+				local lengthFactor = edgeLength / meanEdgeLength
 
-					-- print(edgeLength, meanEdgeLength, lengthFactor)
+				-- print(edgeLength, meanEdgeLength, lengthFactor)
 
-					rightEdge.lengthFactor = lengthFactor
-				end
+				rightEdge.lengthFactor = lengthFactor
 			end
 		end
 	end
 end
 
-local function _rules( stack )
-	_calculateLengthFactors(stack)
+local function _rule( level )
+	_calculateLengthFactors(level)
 
+	local pattern = level.leftGraph
+	local substitute = level.rightGraph
+	local map = level.map
+	local status, result = pcall(
+		function ()
+			return GraphGrammar.Rule.new(pattern, substitute, map)
+		end)
+	
+	if status then
+		return result
+	else
+		return nil, result
+	end
+end
+
+local function _rules( stack )
 	local rules = {}
 	local nextRuleId = 1
 
 	for _, level in ipairs(stack) do
-		local pattern = level.leftGraph
-		local substitute = level.rightGraph
-		local map = level.map
-		local status, result = pcall(
-			function ()
-				return GraphGrammar.Rule.new(pattern, substitute, map)
-			end)
+		local rule = _rule(level)
 
-		if status then
+		if rule then
 			local name = string.format("rule%d", nextRuleId)
 			printf('RULE %s!', name)
 			nextRuleId = nextRuleId + 1
-			rules[name] = result
+			rules[name] = rule
 		else
 			print('RULE FAIL')
 		end
-		
-		print(status, result)
 	end
 
 	print('RULEZ', #stack, table.count(rules))
@@ -345,15 +355,41 @@ function graphmode.update()
 			graph = nil,
 		}
 
-		local files = love.filesystem.enumerate('')
-
-		for _, file in ipairs(files) do
-			print('', file)
+		local dir = config.rulesetsDir
+		if not love.filesystem.isDirectory(dir) then
+			love.filesystem.mkdir(dir)
 		end
 
-		if not love.filesystem.isDirectory('themes') then
-			love.filesystem.mkdir('themes')
+		local filenames = love.filesystem.enumerate(dir)
+		local rulesets = {}
+
+		for _, filename in ipairs(filenames) do
+			local path = string.format('%s/%s', dir, filename)
+			if love.filesystem.isFile(path) then
+				local file = love.filesystem.newFile(path)
+				if file:open('r') then
+					local code = file:read()
+					file:close()
+
+					local data = loadstring(code)
+
+					if data then
+						rulesets[filename] = _load(data())
+					end
+				end
+			end
 		end
+
+		state.rulesets = rulesets
+		local ruleset, stack = next(rulesets)
+
+		if not ruleset then
+			ruleset = 'default'
+		else
+			state.stack = stack
+		end
+
+		state.ruleset = ruleset
 	end
 
 	local level = state.stack[state.index]
@@ -566,16 +602,8 @@ function graphmode.draw()
 
 		-- TODO: got to try and build a GraphGrammar Rule and tell the user if
 		--       it fails or succeeds.
-		local numLeft = table.count(level.leftGraph.vertices)
-		local numRight = table.count(level.rightGraph.vertices)
-		local leftConnect = level.leftGraph:isConnected() and 't' or 'f'
-		local rightConnect = level.rightGraph:isConnected() and 't' or 'f'
-		_shadowf(gFont15, 10, 10, '#%d left:%d right:%d conn:%s %s',
-			state.index,
-			numLeft,
-			numRight,
-			leftConnect,
-			rightConnect)
+		local rule, msg = _rule(state.stack[state.index])
+		_shadowf(gFont15, 10, 10, '%s #%d %s', state.ruleset, state.index, msg or 'ok')
 	else
 		if state.coro then
 			if autoProgress then
@@ -628,7 +656,11 @@ function graphmode.draw()
 
 			if vertex.radius then
 				local scale = screen:width() / aabb:width()
-				love.graphics.circle('line', pos[1], pos[2], scale * vertex.radius)
+				local scaledRadius = scale * vertex.radius
+				love.graphics.circle('line', pos[1], pos[2], scaledRadius)
+
+				local extent = math.sqrt((scaledRadius^2) * 0.5)
+				love.graphics.rectangle('line', pos[1] - extent, pos[2] - extent, 2 * extent, 2 * extent)
 			else
 				love.graphics.circle('fill', pos[1], pos[2], radius)
 			end
@@ -814,17 +846,32 @@ function graphmode.keypressed( key )
 				}
 			end
 		end
+	elseif key == 'left' then
+		local ruleset, stack = next(state.rulesets, state.ruleset)
+
+		if not ruleset then
+			ruleset, stack = next(state.rulesets)
+		end
+
+		state.rulesets[state.ruleset] = state.stack
+
+		state.ruleset = ruleset
+		state.stack = stack
+		state.index = 1
 	elseif key == 'f5' then
 		local code = _save(state)
 
 		-- print(code)
 
-		local file = love.filesystem.newFile("rules.txt")
+		local filename = string.format('%s/%s', config.rulesetsDir, state.ruleset)
+		print(filename)
+		local file = love.filesystem.newFile(filename)
 		file:open('w')
 		file:write(code)
 		file:close()
 	elseif key == 'f8' then
-		local file = love.filesystem.newFile("rules.txt")
+		local filename = string.format('%s/%s', config.rulesetsDir, state.ruleset)
+		local file = love.filesystem.newFile(filename)
 		if file:open('r') then
 			local code = file:read()
 			file:close()

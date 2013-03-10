@@ -199,12 +199,10 @@ function graph2D.forceDraw(
 	local start = love.timer.getMicroTime()
 
 	local forces = {}
-	local positions = {}
 	local vertices = {}
 
 	for vertex, _ in pairs(graph.vertices) do
 		forces[vertex] = Vector.new { 0, 0 }
-		positions[vertex] = Vector.new { 0, 0 }
 		vertices[#vertices+1] = vertex
 	end
 
@@ -423,7 +421,8 @@ function graph2D.assignVertexRadiusAndRelax(
 	-- Find out the desired edge length so the circles don't intersect.
 	for edge, endverts in pairs(graph.edges) do
 		-- TODO: the 1.1 is a fudge factor, should be a param.
-		local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
+		-- local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
+		local distance = 5 + (endverts[1].radius + endverts[2].radius)
 		local length = Vector.toLength(endverts[1], endverts[2])
 
 		local scale = distance / length
