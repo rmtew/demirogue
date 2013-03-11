@@ -16,6 +16,10 @@ GraphGrammar.Rule.__index = GraphGrammar.Rule
 --   NOTE: this is used to reconnect dangling edges caused by the the removal
 --         of the pattern subgraph.
 
+-- TODO: 's' and '-' tags have special meaning (start and wildcard). Should
+--       specify them somewhere instead of being spread over the code like
+--       magic numbers.
+
 -- Used when checking the pattern and subtitute graphs are connected.
 local function _edgeFilter( edge )
 	return not edge.cosmetic

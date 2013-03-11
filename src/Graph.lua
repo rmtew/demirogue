@@ -73,6 +73,8 @@ function Graph:_invariant()
 	end
 end
 
+-- Create a copy of a graph with specified vertex and edge cloning functions.
+-- The cloning functions can return nil and it should still work.
 function Graph:clone( vertexClone, edgeClone )
 	local result = Graph.new()
 
@@ -80,15 +82,23 @@ function Graph:clone( vertexClone, edgeClone )
 
 	for vertex, _ in pairs(self.vertices) do
 		local cloneVertex = vertexClone(vertex)
-		result:addVertex(cloneVertex)
-		clones[vertex] = cloneVertex
+
+		if cloneVertex ~= nil then
+			result:addVertex(cloneVertex)
+			clones[vertex] = cloneVertex
+		end
 	end
 
 	for edge, endverts in pairs(self.edges) do
 		local cloneVertex1 = clones[endverts[1]]
 		local cloneVertex2 = clones[endverts[2]]
-		local cloneEdge = edgeClone(edge)
-		result:addEdge(cloneEdge, cloneVertex1, cloneVertex2)
+
+		if cloneVertex1 ~= nil and cloneVertex2 ~= nil then
+			local cloneEdge = edgeClone(edge)
+			if cloneEdge ~= nil then
+				result:addEdge(cloneEdge, cloneVertex1, cloneVertex2)
+			end
+		end
 	end
 
 	return result

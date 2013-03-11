@@ -233,6 +233,8 @@ function graph2D.forceDraw(
 					-- local desiredLength = edgeLength
 					local desiredLength = (edge.length or edgeLength) * (edge.lengthFactor or 1)
 
+					-- Use log with base sqrt(2) so that overly long edges pull
+					-- together a bit more.
 					local f = -springStrength * math.logb(d/desiredLength, math.sqrt(2))
 					-- local delta = 0.25
 					-- local f = delta * (desiredLength - d)

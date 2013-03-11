@@ -1,0 +1,248 @@
+return {
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {
+        {
+          606,
+          281,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          605,
+          396,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          608,
+          188,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+      },
+      ["edges"] = {
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    ["map"] = {
+      1,
+    },
+    ["leftGraph"] = {
+      ["vertices"] = {
+        {
+          206,
+          281,
+          ["tags"] = {
+            ["s"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
+      ["edges"] = {},
+    },
+    },
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {
+        {
+          626,
+          206,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          547,
+          233,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          596,
+          257,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          562,
+          314,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+      },
+      ["edges"] = {
+        {
+          3,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    ["map"] = {
+      4,
+      1,
+    },
+    ["leftGraph"] = {
+      ["vertices"] = {
+        {
+          162,
+          314,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          226,
+          206,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
+      ["edges"] = {
+        {
+          1,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    },
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {
+        {
+          554,
+          330,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          625,
+          303,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "b",
+        },
+        {
+          571,
+          254,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "b",
+        },
+        {
+          638,
+          221,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+      },
+      ["edges"] = {
+        {
+          1,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          4,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          4,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          3,
+          ["subdivide"] = true,
+          ["cosmetic"] = false,
+        },
+        {
+          1,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    ["map"] = {
+      4,
+      1,
+    },
+    ["leftGraph"] = {
+      ["vertices"] = {
+        {
+          238,
+          221,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          154,
+          330,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
+      ["edges"] = {
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    },
+}

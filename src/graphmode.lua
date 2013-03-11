@@ -657,7 +657,7 @@ function graphmode.draw()
 			if vertex.radius then
 				local scale = screen:width() / aabb:width()
 				local scaledRadius = scale * vertex.radius
-				love.graphics.circle('line', pos[1], pos[2], scaledRadius)
+				-- love.graphics.circle('line', pos[1], pos[2], scaledRadius)
 
 				local extent = math.sqrt((scaledRadius^2) * 0.5)
 				love.graphics.rectangle('line', pos[1] - extent, pos[2] - extent, 2 * extent, 2 * extent)
@@ -997,10 +997,11 @@ function graphmode.keypressed( key )
 
 			state.coro = coroutine.create(
 				function ()
+					local totalDuration = 0
 					local numFailures = 0
 					local numSucceesses = 0
-					local start = love.timer.getMicroTime()
 					while true do
+						local start = love.timer.getMicroTime()
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 						local yield = false
@@ -1014,6 +1015,7 @@ function graphmode.keypressed( key )
 							yield)
 
 						local failed, msg = graph2D.isSelfIntersecting(graph)
+						local finish = love.timer.getMicroTime()
 
 						if failed then
 							numFailures = numFailures + 1
@@ -1023,11 +1025,19 @@ function graphmode.keypressed( key )
 
 						local total = numFailures + numSucceesses
 						local percentage = math.round((numSucceesses / total) * 100)
-						local duration = love.timer.getMicroTime() - start
-						_shadowf(gFont30, 0, 40, 'SUCCESS: %d%% (%d/%d) %.2f/s', percentage, numSucceesses, total, total / duration)
+
+						local duration = finish - start
+						local totalDuration = totalDuration + duration
+						_shadowf(gFont30, 0, 40, 'SUCCESS: %d%% (%d/%d) %.2f/s', percentage, numSucceesses, total, total / totalDuration)
 
 						if not failed then
-							coroutine.yield(graph)
+							while not gProgress do
+								if autoProgress then
+									gProgress = true
+								end
+								coroutine.yield(graph)
+							end
+							gProgress = false
 						end
 					end
 				end)

@@ -14,8 +14,23 @@ The limits on the graph grammar rules are:
   they can match more than one different host graph tag.
 - There is a maxValence parameter that stops rules from exceeding it. However
   if a substitute graph has a greater valence it can still be used.
+- If a pattern vertex is tagged as '-' it is a wildcard that allows it to match
+  any host vertex.
+- If a substitute vertex is tagged as '-' (only allowed on mapped vertices) it
+  means it uses the tag from the host graph.
+- There are currently four parameters that control the graph building process:
+  
+  maxIterations: to cap the number of rule applications.
+  minVerticex:   if the building process finishes or stalls with fewer than
+                 this many vertices the process is considered 'failed'.
+  maxVertices:   this is very exceeded for any reason, i.e. rules aren't even
+                 applied if it would create enbough vertices to exceed it.
+  maxValence:    rules are not allowed to be applied if this value would be
+                 exceeded for any vertex.
+
 
 Some points on the algorithm used:
+----------------------------------
 
 - The subgraph matches have to be whittled down to avoid a problem with
   'flipped' patterns. For example consider a triangle pattern graph:
@@ -51,7 +66,21 @@ Some points on the algorithm used:
   NOTE: While it is still the slowest part if you run it as fast as possible
         (no yielding) it is actually very fast.
 
+- After a graph has been successfully generated each vertex has a random radius
+  assigned (the intention is to simulate different room sizes). Then for each
+  vertex we calculate the ideal length of the edge (sum of their radii plus a
+  small fudge factor). This ideal length is then compared to the current edge
+  length and a scale value calculated.
+
+  The entire graph is then scaled up by the largest scale factor (to ensure no
+  vertex circles intersect). Then a force drawing step is performed to contract
+  the edges towards their ideal.
+
+  If the final graph passes a self-intersection test it should be suitable for
+  use in generating actual level geometry.
+
 Some ideas for future work:
+---------------------------
 
 - The force based graph drawing seems to be a lot better at 'contracting'
   graphs than expanding them. So it might be worth scaling up the entire graph
@@ -66,6 +95,10 @@ Some ideas for future work:
         log based spring forces being overwhelmed by the inverse square
         repulsion forces.
 
+  NOTE: After some testing and more thought it seems to be due to the 'pull'
+        force on overly long edges being very weak. It converges well before
+        the long edges can be contracted.
+
 - Because the graph drawing algorithms tends to straigten everything out we
   need to be able to add cosmetic edges (to constrain the shape) that will not
   become corridors. The connectivity pre-conditions of the rules need to take
@@ -74,17 +107,8 @@ Some ideas for future work:
   Also cosmetic edges should not be matched with non-cosmetic edges. Can use
   the edgeEq parameter to Graph:matches() to enforce this.
 
-- When rooms are created for the vertices we'll need to scale up the graph to
-  fit them without overlaps. This could be done by setting per-edge length
-  factors that multiply the base desired edge length in graph drawing.
-
-  Could use the same feature in the rules to control edge lengths, especially
-  useful for cosmetic edges one would think. For example we could calculate the
-  proportionate edge length in the substitute graph as a multiplier for edge
-  lengths. This would make subdividing rules smaller.
-
-  NOTE: this has been implemented in a basic way (the rooms are modelled as
-        circles).
+  NOTE: Done, they are good for maintain shape sometimes. But tend to be
+        problematic when subdivision is involved.
 
 - Optional valence check on mapped vertices. If a substitute vertex has the
   option enabled it only allows it to be applied if the host vertex has the
@@ -93,32 +117,24 @@ Some ideas for future work:
 
   NOTE: Tried this and it's not very useful. See below in tassles.
 
-- A few times it would have been useful to specify a set of tags in the pattern
-  instead of just a single tag. For example a vertex tagged '*' could match any
-  other vertex. A vertex tagged 'a|b' could match to vertices tagged as either
-  'a' or 'b'. (Wonder whether 'anything but a or b' is needed...)
+- Need some more control parameters:
+  - Apply a particular rule only once. Good for special rules.
+  - Weight the choice of particular rules.
+  - Try and control the cardinality of certain tags. Consider a level that has
+    three main sections and you want them to be equally developed. The current
+    random rule selection makes that hard to achieve without some complex tag
+    assignments.
 
-  UI: If you hold shift while pressing a key for the vertex add it to the tag
-      set. Without shift just replace with a singleton tag set.
-
-  This does raise an issue about what tag the substitute should have when
-  mapped to a tag set. A simple solution is to say that it keeps the tag it has
-  in the host graph, e.g.
-
-  host: a -- b 
-  rule: * - * => * - * - c
-
-  Could create:
-
-  a - b - c  or c - a - b
-
-  But it would be possible to override it as well. Need to be able to undo an
-  overridden vertex tag though.
-
-  NOTE: this has been partially implemented.
-
+- Should pass the graph to a Constraint Propagation Solver (CPS) so we can
+  allow for some cunning logic to be applied (maybe before the relax stage):
+  - What type of room generation to employ.
+  - What sizes the room should be.
+  - Could allow edges to be removed (made cosmetic) as long as the graph is
+    still connected.
+  - Where to place entrances, exits, keys, monsters, treasure, doors and so on.
 
 Some unresolved issues:
+-----------------------
 
 - It's easy to cause issues by connecting edges in the substitute graph that
   aren't connected in the pattern, e.g.
@@ -131,10 +147,6 @@ Some unresolved issues:
   worth stopping this from happening by adding another condition on the rules.
 
   Actually this is sometimes very useful, so caveat emptor.
-
-- Substitute graphs can intersect other parts of the host graph which get fixed
-  only some of the time by the graph drawing code. The upscaling idea mentioned
-  above might solve this though.
 
 - It's too easy to create 'tassles', e.g.
 
@@ -219,9 +231,11 @@ Some unresolved issues:
   drawing are very strong when the edge is too short. This pushes other edges
   into overlapping positions.
 
+  NOTE: maxValence has been added as a build parameter.
+
 - What about setting edge length factors at the end of each force draw?
 
-  This is a pretty random idea
+  This is a pretty random idea, not sure what the purpose was...
 
 - There is an issue with subdividing rules. Because the desired edge length for
   all edges is the same it is common for the 'inside' vertices of a subdivding
@@ -262,3 +276,7 @@ Some unresolved issues:
 
   NOTE: I added the circle radii to the repulsion stage of the graph drawing,
         seems to work most of the time.
+
+
+- Different rulesets need to be able to have different tuning paramters and
+  constraints.
