@@ -407,6 +407,7 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	minRadius,
 	maxRadius,
+	radiusFudge,
 
 	-- The arguemnts below are the same as those to forceDraw() above.
 	springStrength,
@@ -427,9 +428,8 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	-- Find out the desired edge length so the circles don't intersect.
 	for edge, endverts in pairs(graph.edges) do
-		-- TODO: the 1.1 is a fudge factor, should be a param.
-		-- local distance = 1.1 * (endverts[1].radius + endverts[2].radius)
-		local distance = 5 + (endverts[1].radius + endverts[2].radius)
+		-- TODO: should really be making rooms or aabbs.
+		local distance = radiusFudge + (endverts[1].radius + endverts[2].radius)
 		local length = Vector.toLength(endverts[1], endverts[2])
 
 		local scale = distance / length

@@ -96,6 +96,7 @@ local function Theme( params )
 	checkf(_isNonNegInt(params.minRadius), 'minRadius should be > 0')
 	checkf(_isNonNegInt(params.maxRadius), 'maxRadius should be > 0')
 	checkf(params.minRadius < params.maxRadius, 'minRadius should be < maxRadius')
+	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
 	
 	checkf(_isPosNum(params.relaxSpringStrength), 'relaxSpringStrength should be > 0')
 	checkf(_isPosNum(params.relaxEdgeLength), 'relaxEdgeLength should be > 0')
@@ -167,6 +168,7 @@ local base = {
 	-- TODO: Parameters that govern vertex room assignment.
 	minRadius = 20,
 	maxRadius = 80,
+	radiusFudge = 5,
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
