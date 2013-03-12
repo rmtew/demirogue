@@ -473,6 +473,7 @@ function graphmode.update()
 end
 
 local autoProgress = false
+local showLengthFactors = true
 
 local function _tags( vertex )
 	assert(vertex.side == 'left')
@@ -603,7 +604,13 @@ function graphmode.draw()
 		-- TODO: got to try and build a GraphGrammar Rule and tell the user if
 		--       it fails or succeeds.
 		local rule, msg = _rule(state.stack[state.index])
-		_shadowf(gFont15, 10, 10, '%s #%d %s', state.ruleset, state.index, msg or 'ok')
+
+		-- Remove the file and line part of the assert msg.
+		if msg then
+			msg = 'invalid: ' .. msg:match('^.+:(.*)$')
+		end
+
+		_shadowf(gFont15, 10, 10, '%s #%d/%d %s', state.ruleset, state.index, #state.stack, msg or 'ok')
 	else
 		if state.coro then
 			if autoProgress then
@@ -685,12 +692,14 @@ function graphmode.draw()
 
 			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
 
-			local mid = Vector.to(pos1, pos2)
-			mid:scale(0.5)
-			mid[1] = mid[1] + pos1[1]
-			mid[2] = mid[2] + pos1[2]
-			local scale = length / desiredLength
-			_shadowf(gFont15, mid[1], mid[2], '%.3f x%.2f', lengthFactor, scale)
+			if showLengthFactors then
+				local mid = Vector.to(pos1, pos2)
+				mid:scale(0.5)
+				mid[1] = mid[1] + pos1[1]
+				mid[2] = mid[2] + pos1[2]
+				local scale = length / desiredLength
+				_shadowf(gFont15, mid[1], mid[2], '%.3f x%.2f', lengthFactor, scale)
+			end
 		end
 
 		love.graphics.setColor(0, 255, 0, 255)
@@ -1080,6 +1089,8 @@ function graphmode.keypressed( key )
 				vertex.tags = { ['-'] = true }
 			end
 		end
+	elseif key == '#' then
+		showLengthFactors = not showLengthFactors
 	end
 end
 

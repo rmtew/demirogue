@@ -1,0 +1,1 @@
+xcopy "%appdata%\love\demirogue\rulesets" src\resources\rulesets /E /D /C /Y

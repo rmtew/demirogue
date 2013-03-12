@@ -378,7 +378,7 @@ function graph2D.forceDraw(
 			edgeForces = true
 		end
 
-		if yield then
+		if yield and count % 10 == 0 then
 			coroutine.yield(graph)
 		end
 
