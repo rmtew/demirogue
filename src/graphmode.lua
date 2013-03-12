@@ -5,6 +5,8 @@ require 'Vector'
 require 'geometry'
 require 'graph2D'
 
+require 'themes'
+
 -- Basic graph editing for making grammar rule sets.
 --
 -- The screen is split into two panes, left and right.
@@ -14,21 +16,7 @@ require 'graph2D'
 graphmode = {}
 
 local config = {
-	rulesetsDir = 'rulesets',
-
 	tolerance = 30,
-
-	springStrength = 1,
-	edgeLength = 100,
-	repulsion = 1,
-	maxDelta = 0.5,
-	convergenceDistance = 4,
-
-	relaxSpringStrength = 10,
-	relaxEdgeLength = 100,
-	relaxRepulsion = 0.05,
-	relaxMaxDelta = 2,
-	relaxConvergenceDistance = 4,
 }
 
 local function _shadowf(font, x, y, ... )
@@ -52,7 +40,8 @@ local function _save( state )
 
 	-- { level }+
 	-- level = { leftGraph = graph, rightGraph = graph, map = map }
-	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
+	-- graph = { vertices = { vertex }+, edges = { edge }+ }
+	-- edge = { <index>, <index>, cosmetic = <boolean>, subdivide = <boolean> }
 	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
 	-- map = { [<index>] = <index> }*
 
@@ -131,11 +120,11 @@ local function _save( state )
 		levels[index] = copy
 	end
 
-	return table.compile(levels)	
+	return levels
 end
 
 local function _load( data )
-	-- Make a nice to save version of the state.
+	-- Turn the saved version of the state into a runtime usable version.
 
 	-- { level }+
 	-- level = { leftGraph = graph, rightGraph = graph, map = map }
@@ -237,7 +226,7 @@ end
 --     show = <boolean>,
 --     graph = nil | <Graph>,
 --     coro = <coroutine>,
---     rulesets = { }
+--     themeIndex = [1..#theme.sortedDB]
 -- }
 
 local function _calculateLengthFactors( level )
@@ -318,6 +307,7 @@ function graphmode.update()
 	time = time + love.timer.getDelta()
 
 	if not state then
+		table.print(themes.db)
 		local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 		local hw = w * 0.5
 
@@ -335,61 +325,26 @@ function graphmode.update()
 			ymax = h,
 		}
 
+		local themeIndex = 1
+		local theme = themes.sortedDB[themeIndex]
+		local stack = _load(theme.ruleset())
+
 		local leftGraph = Graph.new()
 		local rightGraph = Graph.new()
 
 		state = {
 			leftPane = leftPane,
 			rightPane = rightPane,
-			stack = {
-				{
-					leftGraph = leftGraph,
-					rightGraph = rightGraph,
-					map = {},
-				},
-			},
+			stack = stack,
 			index = 1,
 			selection = nil,
 			edge = false,
 			show = false,
 			graph = nil,
+			coro = nil,
+			themeIndex = themeIndex,
+			theme = theme,
 		}
-
-		local dir = config.rulesetsDir
-		if not love.filesystem.isDirectory(dir) then
-			love.filesystem.mkdir(dir)
-		end
-
-		local filenames = love.filesystem.enumerate(dir)
-		local rulesets = {}
-
-		for _, filename in ipairs(filenames) do
-			local path = string.format('%s/%s', dir, filename)
-			if love.filesystem.isFile(path) then
-				local file = love.filesystem.newFile(path)
-				if file:open('r') then
-					local code = file:read()
-					file:close()
-
-					local data = loadstring(code)
-
-					if data then
-						rulesets[filename] = _load(data())
-					end
-				end
-			end
-		end
-
-		state.rulesets = rulesets
-		local ruleset, stack = next(rulesets)
-
-		if not ruleset then
-			ruleset = 'default'
-		else
-			state.stack = stack
-		end
-
-		state.ruleset = ruleset
 	end
 
 	local level = state.stack[state.index]
@@ -473,7 +428,7 @@ function graphmode.update()
 end
 
 local autoProgress = false
-local showLengthFactors = true
+local showLengthFactors = false
 
 local function _tags( vertex )
 	assert(vertex.side == 'left')
@@ -610,7 +565,7 @@ function graphmode.draw()
 			msg = 'invalid: ' .. msg:match('^.+:(.*)$')
 		end
 
-		_shadowf(gFont15, 10, 10, '%s #%d/%d %s', state.ruleset, state.index, #state.stack, msg or 'ok')
+		_shadowf(gFont15, 10, 10, '%s #%d/%d %s', state.theme.name, state.index, #state.stack, msg or 'ok')
 	else
 		if state.coro then
 			if autoProgress then
@@ -673,6 +628,8 @@ function graphmode.draw()
 			end
 		end
 
+		local theme = state.theme
+
 		for edge, endverts in pairs(state.graph.edges) do
 			local length = Vector.toLength(endverts[1], endverts[2])
 			
@@ -680,7 +637,7 @@ function graphmode.draw()
 			local pos2 = aabb:lerpTo(endverts[2], screen)
 
 			local lengthFactor = edge.lengthFactor or 1
-			local desiredLength = (edge.length or config.edgeLength) * lengthFactor
+			local desiredLength = (edge.length or theme.edgeLength) * lengthFactor
 
 			if edge.cosmetic then
 				love.graphics.setColor(128, 128, 128, 128)
@@ -813,7 +770,7 @@ function graphmode.keypressed( key )
 			end
 		end
 	elseif key:find('^([a-z])$') then
-		print('taggy', key)
+		print('tag', key)
 		if state.selection and state.selection.type == 'vertex' then
 			local vertex = state.selection.vertex
 
@@ -822,15 +779,16 @@ function graphmode.keypressed( key )
 			else
 				local append = love.keyboard.isDown('lshift', 'rshift')
 
-				print('left side', append)
-
 				-- It makes no sense to have start vertices be in a tag set.
 				if append and key ~= 's' then
 					vertex.tags[key] = true
 				else
 					vertex.tags = { [key] = true }
-					local level = state.stack[state.index]
-					level.map[vertex].tag = key
+					-- No point setting the right hand vertex to 's'.
+					if tag ~= 's' then
+						local level = state.stack[state.index]
+						level.map[vertex].tag = key
+					end
 				end
 
 				table.print(vertex.tags)
@@ -856,43 +814,39 @@ function graphmode.keypressed( key )
 			end
 		end
 	elseif key == 'left' then
-		local ruleset, stack = next(state.rulesets, state.ruleset)
-
-		if not ruleset then
-			ruleset, stack = next(state.rulesets)
+		local nextThemeIndex = state.themeIndex - 1
+		if nextThemeIndex < 1 then
+			nextThemeIndex = #themes.sortedDB
 		end
 
-		state.rulesets[state.ruleset] = state.stack
+		local nextTheme = themes.sortedDB[nextThemeIndex]
+		assert(nextTheme)
 
-		state.ruleset = ruleset
-		state.stack = stack
+		local nextStack = _load(nextTheme.ruleset())
+
+		state.themeIndex = nextThemeIndex
+		state.theme = nextTheme
+		state.stack = nextStack
+		state.index = 1
+	elseif key == 'right' then
+		local nextThemeIndex = state.themeIndex + 1
+		if nextThemeIndex > #themes.sortedDB then
+			nextThemeIndex = 1
+		end
+
+		local nextTheme = themes.sortedDB[nextThemeIndex]
+		assert(nextTheme)
+
+		local nextStack = _load(nextTheme.ruleset())
+
+		state.themeIndex = nextThemeIndex
+		state.theme = nextTheme
+		state.stack = nextStack
 		state.index = 1
 	elseif key == 'f5' then
-		local code = _save(state)
-
-		-- print(code)
-
-		local filename = string.format('%s/%s', config.rulesetsDir, state.ruleset)
-		print(filename)
-		local file = love.filesystem.newFile(filename)
-		file:open('w')
-		file:write(code)
-		file:close()
+		themes.saveRuleset(state.theme, _save(state))
 	elseif key == 'f8' then
-		local filename = string.format('%s/%s', config.rulesetsDir, state.ruleset)
-		local file = love.filesystem.newFile(filename)
-		if file:open('r') then
-			local code = file:read()
-			file:close()
-
-			local data = loadstring(code)()
-
-			-- table.print(data)
-
-			state.stack = _load(data)
-			state.index = 1
-			state.edge = false
-		end
+		state.stack = _load(state.theme.ruleset())
 	elseif key == ' ' then
 		autoProgress = false
 		local shift = love.keyboard.isDown('lshift', 'rshift')
@@ -902,11 +856,13 @@ function graphmode.keypressed( key )
 		-- that shows the process. If you hold shift we do it as fast as
 		-- possible and display the final result.
 
-		local springStrength = config.springStrength
-		local edgeLength = config.edgeLength
-		local repulsion = config.repulsion
-		local maxDelta = config.maxDelta
-		local convergenceDistance = config.convergenceDistance
+		local theme = state.theme
+
+		local springStrength = theme.springStrength
+		local edgeLength = theme.edgeLength
+		local repulsion = theme.repulsion
+		local maxDelta = theme.maxDelta
+		local convergenceDistance = theme.convergenceDistance
 
 		-- local springStrength = 1
 		-- local edgeLength = 1
@@ -914,17 +870,16 @@ function graphmode.keypressed( key )
 		-- local maxDelta = 0.01
 		-- local convergenceDistance = 0.05
 
-		local relaxSpringStrength = config.relaxSpringStrength
-		local relaxEdgeLength = config.relaxEdgeLength
-		local relaxRepulsion = config.relaxRepulsion
-		local relaxMaxDelta = config.relaxMaxDelta
-		local relaxConvergenceDistance = config.relaxConvergenceDistance
+		local relaxSpringStrength = theme.relaxSpringStrength
+		local relaxEdgeLength = theme.relaxEdgeLength
+		local relaxRepulsion = theme.relaxRepulsion
+		local relaxMaxDelta = theme.relaxMaxDelta
+		local relaxConvergenceDistance = theme.relaxConvergenceDistance
 		
-		-- TODO: these should be specified by the rule set.
-		local maxIterations = 10
-		local minVertices = 1
-		local maxVertices = 20
-		local maxValence = 8
+		local maxIterations = theme.maxIterations
+		local minVertices = theme.minVertices
+		local maxVertices = theme.maxVertices
+		local maxValence = theme.maxValence
 
 		if not shift and not ctrl then
 			state.show = not state.show
@@ -952,6 +907,8 @@ function graphmode.keypressed( key )
 						local yield = true
 						graph2D.assignVertexRadiusAndRelax(
 							graph,
+							theme.minRadius,
+							theme.maxRadius,
 							relaxSpringStrength,
 							relaxEdgeLength,
 							relaxRepulsion,
@@ -980,6 +937,8 @@ function graphmode.keypressed( key )
 			local yield = false
 			graph2D.assignVertexRadiusAndRelax(
 				state.graph,
+				theme.minRadius,
+				theme.maxRadius,
 				relaxSpringStrength,
 				relaxEdgeLength,
 				relaxRepulsion,
@@ -1016,6 +975,8 @@ function graphmode.keypressed( key )
 						local yield = false
 						graph2D.assignVertexRadiusAndRelax(
 							graph,
+							theme.minRadius,
+							theme.maxRadius,
 							relaxSpringStrength,
 							relaxEdgeLength,
 							relaxRepulsion,

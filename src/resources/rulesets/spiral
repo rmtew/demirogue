@@ -1,0 +1,13 @@
+return {
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {},
+      ["edges"] = {},
+    },
+    ["map"] = {},
+    ["leftGraph"] = {
+      ["vertices"] = {},
+      ["edges"] = {},
+    },
+    },
+}

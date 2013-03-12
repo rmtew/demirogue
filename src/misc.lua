@@ -326,6 +326,9 @@ function table.compile( tbl, option )
 
 	aux(tbl, 2)
 
+	-- This is to stop complaints about files not ending in a newline.
+	parts[#parts+1] = '\n'
+
 	local result = table.concat(parts)
 
 	return result

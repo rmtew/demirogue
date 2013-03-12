@@ -401,8 +401,13 @@ function graph2D.forceDraw(
 end
 
 -- TODO: needs a passed in function that generates AABBs for each vertex.
+-- TODO: circles aren;t very flexible, maybe axis aligned elipses...
 function graph2D.assignVertexRadiusAndRelax(
 	graph,
+
+	minRadius,
+	maxRadius,
+
 	-- The arguemnts below are the same as those to forceDraw() above.
 	springStrength,
 	edgeLength,
@@ -412,7 +417,7 @@ function graph2D.assignVertexRadiusAndRelax(
 	yield )
 
 	for vertex, _ in pairs(graph.vertices) do
-		local radius = 0.5 * math.random(20, 80)
+		local radius = math.random(minRadius, maxRadius)
 
 		-- NOTE: this is so I can show some debugging visualisation.
 		vertex.radius = radius

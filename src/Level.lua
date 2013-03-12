@@ -83,6 +83,7 @@ local function _connect( rooms, margin )
 	return points
 end
 
+-- This is technically a slow algorithm but seems to be ok in practise.
 -- 1. Put all the points into a margin sized grid of buckets.
 -- 2. For each cell try 10 times to create a random point within the cell.
 -- 3. Check the point isn't too close (within margin distance) of other points.
@@ -349,7 +350,7 @@ function Level.new( params )
 	end
 
 	-- TEST: to save trying to write straight skeleton generating code.
-	-- RESULT: it works but is quite slow and only work for single cells.
+	-- RESULT: it works but is quite slow and only works for single cells.
 	local offsetStart = love.timer.getMicroTime()
 
 	local offset = margin * 0.2
