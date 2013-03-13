@@ -3,6 +3,8 @@
 --
 -- * { x, y } instead of { x = x, y = y } for Love compatibility and
 --   performance reasons.
+--   NOTE: Actually in LuaJIT builds of Love { x = x, y = y } are faster but
+--         I've got so much array based code it would be a bitch to change :^()
 -- * All methods should *not* assume that arguments have the Vector metatable
 --   assigned so that general 2-elements arrys can use this library.
 -- 
@@ -183,6 +185,7 @@ end
 function Vector.__tostring( self )
 	return string.format("[%f, %f]", self[1], self[2])
 end
+
 
 Vector.tostring = __tostring
 

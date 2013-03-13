@@ -333,3 +333,7 @@ function table.compile( tbl, option )
 
 	return result
 end
+
+function sigmoid( value )
+	return 1 / (1 + math.exp(-value))
+end

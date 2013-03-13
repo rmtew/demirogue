@@ -87,6 +87,56 @@ function geometry.isPointInHull( point, hull )
 	return true
 end
 
+function geometry.convexHullSignedArea( hull )
+	local result = 0
+
+	for i = 1, #hull do
+		local p1 = hull[i]
+		local p2 = hull[(i < #hull) and i+1 or 1]
+		result = result + ((p1[1] * p2[2]) - (p2[1] * p1[2]))
+	end
+
+	return 0.5 * result
+end
+
+function geometry.convexHullCentroid( hull )
+	local signedArea = 0
+	local cx = 0
+	local cy = 0
+
+	for i = 1, #hull do
+		local p1 = hull[i]
+		local p2 = hull[(i < #hull) and i+1 or 1]
+
+		local a = (p1[1] * p2[2]) - (p2[1] * p1[2])
+		signedArea = signedArea + a
+		
+		cx = cx + (p1[1] + p2[1]) * a
+		cy = cy + (p1[2] + p2[2]) * a
+	end
+	
+	signedArea = 0.5 * signedArea
+	local factor = 1 / (6 * signedArea)
+
+	return Vector.new { factor * cx, factor * cy }
+end
+
+function geometry.furthestPointFrom( centre, points )
+	local furthestDistance = 0
+	local furthestPoint = nil
+
+	for _, point in ipairs(points) do
+		local distance = Vector.toLength(centre, point)
+
+		if distance > furthestDistance then
+			furthestDistance = distance
+			furthestPoint = point
+		end
+	end
+
+	return furthestPoint, furthestDistance
+end
+
 function geometry.closestPointOnLine( lineA, lineB, point )
 	local aToP = Vector.to(lineA, point)
 	local aToB = Vector.to(lineA, lineB)

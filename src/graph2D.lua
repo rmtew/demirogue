@@ -400,13 +400,233 @@ function graph2D.forceDraw(
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
 end
 
+-- Modified version of the above force based graph drawing algorithm.
+-- TODO: better explanation.
+-- - Contraction of over long edges quite strong.
+-- - Repulsions extra strong if circles intersect.
+-- - Vertex-edge forces.
+function graph2D.forceDrawRelax(
+	graph,
+	springStrength,
+	edgeLength,
+	repulsion,
+	maxDelta,
+	convergenceDistance,
+	yield )
+
+	-- assert(convergenceDistance < maxDelta)
+
+	local start = love.timer.getMicroTime()
+
+	local forces = {}
+	local vertices = {}
+
+	for vertex, _ in pairs(graph.vertices) do
+		forces[vertex] = Vector.new { 0, 0 }
+		vertices[#vertices+1] = vertex
+	end
+
+	-- local paths = graph:allPairsShortestPaths()
+
+	local converged = false
+	local edgeForces = false
+	local count = 0
+
+	while not converged do
+		for i = 1, #vertices-1 do
+			local vertex = vertices[i]
+			local peers = graph.vertices[vertex]
+
+			-- Vertex-vertex forces.
+			for j = i+1, #vertices do
+				local other = vertices[j]
+				assert(vertex ~= other)
+				local edge = peers[other]
+
+				if edge then
+					local to = Vector.to(vertex, other)
+					local d = to:length()
+
+					-- Really short edges cause trouble.
+					d = math.max(d, 0.5)
+
+					-- local desiredLength = edgeLength
+					local desiredLength = (edge.length or edgeLength) * (edge.lengthFactor or 1)
+
+					-- Use log with base sqrt(2) so that overly long edges pull
+					-- together a bit more.
+					local f = -springStrength * math.logb(d/desiredLength, math.sqrt(2))
+					-- local delta = 0.25
+					-- local f = delta * (desiredLength - d)
+
+					-- If you specify a length we ensure it is never less that
+					-- what is provided.
+					if edge.length and d < edge.length then
+						f = 100
+					end
+
+					--print('spring', f)
+
+					local vforce = forces[vertex]
+					local oforce = forces[other]
+
+					vforce[1] = vforce[1] - (to[1] * f)
+					vforce[2] = vforce[2] - (to[2] * f)
+
+					oforce[1] = oforce[1] + (to[1] * f)
+					oforce[2] = oforce[2] + (to[2] * f)
+				else
+					local to = Vector.to(vertex, other)
+					local d = to:length()
+
+					local c = (vertex.radius or 0) + (other.radius or 0)
+					d = d - c
+
+					-- Really short edges cause trouble.
+					d = math.max(d, 0.5)
+
+
+					-- This 'normalises' the repulsive force which means we
+					-- don't need to scale it when we change edgeLength.
+					d = d / edgeLength
+
+					-- local gd = paths[vertex][other]
+					-- local f = (gd * repulsion) / (d*d)
+					local f = repulsion * (1 / (d*d))
+
+					--print('repulse', f)
+
+					local vforce = forces[vertex]
+					local oforce = forces[other]
+
+					vforce[1] = vforce[1] - (to[1] * f)
+					vforce[2] = vforce[2] - (to[2] * f)
+
+					oforce[1] = oforce[1] + (to[1] * f)
+					oforce[2] = oforce[2] + (to[2] * f)
+				end
+			end
+
+			if edgeForces then
+				-- Now edge-edge forces.
+				local edges = {}
+				for other, edge in pairs(peers) do
+					local to = Vector.to(vertex, other)
+					local angle = math.atan2(to[2], to[1])
+
+					edges[#edges+1] = { angle, edge, other, to }
+				end
+
+				if #edges >= 2 then
+					-- This puts the edges into counter-clockwise order.
+					table.sort(edges,
+						function ( lhs, rhs )
+							return lhs[1] < rhs[1]
+						end)
+
+					for index = 1, #edges do
+						local angle1, edge1, other1, to1 = unpack(edges[index])
+						local nextIndex = (index == #edges) and 1 or index+1
+						local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
+
+						local edgeRepulse = 1
+						-- -- local edgeLength = ...
+						-- local to1Length = to1:length()
+						-- local to2Length = to2:length()
+						-- local el = edgeLength
+						-- local angleRepulse = 1
+
+						-- local fEdge = edgeRepulse * (math.atan(to1Length/el) + math.atan(to2Length/el))
+						-- local theta = math.acos(to1:dot(to2)) / (to1Length * to2Length)
+						-- local fTheta = angleRepulse * (1/math.tan(theta * 0.5))
+
+						if to1:length() > 0.001 and to2:length() > 0.001 then
+							to1:normalise()
+							to2:normalise()
+							local dot = to1:dot(to2)
+
+							local f = edgeRepulse * dot
+
+							local o1force = forces[other1]
+							local o2force = forces[other2]
+
+							local dir1 = to1:antiPerp()
+							local dir2 = to2:perp()
+
+							o1force[1] = o1force[1] + (dir1[1] * f)
+							o1force[2] = o1force[2] + (dir1[2] * f)
+
+							o2force[1] = o2force[1] + (dir2[1] * f)
+							o2force[2] = o2force[2] + (dir2[2] * f)
+						end
+					end
+				end
+			end
+		end
+
+		converged = true
+
+		local maxForce = 0
+
+		for _, vertex in ipairs(vertices) do
+			local force = forces[vertex]
+			local l = force:length()
+
+			maxForce = math.max(l, maxForce)
+
+			-- Are we there yet?
+			if l > convergenceDistance then
+				-- No...
+				converged = false
+			end
+
+			-- Don't allow too much movement.
+			if l > maxDelta then
+				force:scale(maxDelta/l)
+			end
+
+			vertex[1] = vertex[1] + force[1]
+			vertex[2] = vertex[2] + force[2]
+		end
+
+		-- printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
+
+		-- TODO: got a weird problem where the edgeForces make the graph fly
+		--       off in the same direction for ever :^(
+		if converged and not edgeForces then
+			converged = false
+			edgeForces = true
+		end
+
+		if yield and count % 10 == 0 then
+			coroutine.yield(graph)
+		end
+
+		count = count + 1
+
+		if count % 100 == 0 then
+			-- TODO: maybe make this a parameter.
+			-- TEST: I've noticed that when this takes a long time to converge
+			--       the output is still pretty good a long time before it
+			--       converges so let's step up the convergence distance.
+			convergenceDistance = convergenceDistance * 1.5
+			--repulsion = repulsion * 0.5
+			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
+		end
+	end
+
+	local finish = love.timer.getMicroTime()
+	local delta = finish-start
+	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
+end
+
 -- TODO: needs a passed in function that generates AABBs for each vertex.
 -- TODO: circles aren;t very flexible, maybe axis aligned elipses...
 function graph2D.assignVertexRadiusAndRelax(
 	graph,
 
-	minRadius,
-	maxRadius,
+	minExtent,
+	maxExtent,
 	radiusFudge,
 
 	-- The arguemnts below are the same as those to forceDraw() above.
@@ -418,23 +638,39 @@ function graph2D.assignVertexRadiusAndRelax(
 	yield )
 
 	for vertex, _ in pairs(graph.vertices) do
-		local radius = math.random(minRadius, maxRadius)
-		local extent = math.round(math.sqrt((radius^2) * 0.5))
+		local extent = math.random(minExtent, maxExtent)
 
 		local aabb = AABB.new {
-			xmin = -extent,
+			xmin = 0,
 			xmax = extent,
-			ymin = -extent,
+			ymin = 0,
 			ymax = extent,
 		}
 
+		-- TODO: this needs to be defined globally somehow.
 		local margin = radiusFudge
-		local points = roomgen.randhexgrid(aabb, radiusFudge)
+		local points = roomgen.browniangrid(aabb, radiusFudge)
+		local hull = geometry.convexHull(points)
+		local centroid = geometry.convexHullCentroid(hull)
+		local furthest, distance =  geometry.furthestPointFrom(centroid, hull)
+		local radius = distance + radiusFudge
+		
+		-- This moves the hull as well becuase the points aren't copied by
+		-- geometry.convexHull().
+		for _, point in ipairs(points) do
+			point[1] = point[1] - centroid[1]
+			point[2] = point[2] - centroid[2]
+		end
+
+		-- Recalc the AABB from the actual points.
+		aabb = Vector.aabb(points)
 
 		vertex.aabb = aabb
 		vertex.points = points
+		vertex.hull = hull
+		vertex.centroid = Vector.new { 0, 0 }
 
-		-- NOTE: this is so I can show some debugging visualisation.
+		-- forceDraw() knows about the radius and treats it properly-ish.
 		vertex.radius = radius
 	end
 
@@ -442,7 +678,6 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	-- Find out the desired edge length so the circles don't intersect.
 	for edge, endverts in pairs(graph.edges) do
-		-- TODO: should really be making rooms or aabbs.
 		local distance = radiusFudge + (endverts[1].radius + endverts[2].radius)
 		local length = Vector.toLength(endverts[1], endverts[2])
 
@@ -465,8 +700,12 @@ function graph2D.assignVertexRadiusAndRelax(
 		vertex[1], vertex[2] = centre[1] + disp[1], centre[2] + disp[2]
 	end
 
+	local preSelfIntersect = graph2D.isSelfIntersecting(graph)
+	assert(not preSelfIntersect)
+
 	-- Use force drawing to relax the size of the graph.
-	graph2D.forceDraw(
+	-- graph2D.forceDrawRelax(
+	graph2D.forceDrawRelax(
 		graph,
 		springStrength,
 		edgeLength,
@@ -474,6 +713,10 @@ function graph2D.assignVertexRadiusAndRelax(
 		maxDelta,
 		convergenceDistance,
 		yield)
+
+	local postSelfIntersect = graph2D.isSelfIntersecting(graph)
+
+	printf('[relax] pre:%s post:%s', tostring(preSelfIntersect), tostring(postSelfIntersect))
 
 	return graph
 end

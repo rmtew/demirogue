@@ -93,9 +93,9 @@ local function Theme( params )
 	checkf(_isPosNum(params.maxDelta), 'maxDelta should be > 0')
 	checkf(_isPosNum(params.convergenceDistance), 'convergenceDistance should be > 0')
 
-	checkf(_isNonNegInt(params.minRadius), 'minRadius should be > 0')
-	checkf(_isNonNegInt(params.maxRadius), 'maxRadius should be > 0')
-	checkf(params.minRadius < params.maxRadius, 'minRadius should be < maxRadius')
+	checkf(_isNonNegInt(params.minExtent), 'minExtent should be > 0')
+	checkf(_isNonNegInt(params.maxExtent), 'maxExtent should be > 0')
+	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
 	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
 	
 	checkf(_isPosNum(params.relaxSpringStrength), 'relaxSpringStrength should be > 0')
@@ -166,9 +166,16 @@ local base = {
 	convergenceDistance = 4,
 
 	-- TODO: Parameters that govern vertex room assignment.
-	minRadius = 20,
-	maxRadius = 80,
-	radiusFudge = 5,
+	-- - Need someway to choose the roomgen.
+	-- - There is a fundamental value called margin (the shortest distance
+	--   between points between) that needs to be defined.
+	-- - Currently 
+	minExtent = 3,
+	maxExtent = 12,
+	radiusFudge = 1, -- TODO: this is being used as the margin.
+
+	
+
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,

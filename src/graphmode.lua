@@ -611,6 +611,7 @@ function graphmode.draw()
 
 		love.graphics.setColor(0, 255, 0, 255)
 		love.graphics.setLine(3, 'rough')
+		love.graphics.setPoint(3, 'rough')
 		local radius = 5
 
 		for vertex, _ in pairs(state.graph.vertices) do
@@ -619,17 +620,34 @@ function graphmode.draw()
 			if vertex.radius then
 				local scale = screen:width() / aabb:width()
 				local scaledRadius = scale * vertex.radius
-				-- love.graphics.circle('line', pos[1], pos[2], scaledRadius)
+				love.graphics.circle('line', pos[1], pos[2], scaledRadius)
 
-				local extent = math.sqrt((scaledRadius^2) * 0.5)
-				love.graphics.rectangle('line', pos[1] - extent, pos[2] - extent, 2 * extent, 2 * extent)
+				-- local extent = math.sqrt((scaledRadius^2) * 0.5)
+				-- love.graphics.rectangle('line', pos[1] - extent, pos[2] - extent, 2 * extent, 2 * extent)
 			else
 				love.graphics.circle('fill', pos[1], pos[2], radius)
 			end
 
 			local points = vertex.points
+			local hull = vertex.hull
+			local centroid = vertex.centroid
 			if points then
 				local offset = Vector.new { 0, 0 }
+
+				local poly = {}
+				for _, point in ipairs(hull) do
+					offset[1] = vertex[1] + point[1]
+					offset[2] = vertex[2] + point[2]
+
+					local pos = aabb:lerpTo(offset, screen)
+					poly[#poly+1] = pos[1]
+					poly[#poly+1] = pos[2]
+				end
+				
+				love.graphics.polygon('line', poly)
+
+				love.graphics.setColor(0, 255, 255, 255)
+
 				for _, point in pairs(points) do
 					offset[1] = vertex[1] + point[1]
 					offset[2] = vertex[2] + point[2]
@@ -637,7 +655,17 @@ function graphmode.draw()
 					local pos = aabb:lerpTo(offset, screen)
 					love.graphics.point(pos[1], pos[2])
 				end
+
+				love.graphics.setColor(0, 255, 0, 255)
+
+				-- offset[1] = vertex[1] + centroid[1]
+				-- offset[2] = vertex[2] + centroid[2]
+				-- local centre = aabb:lerpTo(offset, screen)
+
+				-- love.graphics.circle('line', centre[1], centre[2], state.theme.radiusFudge)
 			end
+
+			local hull, centroid = vertex.hull, vertex.centroid
 		end
 
 		local theme = state.theme
@@ -919,8 +947,8 @@ function graphmode.keypressed( key )
 						local yield = true
 						graph2D.assignVertexRadiusAndRelax(
 							graph,
-							theme.minRadius,
-							theme.maxRadius,
+							theme.minExtent,
+							theme.maxExtent,
 							theme.radiusFudge,
 							relaxSpringStrength,
 							relaxEdgeLength,
@@ -950,8 +978,8 @@ function graphmode.keypressed( key )
 			local yield = false
 			graph2D.assignVertexRadiusAndRelax(
 				state.graph,
-				theme.minRadius,
-				theme.maxRadius,
+				theme.minExtent,
+				theme.maxExtent,
 				theme.radiusFudge,
 				relaxSpringStrength,
 				relaxEdgeLength,
@@ -989,8 +1017,8 @@ function graphmode.keypressed( key )
 						local yield = false
 						graph2D.assignVertexRadiusAndRelax(
 							graph,
-							theme.minRadius,
-							theme.maxRadius,
+							theme.minExtent,
+							theme.maxExtent,
 							theme.radiusFudge,
 							relaxSpringStrength,
 							relaxEdgeLength,
