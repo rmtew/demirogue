@@ -626,6 +626,18 @@ function graphmode.draw()
 			else
 				love.graphics.circle('fill', pos[1], pos[2], radius)
 			end
+
+			local points = vertex.points
+			if points then
+				local offset = Vector.new { 0, 0 }
+				for _, point in pairs(points) do
+					offset[1] = vertex[1] + point[1]
+					offset[2] = vertex[2] + point[2]
+
+					local pos = aabb:lerpTo(offset, screen)
+					love.graphics.point(pos[1], pos[2])
+				end
+			end
 		end
 
 		local theme = state.theme

@@ -419,6 +419,20 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	for vertex, _ in pairs(graph.vertices) do
 		local radius = math.random(minRadius, maxRadius)
+		local extent = math.round(math.sqrt((radius^2) * 0.5))
+
+		local aabb = AABB.new {
+			xmin = -extent,
+			xmax = extent,
+			ymin = -extent,
+			ymax = extent,
+		}
+
+		local margin = radiusFudge
+		local points = roomgen.randhexgrid(aabb, radiusFudge)
+
+		vertex.aabb = aabb
+		vertex.points = points
 
 		-- NOTE: this is so I can show some debugging visualisation.
 		vertex.radius = radius
