@@ -182,7 +182,7 @@ local base = {
 	relaxEdgeLength = 100,
 	relaxRepulsion = 0.05,
 	relaxMaxDelta = 0.5,
-	relaxConvergenceDistance = 4,
+	relaxConvergenceDistance = 0.01,
 }
 
 

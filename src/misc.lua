@@ -21,6 +21,10 @@ function math.logb( x, base )
 	return math.log(x) / math.log(base)
 end
 
+function push( tbl, value )
+	tbl[#tbl+1] = value
+end
+
 function table.keys( tbl )
 	local result = {}
 

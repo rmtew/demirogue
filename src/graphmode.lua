@@ -713,7 +713,7 @@ function graphmode.draw()
 		_shadowf(gFont15, 0, 15, 'ok: %s - %s', tostring(not failed), msg or '')
 
 		love.graphics.setColor(255, 0, 255, 255)
-		love.graphics.setLine(5, 'rough')
+		love.graphics.setLine(1, 'rough')
 
 		for vertex, _  in pairs(state.graph.vertices) do
 			local blockers = vertex.blockers

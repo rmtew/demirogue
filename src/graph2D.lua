@@ -444,31 +444,27 @@ function graph2D.forceDrawRelax(
 		end
 	end
 
-	local function project( vertex, force )
+	local function block( vertex, force )
 		local blockers = blockers[vertex]
 
 		local blocked = false
 
+		local normed = Vector.new { 0, 0 }
+
 		for _, blocker in ipairs(blockers) do
 			if blocker:dot(force) > 0 then
-				blocked = true
-				local signedAngle = blocker:signedAngle(force)
+				local blength = blocker:length()
+				local flength = force:length()
 
-				if signedAngle >= 0 then
-					local basis = blocker:perp()
-					local projection = basis:dot(force)
-
-					force:set(basis)
-					force:scale(projection)
-				else
-					local basis = blocker:antiPerp()
-					local projection = basis:dot(force)
-
-					force:set(basis)
-					force:scale(projection)
+				local epsilon = 1/256
+				if blength < epsilon then
+					force[1], force[2] = 0, 0
+					break
 				end
 
-				-- force[1], force[2] = 0, 0
+				if flength > blength then
+					force:scale(blength/flength)				
+				end
 			end
 		end
 
@@ -489,6 +485,7 @@ function graph2D.forceDrawRelax(
 	while not converged do
 		-- First off let's recalc the blockers.
 
+		-- Clear any previous blockers.
 		for vertex, array in pairs(blockers) do
 			for i = 1, #array do
 				array[i] = nil
@@ -514,34 +511,37 @@ function graph2D.forceDrawRelax(
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
-					if d < desiredLength + maxDelta then
-						to:normalise()
+					assert(desiredLength < d)
 
-						local vblockers = blockers[vertex]
-						local oblockers = blockers[other]
+					local spare = d - desiredLength
+					spare = spare * 0.9
 
-						vblockers[#vblockers+1] = to
-						local negTo = Vector.new(to)
-						negTo:scale(-1)
-						oblockers[#oblockers+1] = negTo
-					end
+					to:normalise():scale(spare * 0.5)
+
+					local from = to:clone()
+					from:scale(-1)
+
+					push(blockers[vertex], to)
+					push(blockers[other], from)
 				else
-					local desiredLength = vertex.radius + other.radius
+					-- TODO: May need specific value for this.
+					local desiredLength = vertex.radius + other.radius + (maxDelta * 0.5)
 
 					local to = Vector.to(vertex, other)
 					local d = to:length()
 
-					if d < desiredLength + maxDelta then
-						to:normalise()
+					assert(desiredLength < d)
 
-						local vblockers = blockers[vertex]
-						local oblockers = blockers[other]
+					local spare = desiredLength - (vertex.radius + other.radius)
+					spare = math.max(0, spare - (5 * maxDelta))
 
-						vblockers[#vblockers+1] = to
-						local negTo = Vector.new(to)
-						negTo:scale(-1)
-						oblockers[#oblockers+1] = negTo
-					end
+					to:normalise():scale(spare * 0.5)
+
+					local from = to:clone()
+					from:scale(-1)
+
+					push(blockers[vertex], to)
+					push(blockers[other], from)
 				end
 			end
 		end
@@ -560,23 +560,12 @@ function graph2D.forceDrawRelax(
 					local to = Vector.to(vertex, closest)
 					local d = to:length()
 
-					-- Is the edge getting too close to the vertex?
-					if d < vertex.radius + maxDelta then
-						local to1 = Vector.to(other1, vertex):normalise()
-						local to2 = Vector.to(other2, vertex):normalise()
+					assert(d > vertex.radius)
 
-						local o1blockers = blockers[other1]
-						local o2blockers = blockers[other2]
+					local spare = math.max(0, d - (vertex.radius + (2.0 * maxDelta)))
+					to:normalise():scale(spare)
 
-						o1blockers[#o1blockers+1] = to1
-						o2blockers[#o2blockers+1] = to2
-
-						local vto = Vector.new { to1[1] + to2[1], to1[2] + to2[2] }
-						vto:normalise():scale(-1)
-
-						local vblockers = blockers[vertex]
-						vblockers[#vblockers+1] = vto
-					end
+					push(blockers[vertex], to)
 				end
 			end
 		end
@@ -615,8 +604,8 @@ function graph2D.forceDrawRelax(
 						force1:set(to):scale(f)
 						force2:set(to):scale(-f)
 
-						project(vertex, force1)
-						project(other, force2)
+						block(vertex, force1)
+						block(other, force2)
 
 						local vforce = forces[vertex]
 						local oforce = forces[other]
@@ -634,12 +623,12 @@ function graph2D.forceDrawRelax(
 					local d = to:length()
 
 					if d < desiredLength then
-						local f = 1
+						local f = 5
 						force1:set(to):scale(-f)
 						force2:set(to):scale(f)
 
-						project(vertex, force1)
-						project(other, force2)
+						block(vertex, force1)
+						block(other, force2)
 
 						local vforce = forces[vertex]
 						local oforce = forces[other]
@@ -673,8 +662,11 @@ function graph2D.forceDrawRelax(
 						local to1 = Vector.to(vertex, other1):normalise()
 						local to2 = Vector.to(vertex, other2):normalise()
 
-						project(other1, to1)
-						project(other2, to2)
+						to1:scale(10)
+						to2:scale(10)
+
+						block(other1, to1)
+						block(other2, to2)
 
 						local o1force = forces[other1]
 						local o2force = forces[other2]
@@ -686,9 +678,9 @@ function graph2D.forceDrawRelax(
 						o2force[2] = o2force[2] + to2[2]
 
 						local vto = Vector.new { to1[1] + to2[1], to1[2] + to2[2] }
-						vto:normalise():scale(-1)
+						vto:normalise():scale(-10)
 
-						project(vertex, vto)
+						block(vertex, vto)
 
 						local vforce = forces[vertex]
 
@@ -699,7 +691,7 @@ function graph2D.forceDrawRelax(
 			end
 		end
 
-		-- converged = true
+		converged = true
 
 		local maxForce = 0
 
@@ -714,6 +706,8 @@ function graph2D.forceDrawRelax(
 
 		for _, vertex in ipairs(vertices) do
 			local force = forces[vertex]
+			block(vertex, force)
+
 			local l = force:length()
 
 			maxForce = math.max(l, maxForce)
@@ -721,7 +715,7 @@ function graph2D.forceDrawRelax(
 			-- Are we there yet?
 			if l > convergenceDistance then
 				-- No...
-				-- converged = false
+				converged = false
 			end
 
 			-- Don't allow too much movement.
@@ -729,7 +723,6 @@ function graph2D.forceDrawRelax(
 				force:scale(maxDelta/l)
 			end
 
-			project(vertex, force)
 
 			vertex[1] = vertex[1] + force[1]
 			vertex[2] = vertex[2] + force[2]
@@ -861,7 +854,11 @@ function graph2D.assignVertexRadiusAndRelax(
 		edge.length = distance
 	end
 
+
 	-- printf('maxScale:%.2f', maxScale)
+
+	-- Add a little extra to the maxScale.
+	maxScale = maxScale * 1.1
 
 	-- Scale the graph up so that no aabbs intersect.
 	local aabb = graph2D.aabb(graph)
