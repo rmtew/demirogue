@@ -711,6 +711,27 @@ function graphmode.draw()
 		local failed, msg = graph2D.isSelfIntersecting(state.graph)
 
 		_shadowf(gFont15, 0, 15, 'ok: %s - %s', tostring(not failed), msg or '')
+
+		love.graphics.setColor(255, 0, 255, 255)
+		love.graphics.setLine(5, 'rough')
+
+		for vertex, _  in pairs(state.graph.vertices) do
+			local blockers = vertex.blockers
+
+			if blockers then
+				for _, blocker in ipairs(blockers) do
+					local dir = Vector.new {
+						(vertex[1] + blocker[1]),
+						(vertex[2] + blocker[2]),
+					}
+
+					local pos1 = aabb:lerpTo(vertex, screen)
+					local pos2 = aabb:lerpTo(dir, screen)
+
+					love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+				end
+			end
+		end
 	end
 end
 

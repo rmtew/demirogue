@@ -4,7 +4,7 @@
 -- * { x, y } instead of { x = x, y = y } for Love compatibility and
 --   performance reasons.
 --   NOTE: Actually in LuaJIT builds of Love { x = x, y = y } are faster but
---         I've got so much array based code it would be a bitch to change :^()
+--         I've got so much array based code it would be a bitch to change :^(
 -- * All methods should *not* assume that arguments have the Vector metatable
 --   assigned so that general 2-elements arrys can use this library.
 -- 
@@ -28,6 +28,13 @@ function Vector.clone( self )
 	setmetatable(result, Vector)
 
 	return result
+end
+
+function Vector.set( self, other )
+	self[1] = other[1]
+	self[2] = other[2]
+
+	return self
 end
 
 function Vector.length( self )

@@ -122,6 +122,16 @@ function lerpf( value, in0, in1, out0, out1 )
 	return result
 end
 
+function clampf( value, min, max )
+	if value < min then
+		return min
+	elseif value > max then
+		return max
+	end
+
+	return value
+end
+
 -------------------------------------------------------------------------------
 
 -- TODO: This is less efficient than an array of arrays so change it.

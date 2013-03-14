@@ -181,7 +181,7 @@ local base = {
 	relaxSpringStrength = 10,
 	relaxEdgeLength = 100,
 	relaxRepulsion = 0.05,
-	relaxMaxDelta = 2,
+	relaxMaxDelta = 0.5,
 	relaxConvergenceDistance = 4,
 }
 
