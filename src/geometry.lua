@@ -156,41 +156,45 @@ function geometry.closestPointOnLine( lineA, lineB, point )
 	}
 end
 
-function geometry.lineLineIntersection( line11, line12, line21, line22 )
-	local p0_x, p0_y = line11[1], line11[2]
-	local p1_x, p1_y = line12[1], line12[2]
-	local p2_x, p2_y = line21[1], line21[2]
-	local p3_x, p3_y = line22[1], line22[2] 
+function geometry.lineLineIntersection( p1, p2, q1, q2 )
+	local r = Vector.to(p1, p2)
+	local s = Vector.to(q1, q2)
 
-    local s10_x = p1_x - p0_x
-    local s10_y = p1_y - p0_y
-    local s32_x = p3_x - p2_x
-    local s32_y = p3_y - p2_y
+	local denom = Vector.perpDot(r, s)
 
-    local denom = s10_x * s32_y - s32_x * s10_y
-    if denom == 0 then
-        return false
-    end
+	if denom == 0 then
+		-- Parallel
+		return false
+	end
 
-    local s02_x = p0_x - p2_x
-    local s02_y = p0_y - p2_y
-    local s_numer = s10_x * s02_y - s10_y * s02_x
-    if s_numer < 0 then
-        return false
-    end
+	local p1toq1 = Vector.to(p1, q1)
 
-    local t_numer = s32_x * s02_y - s32_y * s02_x
-    if t_numer < 0 then
-        return false
-    end
+	local tnumer = Vector.perpDot(p1toq1, s)
 
-    if s_numer > denom or t_numer > denom then
-        return false
-    end
+	if tnumer == 0 then
+		-- Colinear.
+		return false
+	end
 
-    local t = t_numer / denom
-    local x = p0_x + (t * s10_x)
-    local y = p0_y + (t * s10_y)
+	local unumer = Vector.perpDot(p1toq1, r)
 
-    return true, Vector.new { x, y }
+	if unumer == 0 then
+		return false
+	end
+
+	local t = tnumer / denom
+	local u = unumer / denom
+
+	-- print('t', t, tnumer, denom)
+	-- print('u', u, unumer, denom)
+
+	if t < 0 or 1 < t or u < 0 or 1 < u then
+		-- Miss eachother.
+		return false
+	end
+
+	return true, Vector.new {
+		p1[1] + (r[1] * t),
+		p1[2] + (r[2] * t),
+	}
 end

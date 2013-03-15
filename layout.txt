@@ -280,3 +280,6 @@ Some unresolved issues:
 
 - Different rulesets need to be able to have different tuning paramters and
   constraints.
+
+- So there's an issue with the relax stage of the force drawing. It leaves
+  vertices spaced too far out.

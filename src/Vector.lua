@@ -183,6 +183,11 @@ function Vector.antiPerp( self )
 	return _Vector_new { self[2], -self[1] }
 end
 
+function Vector.perpDot( self, other )
+	--  vxwy − vywx
+	return (self[1] * other[2]) - (self[2] * other[1])
+end
+
 function Vector.signedAngle( self, other )
 	local perpDot = (self[1] * other[2]) - (self[2] * other[1])
  

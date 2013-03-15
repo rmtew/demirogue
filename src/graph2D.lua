@@ -203,6 +203,7 @@ function graph2D.forceDraw(
 
 	for vertex, _ in pairs(graph.vertices) do
 		forces[vertex] = Vector.new { 0, 0 }
+		vertex.force = forces[vertex]
 		vertices[#vertices+1] = vertex
 	end
 
@@ -270,20 +271,28 @@ function graph2D.forceDraw(
 					-- don't need to scale it when we change edgeLength.
 					d = d / edgeLength
 
-					-- local gd = paths[vertex][other]
-					-- local f = (gd * repulsion) / (d*d)
-					local f = repulsion * (1 / (d*d))
+					-- TODO: this is a magic number and needs to be made a
+					--       parameter, does seem to impove matters though.
+					if d < 3 then
+						-- local gd = paths[vertex][other]
+						-- local f = (gd * repulsion) / (d*d)
+						local f = repulsion * (1 / (d*d))
 
-					--print('repulse', f)
+						if d == 0.5 then
+							f = 100
+						end
 
-					local vforce = forces[vertex]
-					local oforce = forces[other]
+						--print('repulse', f)
 
-					vforce[1] = vforce[1] - (to[1] * f)
-					vforce[2] = vforce[2] - (to[2] * f)
+						local vforce = forces[vertex]
+						local oforce = forces[other]
 
-					oforce[1] = oforce[1] + (to[1] * f)
-					oforce[2] = oforce[2] + (to[2] * f)
+						vforce[1] = vforce[1] - (to[1] * f)
+						vforce[2] = vforce[2] - (to[2] * f)
+
+						oforce[1] = oforce[1] + (to[1] * f)
+						oforce[2] = oforce[2] + (to[2] * f)
+					end
 				end
 			end
 
@@ -309,6 +318,7 @@ function graph2D.forceDraw(
 						local nextIndex = (index == #edges) and 1 or index+1
 						local angle2, edge2, other2, to2 = unpack(edges[nextIndex])
 
+						-- TODO: really should be an argument...
 						local edgeRepulse = 1
 						-- -- local edgeLength = ...
 						-- local to1Length = to1:length()
@@ -378,6 +388,7 @@ function graph2D.forceDraw(
 			edgeForces = true
 		end
 
+		-- Only show every 10 iterations or it's just too slow to be useful.
 		if yield and count % 10 == 0 then
 			coroutine.yield(graph)
 		end
@@ -448,8 +459,6 @@ function graph2D.forceDrawRelax(
 		local blockers = blockers[vertex]
 
 		local blocked = false
-
-		local normed = Vector.new { 0, 0 }
 
 		for _, blocker in ipairs(blockers) do
 			if blocker:dot(force) > 0 then
@@ -546,6 +555,7 @@ function graph2D.forceDrawRelax(
 			end
 		end
 
+		local first = true
 		for i = 1, #vertices do
 			local vertex = vertices[i]
 
@@ -554,6 +564,7 @@ function graph2D.forceDrawRelax(
 				local other1 = edge.vertex1
 				local other2 = edge.vertex2
 
+				-- I think this is wrong...
 				if vertex ~= other1 and vertex ~= other2 then
 					local closest = geometry.closestPointOnLine(other1, other2, vertex)
 
@@ -566,6 +577,51 @@ function graph2D.forceDrawRelax(
 					to:normalise():scale(spare)
 
 					push(blockers[vertex], to)
+
+					local a = geometry.closestPointOnLine(other1, other2, vertex)
+					local b = geometry.closestPointOnLine(vertex, other1, other2)
+					local c = geometry.closestPointOnLine(vertex, other2, other1)
+
+					-- if first then
+					-- 	push(blockers[vertex], Vector.to(vertex, a))
+					-- 	push(blockers[vertex], Vector.to(vertex, b))
+					-- 	push(blockers[vertex], Vector.to(vertex, c))
+					-- 	first = false
+					-- end
+				end
+
+				if vertex ~= other1 and vertex ~= other2 then
+					local a = geometry.closestPointOnLine(other1, other2, vertex)
+					local b = geometry.closestPointOnLine(vertex, other1, other2)
+					local c = geometry.closestPointOnLine(vertex, other2, other1)
+
+					if first then
+						vertex.lines = {
+							Vector.new(vertex),
+							Vector.new(a),
+							Vector.new(b),
+							Vector.new(c),
+						}
+						first = false
+					end
+
+
+					print('inscribed', vertex[1], vertex[2], a, b, c)
+
+					local status, intersection = geometry.lineLineIntersection2(vertex, a, b, c)
+					assertf(status, '%s %s', tostring(status), tostring(intersection))
+
+					if status then
+
+						local to = Vector.to(vertex, intersection)
+						local d = to:length()
+
+						assert(d > vertex.radius)
+
+						to:normalise():scale(d - vertex.radius)
+
+						push(blockers[vertex], to)
+					end
 				end
 			end
 		end
@@ -600,6 +656,8 @@ function graph2D.forceDrawRelax(
 						-- local f = (d > desiredLength) and maxDelta * 0.5 or -maxDelta * 0.5
 						local f = clampf(0.1 * (d - desiredLength), -maxDelta * 0.5, maxDelta * 0.5)
 						-- local f = sigmoid(d - desiredLength)
+
+						local f = d - desiredLength
 
 						force1:set(to):scale(f)
 						force2:set(to):scale(-f)
@@ -720,7 +778,8 @@ function graph2D.forceDrawRelax(
 
 			-- Don't allow too much movement.
 			if l > maxDelta then
-				force:scale(maxDelta/l)
+				local factor = 0.1
+				force:scale(factor)
 			end
 
 
@@ -803,6 +862,7 @@ function graph2D.assignVertexRadiusAndRelax(
 	yield )
 
 	local preRoomSelfIntersect = graph2D.isSelfIntersecting(graph)
+	-- assert(not preRoomSelfIntersect)
 
 	for vertex, _ in pairs(graph.vertices) do
 		local extent = math.random(minExtent, maxExtent)
@@ -872,11 +932,11 @@ function graph2D.assignVertexRadiusAndRelax(
 	end
 
 	local preScaleSelfIntersect = graph2D.isSelfIntersecting(graph)
-	assert(not preScaleSelfIntersect)
+	-- assert(not preScaleSelfIntersect)
 
 	-- Use force drawing to relax the size of the graph.
 	-- graph2D.forceDrawRelax(
-	graph2D.forceDrawRelax(
+	graph2D.forceDraw(
 		graph,
 		springStrength,
 		edgeLength,
@@ -892,7 +952,11 @@ function graph2D.assignVertexRadiusAndRelax(
 		tostring(preScaleSelfIntersect),
 		tostring(postScaleSelfIntersect))
 
-	return graph
+	local br = preRoomSelfIntersect and 't' or 'f'
+	local bs = preScaleSelfIntersect and 't' or 'f'
+	local as = postScaleSelfIntersect and 't' or 'f'
+
+	return graph, string.format("%s-%s-%s", br, bs, as)
 end
 
 function graph2D.meanEdgeLength( graph )

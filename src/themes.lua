@@ -189,6 +189,9 @@ local base = {
 Theme {
 	template = base,
 	name = 'default',
+
+	maxVertices = 10,
+	relaxEdgeLength = 50,
 }
 
 Theme {
@@ -209,6 +212,8 @@ Theme {
 Theme {
 	template = base,
 	name = 'catacomb',
+
+	relaxEdgeLength = 50,
 }
 
 Theme {

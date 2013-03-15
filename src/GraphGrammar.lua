@@ -27,7 +27,7 @@ end
 
 function GraphGrammar.Rule.new( pattern, substitute, map )
 	assert(not pattern:isEmpty(), 'pattern graph is empty')
-	assert(not substitute:isEmpty(), 'subsitute graph is empty')
+	assert(not substitute:isEmpty(), 'substitute graph is empty')
 
 	-- All vertices must be connected disregarding cosmetic edges.
 	-- TODO: we may need the concept of cosmetic vertex...
@@ -43,12 +43,18 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		assert(vertex[2] == vertex[2], 'pattern vertex Y value is NaN')
 	end
 
+	local tags = {}
+
 	for vertex, _ in pairs(substitute.vertices) do
 		assert(vertex.tag, ' no tag for substitute vertex')
 		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1], 'substitute vertex has no X value')
 		assert(vertex[1] == vertex[1], 'substitute vertex X value is NaN')
 		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'substitute vertex has no X value')
 		assert(vertex[2] == vertex[2], 'substitute vertex Y value is NaN')
+
+		if vertex.tag ~= '-' then
+			tags[vertex.tag] = true
+		end
 	end
 
 	-- Check that the map uses valid vertices and is bijective.
@@ -134,15 +140,45 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		end
 	end
 
+	-- Find out which unmapped substitutes are inside or outside the convex
+	-- hull of the mapped vertices.
+
+	local hullPoints = {}
+	local unmappedSubstituteVertices = {}
+
+	for substituteVertex, _  in pairs(substitute.vertices) do
+		if inverse[substituteVertex] then
+			hullPoints[#hullPoints+1] = Vector.new(substituteVertex)
+		else
+			unmappedSubstituteVertices[substituteVertex] = true
+		end
+	end
+
+	local exterior = {}
+
+	if #hullPoints < 3 then
+		exterior = unmappedSubstituteVertices
+	else
+		local hull = geometry.convexHull(hullPoints)
+
+		for substituteVertex, _ in pairs(unmappedSubstituteVertices) do
+			if not geometry.isPointInHull(substituteVertex, hull) then
+				exterior[substituteVertex] = true
+			end
+		end
+	end
+
 	local result = {
 		pattern = pattern,
 		substitute = substitute,
 		map = map,
+		tags = tags,
 		vertexDelta = vertexDelta,
 		valenceDeltas = valenceDeltas,
 		start = start,
 		spurs = spurs,
 		mappedEdges = mappedEdges,
+		exterior = exterior,
 	}
 
 	setmetatable(result, GraphGrammar.Rule)
@@ -390,9 +426,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 	local substitute = self.substitute
 	local substituteAABB = graph2D.aabb(substitute)
 	-- We make copies of the substitute vertices so we need a map from
-	-- subsitute vertices to their copies. 
+	-- substitute vertices to their copies. 
 	local vertexClones = {}
 	local insertions = {}
+	local exterior = self.exterior
 	local cloneVertex = params.cloneVertex
 	for substituteVertex, _ in pairs(substitute.vertices) do
 		local clone = cloneVertex(substituteVertex)
@@ -448,8 +485,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				local normedXProj = xProj / math.max(xProj, yProj)
 				local normedYProj = yProj / math.max(xProj, yProj)
 
-				-- normedXProj = normedXProj * meanHostEdgeLength
-				-- normedYProj = normedYProj * meanHostEdgeLength
+				if exterior[substituteVertex] then
+					normedXProj = normedXProj * meanHostEdgeLength * 0.5
+					normedYProj = normedYProj * meanHostEdgeLength * 0.5
+				end
 
 				-- graphBasisX:scale(xProj)
 				-- graphBasisY:scale(yProj)
@@ -625,10 +664,15 @@ function GraphGrammar.new( params )
 	local replaceYield = params.replaceYield or false
 
 	local numStartRules = 0
+	local tags = {}
 
 	for name, rule in pairs(rules) do
 		if rule.start then
 			numStartRules = numStartRules + 1
+		end
+
+		for tag, _ in pairs(rule.tags) do
+			tags[tag] = true
 		end
 	end
 
@@ -636,6 +680,7 @@ function GraphGrammar.new( params )
 
 	local result = {
 		rules = rules,
+		tags = tags,
 		cloneVertex = cloneVertex,
 		cloneEdge = cloneEdge,
 		

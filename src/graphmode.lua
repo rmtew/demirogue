@@ -273,6 +273,7 @@ local function _rule( level )
 	if status then
 		return result
 	else
+		-- print(result)
 		return nil, result
 	end
 end
@@ -717,6 +718,7 @@ function graphmode.draw()
 
 		for vertex, _  in pairs(state.graph.vertices) do
 			local blockers = vertex.blockers
+			local force = vertex.force
 
 			if blockers then
 				for _, blocker in ipairs(blockers) do
@@ -727,6 +729,29 @@ function graphmode.draw()
 
 					local pos1 = aabb:lerpTo(vertex, screen)
 					local pos2 = aabb:lerpTo(dir, screen)
+
+					love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+				end
+			elseif force then
+				local dir = Vector.new {
+					(vertex[1] + force[1]),
+					(vertex[2] + force[2]),
+				}
+				-- dir:scale(1)
+
+				local pos1 = aabb:lerpTo(vertex, screen)
+				local pos2 = aabb:lerpTo(dir, screen)
+
+				love.graphics.setLine(3, 'rough')
+				love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+			end
+
+			local lines = vertex.lines
+
+			if lines then
+				for i = 1, #lines, 2 do
+					local pos1 = aabb:lerpTo(lines[i], screen)
+					local pos2 = aabb:lerpTo(lines[i+1], screen)
 
 					love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
 				end
@@ -1031,12 +1056,13 @@ function graphmode.keypressed( key )
 					local totalDuration = 0
 					local numFailures = 0
 					local numSucceesses = 0
+					local stats = {}
 					while true do
 						local start = love.timer.getMicroTime()
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 						local yield = false
-						graph2D.assignVertexRadiusAndRelax(
+						local _, stat = graph2D.assignVertexRadiusAndRelax(
 							graph,
 							theme.minExtent,
 							theme.maxExtent,
@@ -1057,12 +1083,20 @@ function graphmode.keypressed( key )
 							numSucceesses = numSucceesses + 1
 						end
 
+						stats[stat] = (stats[stat] or 0) + 1
+
 						local total = numFailures + numSucceesses
 						local percentage = math.round((numSucceesses / total) * 100)
 
 						local duration = finish - start
 						local totalDuration = totalDuration + duration
 						_shadowf(gFont30, 0, 40, 'SUCCESS: %d%% (%d/%d) %.2f/s', percentage, numSucceesses, total, total / totalDuration)
+
+						local offset = 300
+						for stat, count in pairs(stats) do
+							_shadowf(gFont30, 0, offset, '%s %d', stat, count)
+							offset = offset + 35
+						end
 
 						if not failed then
 							while not gProgress do
