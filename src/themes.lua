@@ -191,7 +191,7 @@ Theme {
 	name = 'default',
 
 	maxVertices = 10,
-	relaxEdgeLength = 50,
+	relaxEdgeLength = 25,
 }
 
 Theme {

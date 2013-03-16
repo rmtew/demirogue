@@ -194,8 +194,6 @@ function graph2D.forceDraw(
 	convergenceDistance,
 	yield )
 
-	-- assert(convergenceDistance < maxDelta)
-
 	local start = love.timer.getMicroTime()
 
 	local forces = {}
@@ -207,9 +205,8 @@ function graph2D.forceDraw(
 		vertices[#vertices+1] = vertex
 	end
 
-	-- local paths = graph:allPairsShortestPaths()
-
 	local converged = false
+	-- The edge-edge forces are not employed straightaway.
 	local edgeForces = false
 	local count = 0
 
@@ -221,7 +218,7 @@ function graph2D.forceDraw(
 			-- Vertex-vertex forces.
 			for j = i+1, #vertices do
 				local other = vertices[j]
-				assert(vertex ~= other)
+				-- assert(vertex ~= other)
 				local edge = peers[other]
 
 				if edge then
@@ -231,22 +228,17 @@ function graph2D.forceDraw(
 					-- Really short edges cause trouble.
 					d = math.max(d, 0.5)
 
-					-- local desiredLength = edgeLength
 					local desiredLength = (edge.length or edgeLength) * (edge.lengthFactor or 1)
 
 					-- Use log with base sqrt(2) so that overly long edges pull
 					-- together a bit more.
 					local f = -springStrength * math.logb(d/desiredLength, math.sqrt(2))
-					-- local delta = 0.25
-					-- local f = delta * (desiredLength - d)
 
 					-- If you specify a length we ensure it is never less that
 					-- what is provided.
 					if edge.length and d < edge.length then
 						f = 100
 					end
-
-					--print('spring', f)
 
 					local vforce = forces[vertex]
 					local oforce = forces[other]
@@ -268,21 +260,18 @@ function graph2D.forceDraw(
 
 
 					-- This 'normalises' the repulsive force which means we
-					-- don't need to scale it when we change edgeLength.
+					-- don't need to scale it if we change edgeLength.
 					d = d / edgeLength
 
 					-- TODO: this is a magic number and needs to be made a
 					--       parameter, does seem to impove matters though.
 					if d < 3 then
-						-- local gd = paths[vertex][other]
-						-- local f = (gd * repulsion) / (d*d)
 						local f = repulsion * (1 / (d*d))
 
+						-- If we're too close, push back very hard.
 						if d == 0.5 then
 							f = 100
 						end
-
-						--print('repulse', f)
 
 						local vforce = forces[vertex]
 						local oforce = forces[other]
@@ -296,6 +285,8 @@ function graph2D.forceDraw(
 				end
 			end
 
+			-- The edge-edge force really halp to balnce the graph out but if
+			-- they're applied to early they can force strange configurations.
 			if edgeForces then
 				-- Now edge-edge forces.
 				local edges = {}
@@ -320,15 +311,6 @@ function graph2D.forceDraw(
 
 						-- TODO: really should be an argument...
 						local edgeRepulse = 1
-						-- -- local edgeLength = ...
-						-- local to1Length = to1:length()
-						-- local to2Length = to2:length()
-						-- local el = edgeLength
-						-- local angleRepulse = 1
-
-						-- local fEdge = edgeRepulse * (math.atan(to1Length/el) + math.atan(to2Length/el))
-						-- local theta = math.acos(to1:dot(to2)) / (to1Length * to2Length)
-						-- local fTheta = angleRepulse * (1/math.tan(theta * 0.5))
 
 						if to1:length() > 0.001 and to2:length() > 0.001 then
 							to1:normalise()
@@ -355,7 +337,6 @@ function graph2D.forceDraw(
 		end
 
 		converged = true
-
 		local maxForce = 0
 
 		for _, vertex in ipairs(vertices) do
@@ -381,8 +362,7 @@ function graph2D.forceDraw(
 
 		-- printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
 
-		-- TODO: got a weird problem where the edgeForces make the graph fly
-		--       off in the same direction for ever :^(
+		-- We only start to apply edge forces once we're converged.
 		if converged and not edgeForces then
 			converged = false
 			edgeForces = true
@@ -397,25 +377,20 @@ function graph2D.forceDraw(
 
 		if count % 100 == 0 then
 			-- TODO: maybe make this a parameter.
-			-- TEST: I've noticed that when this takes a long time to converge
-			--       the output is still pretty good a long time before it
-			--       converges so let's step up the convergence distance.
 			convergenceDistance = convergenceDistance * 1.5
-			--repulsion = repulsion * 0.5
-			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
+			-- This is a quite busy print statement but useful for debugging.
+			-- printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
 		end
 	end
 
 	local finish = love.timer.getMicroTime()
 	local delta = finish-start
-	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
+	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f conv:%.2f', delta, count, count / delta, convergenceDistance)
 end
 
 -- Modified version of the above force based graph drawing algorithm.
 -- TODO: better explanation.
--- - Contraction of over long edges quite strong.
--- - Repulsions extra strong if circles intersect.
--- - Vertex-edge forces.
+-- NOTE: this is a bit of a failed experiment.
 function graph2D.forceDrawRelax(
 	graph,
 	springStrength,
@@ -845,7 +820,7 @@ function graph2D.forceDrawRelax(
 end
 
 -- TODO: needs a passed in function that generates AABBs for each vertex.
--- TODO: circles aren;t very flexible, maybe axis aligned elipses...
+-- TODO: circles aren't very flexible, maybe axis aligned elipses...
 function graph2D.assignVertexRadiusAndRelax(
 	graph,
 
@@ -862,7 +837,6 @@ function graph2D.assignVertexRadiusAndRelax(
 	yield )
 
 	local preRoomSelfIntersect = graph2D.isSelfIntersecting(graph)
-	-- assert(not preRoomSelfIntersect)
 
 	for vertex, _ in pairs(graph.vertices) do
 		local extent = math.random(minExtent, maxExtent)
@@ -917,7 +891,7 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	-- printf('maxScale:%.2f', maxScale)
 
-	-- Add a little extra to the maxScale.
+	-- Add a little extra to the maxScale as breathing room.
 	maxScale = maxScale * 1.1
 
 	-- Scale the graph up so that no aabbs intersect.
@@ -932,10 +906,8 @@ function graph2D.assignVertexRadiusAndRelax(
 	end
 
 	local preScaleSelfIntersect = graph2D.isSelfIntersecting(graph)
-	-- assert(not preScaleSelfIntersect)
 
 	-- Use force drawing to relax the size of the graph.
-	-- graph2D.forceDrawRelax(
 	graph2D.forceDraw(
 		graph,
 		springStrength,
@@ -983,6 +955,7 @@ function graph2D.isSelfIntersecting( graph )
 
 	local edges = {}
 	for edge, _ in pairs(graph.edges) do
+		-- We don't check cosmetic edges because they're allowed to overlap.
 		if not edge.cosmetic then
 			edges[#edges+1] = edge
 		end

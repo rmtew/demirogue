@@ -1150,6 +1150,19 @@ function graphmode.keypressed( key )
 		end
 	elseif key == '#' then
 		showLengthFactors = not showLengthFactors
+	elseif key == '|' then
+		local graph = state.graph
+		if graph then 
+			for vertex, _ in pairs(graph.vertices) do
+				vertex[1] = math.round(vertex[1])
+				vertex[2] = math.round(vertex[2])
+
+				for _, point in ipairs(vertex.points or {}) do
+					point[1] = math.round(point[1])
+					point[2] = math.round(point[2])
+				end
+			end
+		end
 	end
 end
 
