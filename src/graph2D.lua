@@ -824,6 +824,7 @@ end
 function graph2D.assignVertexRadiusAndRelax(
 	graph,
 
+	margin,
 	minExtent,
 	maxExtent,
 	radiusFudge,
@@ -843,18 +844,16 @@ function graph2D.assignVertexRadiusAndRelax(
 
 		local aabb = AABB.new {
 			xmin = 0,
-			xmax = extent,
+			xmax = extent * margin,
 			ymin = 0,
-			ymax = extent,
+			ymax = extent * margin,
 		}
 
-		-- TODO: this needs to be defined globally somehow.
-		local margin = radiusFudge
-		local points = roomgen.browniangrid(aabb, radiusFudge)
+		local points = roomgen.browniangrid(aabb, margin)
 		local hull = geometry.convexHull(points)
 		local centroid = geometry.convexHullCentroid(hull)
 		local furthest, distance =  geometry.furthestPointFrom(centroid, hull)
-		local radius = distance + radiusFudge
+		local radius = distance + (radiusFudge * margin)
 		
 		-- This moves the hull as well becuase the points aren't copied by
 		-- geometry.convexHull().
@@ -879,7 +878,8 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	-- Find out the desired edge length so the circles don't intersect.
 	for edge, endverts in pairs(graph.edges) do
-		local distance = radiusFudge + (endverts[1].radius + endverts[2].radius)
+		-- local distance = radiusFudge + (endverts[1].radius + endverts[2].radius)
+		local distance = (margin * radiusFudge) + (endverts[1].radius + endverts[2].radius)
 		local length = Vector.toLength(endverts[1], endverts[2])
 
 		local scale = distance / length

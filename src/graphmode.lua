@@ -993,6 +993,7 @@ function graphmode.keypressed( key )
 						local yield = true
 						graph2D.assignVertexRadiusAndRelax(
 							graph,
+							theme.margin,
 							theme.minExtent,
 							theme.maxExtent,
 							theme.radiusFudge,
@@ -1024,6 +1025,7 @@ function graphmode.keypressed( key )
 			local yield = false
 			graph2D.assignVertexRadiusAndRelax(
 				state.graph,
+				theme.margin,
 				theme.minExtent,
 				theme.maxExtent,
 				theme.radiusFudge,
@@ -1064,6 +1066,7 @@ function graphmode.keypressed( key )
 						local yield = false
 						local _, stat = graph2D.assignVertexRadiusAndRelax(
 							graph,
+							theme.margin,
 							theme.minExtent,
 							theme.maxExtent,
 							theme.radiusFudge,

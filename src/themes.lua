@@ -93,6 +93,7 @@ local function Theme( params )
 	checkf(_isPosNum(params.maxDelta), 'maxDelta should be > 0')
 	checkf(_isPosNum(params.convergenceDistance), 'convergenceDistance should be > 0')
 
+	checkf(_isNonNegInt(params.margin), 'margin should be > 0')
 	checkf(_isNonNegInt(params.minExtent), 'minExtent should be > 0')
 	checkf(_isNonNegInt(params.maxExtent), 'maxExtent should be > 0')
 	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
@@ -170,12 +171,10 @@ local base = {
 	-- - There is a fundamental value called margin (the shortest distance
 	--   between points between) that needs to be defined.
 	-- - Currently 
+	margin = 50,
 	minExtent = 3,
 	maxExtent = 12,
-	radiusFudge = 1, -- TODO: this is being used as the margin.
-
-	
-
+	radiusFudge = 1,
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
