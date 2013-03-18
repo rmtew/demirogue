@@ -674,6 +674,39 @@ function Voronoi.Cell:getNeighborIds()
 	return neighbors
 end
 
+local function _edgeLength( edge )
+	local p1 = edge.lSite
+	local p2 = edge.rSite
+
+	local s = {
+		x = p2.x - p1.x,
+		y = p2.y - p1.y
+	}
+
+	return math.sqrt(s.x * s.x + s.y * s.y)
+end
+
+function Voronoi.Cell:getNeighborIdAndEdgeLengths()
+	local neighbors = {}
+	local halfedges = self.halfedges
+	for index = 1, #halfedges do
+		local edge = halfedges[index].edge
+		if edge.lSite ~= nil and edge.lSite.voronoiId ~= self.site.voronoiId then
+			neighbors[#neighbors+1] = {
+				voronoiId = edge.lSite.voronoiId,
+				edgeLength = _edgeLength(edge),
+			}
+		elseif edge.rSite ~= nil and edge.rSite.voronoiId ~= self.site.voronoiId then
+			neighbors[#neighbors+1] = {
+				voronoiId = edge.rSite.voronoiId,
+				edgeLength = _edgeLength(edge),
+			}
+		end
+	end
+
+	return neighbors
+end
+
 
 -- Compute bounding box
 --
@@ -759,7 +792,6 @@ local function Edge( lSite, rSite )
 	}
 end
 
-
 function Voronoi.Halfedge:new( edge, lSite, rSite )
 	local result = {
 		site = lSite,
@@ -801,6 +833,19 @@ end
 function Voronoi.Halfedge:getEndpoint()
 	return self.edge.lSite == self.site and self.edge.vb or self.edge.va
 end
+
+function Voronoi.Halfedge:length()
+	local p1 = self:getStartpoint()
+	local p2 = self:getEndpoint()
+
+	local s = {
+		x = p2.x - p1.x,
+		y = p2.y - p1.y
+	}
+
+	return math.sqrt(s.x * s.x + s.y * s.y)
+end
+
 
 -- this create and add an edge to internal collection, and also create
 -- two halfedges which are added to each site's counterclockwise array

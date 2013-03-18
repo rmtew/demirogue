@@ -849,9 +849,24 @@ function graph2D.assignVertexRadiusAndRelax(
 			ymax = extent * margin,
 		}
 
-		local points = roomgen.browniangrid(aabb, margin)
-		local hull = geometry.convexHull(points)
-		local centroid = geometry.convexHullCentroid(hull)
+		local points
+		local hull
+		local centroid
+
+		-- TODO: this loop is to avoid NaNs, not the most elegant solution.
+		repeat
+			points = roomgen.browniangrid(aabb, margin)
+			assert(#points > 2)
+			hull = geometry.convexHull(points)
+			-- TODO: this can return NaNs every now and again. Possibly when
+			--       the points are colinear.
+			centroid = geometry.convexHullCentroid(hull)
+		until centroid[1] == centroid[1] and centroid[2] == centroid[2]
+
+		-- Check for NaNs.
+		assert(centroid[1] == centroid[1])
+		assert(centroid[2] == centroid[2])
+
 		local furthest, distance =  geometry.furthestPointFrom(centroid, hull)
 		local radius = distance + (radiusFudge * margin)
 		
@@ -916,6 +931,17 @@ function graph2D.assignVertexRadiusAndRelax(
 		maxDelta,
 		convergenceDistance,
 		yield)
+
+	-- Now we set all the vertices and points to integer coordinates.
+	for vertex, _ in pairs(graph.vertices) do
+		vertex[1] = math.round(vertex[1])
+		vertex[2] = math.round(vertex[2])
+
+		for _, point in ipairs(vertex.points) do
+			point[1] = math.round(point[1])
+			point[2] = math.round(point[2])
+		end
+	end
 
 	local postScaleSelfIntersect = graph2D.isSelfIntersecting(graph)
 
@@ -1015,3 +1041,95 @@ function graph2D.isSelfIntersecting( graph )
 
 	return false
 end
+
+local function _heuristic( from, to )
+	return Vector.toLength(from, to)
+end
+
+local function _defaultVertexFilter( fromVertex, toVertex )
+	return true
+end
+
+function graph2D.aStar( graph, fromVertex, toVertex, vertexFilter )
+	vertexFilter = vertexFilter or _defaultVertexFilter
+
+	assert(graph.vertices[fromVertex])
+	assert(graph.vertices[toVertex])
+	-- assert(vertexFilter(toVertex))
+
+	local gScore = { [fromVertex] = 0 }
+	local hScore = { [fromVertex] = _heuristic(fromVertex, toVertex) }
+	local fScore = { [fromVertex] = hScore[fromVertex] }
+
+	local cmp =
+		function ( lhs, rhs )
+			return fScore[lhs] <= fScore[rhs]
+		end
+
+	local vertices = graph.vertices
+	local closed = {}
+	local open = { [fromVertex] = true }
+	local openHeap = Heap.new(cmp)
+	openHeap:push(fromVertex)
+
+	local cameFrom = {}
+	local cameFromVia = {}
+
+	while #openHeap > 0 do
+		local candidate = openHeap:pop()
+		open[candidate] = nil
+		closed[candidate] = true
+
+		if candidate == toVertex then
+			local path = {}
+
+			local current = candidate
+
+			repeat
+				path[#path+1] = current
+				path[#path+1] = cameFromVia[current]
+				current = cameFrom[current]
+			until not current
+
+			path = table.reverse(path)
+
+			return true, path
+		end
+
+		for peer, edge in pairs(vertices[candidate]) do
+			if not closed[peer] then
+				if not vertexFilter(candidate, peer) then
+					closed[peer] = true
+				else
+					local candidateGScore = gScore[candidate] + Vector.toLength(candidate, peer)
+
+					local candidateIsBetter = false
+
+					if not open[peer] then
+						open[peer] = true
+						candidateIsBetter = true
+					elseif candidateGScore < gScore[peer] then
+						candidateIsBetter = true
+					end
+
+					if candidateIsBetter then
+						cameFrom[peer] = candidate
+						cameFromVia[peer] = link
+						gScore[peer] = candidateGScore
+						hScore[peer] = _heuristic(peer, toVertex)
+
+						if fScore[peer] then
+							openHeap:remove(peer)
+						end
+
+						fScore[peer] = gScore[peer] + hScore[peer]
+						openHeap:push(peer)
+					end
+				end
+			end
+		end
+	end
+
+	return false
+end
+

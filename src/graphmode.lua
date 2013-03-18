@@ -16,7 +16,7 @@ require 'themes'
 graphmode = {}
 
 local config = {
-	tolerance = 30,
+	tolerance = 20,
 }
 
 local function _shadowf(font, x, y, ... )
@@ -33,177 +33,6 @@ local function _shadowf(font, x, y, ... )
 	love.graphics.setColor(192, 192, 192, 255)
 
 	love.graphics.print(text, x, y)
-end
-
-local function _save( state )
-	-- Make a nice to save version of the state.
-
-	-- { level }+
-	-- level = { leftGraph = graph, rightGraph = graph, map = map }
-	-- graph = { vertices = { vertex }+, edges = { edge }+ }
-	-- edge = { <index>, <index>, cosmetic = <boolean>, subdivide = <boolean> }
-	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
-	-- map = { [<index>] = <index> }*
-
-	local function _vertex( vertex )
-		if vertex.side == 'left' then
-			return {
-				vertex[1],
-				vertex[2],
-				side = 'left',
-				tags = table.copy(vertex.tags),
-				lock = vertex.lock and true or false,
-			}
-		else
-			return { 
-				vertex[1],
-				vertex[2],
-				side = 'right',
-				tag = vertex.tag,
-				mapped = vertex.mapped and true or false,
-			}
-		end
-	end
-
-	local function _graph( graph )
-		local vertexIndices = {}
-		local nextVertexIndex = 1
-		local vertices = {}
-
-		for vertex, _ in pairs(graph.vertices) do
-			local copy = _vertex(vertex)
-			vertices[nextVertexIndex] = copy
-			vertexIndices[vertex] = nextVertexIndex
-			nextVertexIndex = nextVertexIndex + 1
-		end
-
-		local edges = {}
-
-		for edge, endverts in pairs(graph.edges) do
-			local vertex1Index = vertexIndices[endverts[1]]
-			local vertex2Index = vertexIndices[endverts[2]]
-			local cosmetic = edge.cosmetic and true or false
-			local subdivide = edge.subdivide and true or false
-
-			edges[#edges+1] = {
-				vertex1Index,
-				vertex2Index,
-				cosmetic = cosmetic,
-				subdivide = subdivide,
-			}
-		end
-
-		return { vertices = vertices, edges = edges }, vertexIndices
-	end
-
-	local function _level( level )
-		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
-		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
-
-		local map = {}
-
-		for leftVertex, rightVertex in pairs(level.map) do
-			map[leftVertexIndices[leftVertex]] = rightVertexIndices[rightVertex]
-		end
-
-		return {
-			leftGraph = leftGraph,
-			rightGraph = rightGraph,
-			map = map
-		}
-	end
-
-	local levels = {}
-
-	for index, level in ipairs(state.stack) do
-		local copy = _level(level)
-		levels[index] = copy
-	end
-
-	return levels
-end
-
-local function _load( data )
-	-- Turn the saved version of the state into a runtime usable version.
-
-	-- { level }+
-	-- level = { leftGraph = graph, rightGraph = graph, map = map }
-	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
-	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
-	-- map = { [<index>] = <index> }*
-
-	local function _vertex( vertex )
-		if vertex.side == 'left' then
-			return {
-				vertex[1],
-				vertex[2],
-				side = 'left',
-				tags = table.copy(vertex.tags),
-				lock = vertex.lock and true or false,
-			}
-		else
-			return { 
-				vertex[1],
-				vertex[2],
-				side = 'right',
-				tag = vertex.tag,
-				mapped = vertex.mapped and true or false,
-			}
-		end
-	end
-
-	local function _graph( graph )
-		local vertexIndices = {}
-
-		local result = Graph.new()
-
-		for index, vertex in ipairs(graph.vertices) do
-			local copy = _vertex(vertex)
-			result:addVertex(copy)
-			vertexIndices[index] = copy
-		end
-
-		for _, edge in pairs(graph.edges) do
-			local side = vertexIndices[edge[1]].side
-			local cosmetic = edge.cosmetic and true or false
-			local subdivide = edge.subdivide and true or false
-			local newEdge = {
-				side = side,
-				cosmetic = cosmetic,
-				subdivide = subdivide,
-			} 
-			result:addEdge(newEdge, vertexIndices[edge[1]], vertexIndices[edge[2]])
-		end
-
-		return result, vertexIndices
-	end
-
-	local function _level( level )
-		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
-		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
-
-		local map = {}
-
-		for leftVertexIndex, rightVertexIndex in pairs(level.map) do
-			map[leftVertexIndices[leftVertexIndex]] = rightVertexIndices[rightVertexIndex]
-		end
-
-		return {
-			leftGraph = leftGraph,
-			rightGraph = rightGraph,
-			map = map
-		}
-	end
-
-	local result = {}
-
-	for index, level in ipairs(data) do
-		local copy = _level(level)
-
-		result[index] = copy
-	end
-
-	return result	
 end
 
 -- This getting complicated enough to possibly require an object.
@@ -229,78 +58,6 @@ end
 --     themeIndex = [1..#theme.sortedDB]
 -- }
 
-local function _calculateLengthFactors( level )
-	local leftGraph = level.leftGraph
-	local rightGraph = level.rightGraph
-
-	local meanLeftEdgeLength = graph2D.meanEdgeLength(leftGraph)
-	local meanRightEdgeLength = graph2D.meanEdgeLength(rightGraph)
-
-	-- print('length factors', meanLeftEdgeLength, meanRightEdgeLength)
-
-	local meanEdgeLength = meanLeftEdgeLength
-
-	if meanEdgeLength == 0 then
-		meanEdgeLength = meanRightEdgeLength
-	end
-
-	if meanEdgeLength > 0 then
-		for rightEdge, rightEndVerts in pairs(rightGraph.edges) do
-			if rightEdge.subdivide then
-				local edgeLength = Vector.toLength(rightEndVerts[1], rightEndVerts[2])
-
-				local lengthFactor = edgeLength / meanEdgeLength
-
-				-- print(edgeLength, meanEdgeLength, lengthFactor)
-
-				rightEdge.lengthFactor = lengthFactor
-			end
-		end
-	end
-end
-
-local function _rule( level )
-	_calculateLengthFactors(level)
-
-	local pattern = level.leftGraph
-	local substitute = level.rightGraph
-	local map = level.map
-	local status, result = pcall(
-		function ()
-			return GraphGrammar.Rule.new(pattern, substitute, map)
-		end)
-	
-	if status then
-		return result
-	else
-		-- print(result)
-		return nil, result
-	end
-end
-
-local function _rules( stack )
-	local rules = {}
-	local nextRuleId = 1
-
-	for _, level in ipairs(stack) do
-		local rule = _rule(level)
-
-		if rule then
-			local name = string.format("rule%d", nextRuleId)
-			printf('RULE %s!', name)
-			nextRuleId = nextRuleId + 1
-			rules[name] = rule
-		else
-			print('RULE FAIL')
-		end
-	end
-
-	print('RULEZ', #stack, table.count(rules))
-
-	return rules
-end
-
-
 local state = nil
 local time = 0
 
@@ -308,7 +65,6 @@ function graphmode.update()
 	time = time + love.timer.getDelta()
 
 	if not state then
-		table.print(themes.db)
 		local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 		local hw = w * 0.5
 
@@ -328,7 +84,7 @@ function graphmode.update()
 
 		local themeIndex = 1
 		local theme = themes.sortedDB[themeIndex]
-		local stack = _load(theme.ruleset())
+		local stack = themes.loadRuleset(theme)
 
 		local leftGraph = Graph.new()
 		local rightGraph = Graph.new()
@@ -559,7 +315,7 @@ function graphmode.draw()
 
 		-- TODO: got to try and build a GraphGrammar Rule and tell the user if
 		--       it fails or succeeds.
-		local rule, msg = _rule(state.stack[state.index])
+		local rule, msg = themes.rule(state.stack[state.index])
 
 		-- Remove the file and line part of the assert msg.
 		if msg then
@@ -908,7 +664,7 @@ function graphmode.keypressed( key )
 		local nextTheme = themes.sortedDB[nextThemeIndex]
 		assert(nextTheme)
 
-		local nextStack = _load(nextTheme.ruleset())
+		local nextStack = themes.loadRuleset(nextTheme)
 
 		state.themeIndex = nextThemeIndex
 		state.theme = nextTheme
@@ -923,16 +679,16 @@ function graphmode.keypressed( key )
 		local nextTheme = themes.sortedDB[nextThemeIndex]
 		assert(nextTheme)
 
-		local nextStack = _load(nextTheme.ruleset())
+		local nextStack = themes.loadRuleset(nextTheme)
 
 		state.themeIndex = nextThemeIndex
 		state.theme = nextTheme
 		state.stack = nextStack
 		state.index = 1
 	elseif key == 'f5' then
-		themes.saveRuleset(state.theme, _save(state))
+		themes.saveRuleset(state.theme, state.stack)
 	elseif key == 'f8' then
-		state.stack = _load(state.theme.ruleset())
+		state.stack = themes.loadRuleset(state.theme)
 	elseif key == ' ' then
 		autoProgress = false
 		local shift = love.keyboard.isDown('lshift', 'rshift')
@@ -972,7 +728,7 @@ function graphmode.keypressed( key )
 			state.graph = nil
 
 			if state.show then
-				local rules = _rules(state.stack)
+				local rules = themes.rules(state.stack)
 
 				local grammar = GraphGrammar.new {
 					rules = rules,
@@ -1006,7 +762,7 @@ function graphmode.keypressed( key )
 					end)
 			end
 		elseif shift then
-			local rules = _rules(state.stack)
+			local rules = themes.rules(state.stack)
 
 			local grammar = GraphGrammar.new {
 				rules = rules,
@@ -1039,7 +795,7 @@ function graphmode.keypressed( key )
 			state.show = true
 			state.coro = nil
 		elseif ctrl then
-			local rules = _rules(state.stack)
+			local rules = themes.rules(state.stack)
 
 			local grammar = GraphGrammar.new {
 				rules = rules,

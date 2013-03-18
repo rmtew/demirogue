@@ -13,6 +13,7 @@ require 'metalines'
 require 'texture'
 require 'Voronoi'
 require 'Viewport'
+require 'themes'
 
 local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 
@@ -23,44 +24,39 @@ local bounds = AABB.new {
 	ymax = 3 * h,
 }
 
+local theme = themes.db.catacomb
+local viewport = Viewport.new(bounds)
+local minZoom = 1
+local maxZoom = 1
+
 local function _gen()
-	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+	local level = Level.newThemed(theme)
 
-	local rgen =
-		function ( ... )
-			local r = math.random()
-			if r < 0.33 then
-				return roomgen.browniangrid(...)
-				-- return roomgen.cellulargrid(...)
-			elseif r < 0.66 then
-				-- return roomgen.random(...)
-				return roomgen.enclose(...)
-			else
-				return roomgen.hexgrid(...)
-			end
-		end
-
-	-- TODO: need proper config data for the extents and level generation
-	--       values.
-	-- TODO: room connection should be a parameter.
-
-	local level = Level.new {
-		aabb = bounds,
-		-- margin = 100,
-		margin = 50,
-		-- margin = 75,
-		-- margin = 100,
-		layout = layoutgen.splat,
-		roomgen = rgen,
+	local portal = AABB.new {
+		xmin = 0,
+		xmax = love.graphics.getWidth(),
+		ymin = 0,
+		ymax = love.graphics.getHeight(),
 	}
+
+	minZoom = 0.001
+	maxZoom = 1000
+
+	viewport = Viewport.new(level.aabb)
+
+	local wAspect = viewport.bounds:width() / viewport.portal:width()
+	local hAspect = viewport.bounds:height() / viewport.portal:height()
+
+	maxZoom = math.max(wAspect, hAspect)
+	minZoom = math.min(1/wAspect, 1/hAspect)
+
+	viewport:setZoomImmediate(minZoom)
 	
 	return level
 end
 
 local level
 local time = 0
-
-local viewport = Viewport.new(bounds)
 
 voronoimode = {}
 
@@ -78,10 +74,11 @@ end
 local drawPoints = true
 local drawRoomAABBs = false
 local drawQuadtree = false
-local drawWalls = true
+local drawWalls = false
 local drawVoronoi = true
 local drawHulls = false
 local drawEdges = false
+local drawCore = false
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -107,7 +104,14 @@ function voronoimode.draw()
 
 	if drawVoronoi then
 		local linewidth = 2
-		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
+		-- love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
+		local zoom = viewport:getZoom()
+
+		if zoom < 1 then
+			linewidth = linewidth * (1/zoom)
+		end
+
+		love.graphics.setLine(linewidth, 'rough')
 
 		local colours = {
 			-- { 0, 0, 0, 255 },
@@ -120,31 +124,27 @@ function voronoimode.draw()
 			{ 255, 255, 255, 255 },
 		}
 
-		for id, cell in ipairs(level.diagram.cells) do
-			local vertices = {}
+		for vertex, _ in pairs(level.graph.vertices) do
+			local poly = vertex.poly
 
-			for _, halfedge in ipairs(cell.halfedges) do
-				local startpoint = halfedge:getStartpoint()
-
-				vertices[#vertices+1] = startpoint.x
-				vertices[#vertices+1] = startpoint.y
-			end
-
-			if #vertices < 3*2 then
-				printf('cell id:%d has only %d verts', id, #vertices/2)
+			if #poly < 3*2 then
+				printf('vertex with only %d components in the poly, need at least 6', #poly)
 			else
 				local colour = { 64, 64, 64, 255 }
 
-				if not cell.site.wall then
+				if not vertex.wall then
 					-- colour = colours[1 + (id % #colours)]
 					colour = { 0, 255, 255, 255 }
 				end
 
-				love.graphics.setColor(unpack(colour))
-				love.graphics.polygon('fill', vertices)
-				if not cell.site.wall then
-					love.graphics.setColor(0, 0, 0, 255)
-					love.graphics.polygon('line', vertices)
+				if not vertex.wall or drawWalls then
+					love.graphics.setColor(unpack(colour))
+					love.graphics.polygon('fill', poly)
+
+					if not vertex.wall then
+						love.graphics.setColor(0, 0, 0, 255)
+						love.graphics.polygon('line', poly)
+					end
 				end
 			end
 		end
@@ -247,10 +247,12 @@ function voronoimode.draw()
 		end
 	end
 
-	love.graphics.setColor(0, 0, 255, 128)
-	love.graphics.setLineWidth(1)
-	for _, core in ipairs(level.cores) do
-		love.graphics.polygon('fill', core)
+	if drawCore then
+		love.graphics.setColor(0, 0, 255, 128)
+		love.graphics.setLineWidth(1)
+		for _, core in ipairs(level.cores) do
+			love.graphics.polygon('fill', core)
+		end
 	end
 
 	for vertex, peers in pairs(level.graph.vertices) do
@@ -277,15 +279,14 @@ function voronoimode.draw()
 		numPoints = numPoints + #room.points
 	end
 
-	shadowf(10, 10, 'fps:%.2f #p:%d',
+	shadowf(10, 10, 'fps:%.2f <%s> #p:%d',
 		love.timer.getFPS(),
+		theme.name,
 		numPoints)
 end
 
-local minZoom = 1/3
-local maxZoom = 3
-
 function voronoimode.mousepressed( x, y, button )
+	print(viewport:getZoom(), minZoom, maxZoom)
 	if button == 'wu' then
 		local zoom = viewport:getZoom()
 
@@ -339,6 +340,14 @@ function voronoimode.keypressed( key )
 	-- 	xform.origin[2] = xform.origin[2] - (100 * xform.scale)
 	-- elseif key == 'down' then
 	-- 	xform.origin[2] = xform.origin[2] + (100 * xform.scale)
+	elseif key == 'p' then
+		local paths = level.graph:allPairsShortestPaths()
+	elseif key == 'left' then
+		theme = theme.prevTheme
+		level = _gen()
+	elseif key == 'right' then
+		theme = theme.nextTheme
+		level = _gen()
 	end
 end
 

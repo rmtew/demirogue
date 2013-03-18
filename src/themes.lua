@@ -7,8 +7,92 @@ themes = {
 	sortedDB = {},
 }
 
-function themes.saveRuleset( theme, data )
-	local code = table.compile(data)
+function themes.saveRuleset( theme, stack )
+	-- Make a nice to save version of the state.
+
+	-- { level }+
+	-- level = { leftGraph = graph, rightGraph = graph, map = map }
+	-- graph = { vertices = { vertex }+, edges = { edge }+ }
+	-- edge = { <index>, <index>, cosmetic = <boolean>, subdivide = <boolean> }
+	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
+	-- map = { [<index>] = <index> }*
+
+	local function _vertex( vertex )
+		if vertex.side == 'left' then
+			return {
+				vertex[1],
+				vertex[2],
+				side = 'left',
+				tags = table.copy(vertex.tags),
+				lock = vertex.lock and true or false,
+			}
+		else
+			return { 
+				vertex[1],
+				vertex[2],
+				side = 'right',
+				tag = vertex.tag,
+				mapped = vertex.mapped and true or false,
+			}
+		end
+	end
+
+	local function _graph( graph )
+		local vertexIndices = {}
+		local nextVertexIndex = 1
+		local vertices = {}
+
+		for vertex, _ in pairs(graph.vertices) do
+			local copy = _vertex(vertex)
+			vertices[nextVertexIndex] = copy
+			vertexIndices[vertex] = nextVertexIndex
+			nextVertexIndex = nextVertexIndex + 1
+		end
+
+		local edges = {}
+
+		for edge, endverts in pairs(graph.edges) do
+			local vertex1Index = vertexIndices[endverts[1]]
+			local vertex2Index = vertexIndices[endverts[2]]
+			local cosmetic = edge.cosmetic and true or false
+			local subdivide = edge.subdivide and true or false
+
+			edges[#edges+1] = {
+				vertex1Index,
+				vertex2Index,
+				cosmetic = cosmetic,
+				subdivide = subdivide,
+			}
+		end
+
+		return { vertices = vertices, edges = edges }, vertexIndices
+	end
+
+	local function _level( level )
+		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
+		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
+
+		local map = {}
+
+		for leftVertex, rightVertex in pairs(level.map) do
+			map[leftVertexIndices[leftVertex]] = rightVertexIndices[rightVertex]
+		end
+
+		return {
+			leftGraph = leftGraph,
+			rightGraph = rightGraph,
+			map = map
+		}
+	end
+
+	local levels = {}
+
+	for index, level in ipairs(stack) do
+		local copy = _level(level)
+		levels[index] = copy
+	end
+
+	local code = table.compile(levels)
 
 	local ruleset = loadstring(code)
 	assert(ruleset)
@@ -19,6 +103,162 @@ function themes.saveRuleset( theme, data )
 	file:open('w')
 	file:write(code)
 	file:close()
+end
+
+function themes.loadRuleset( theme )
+	-- Turn the saved version of the state into a runtime usable version.
+
+	-- { level }+
+	-- level = { leftGraph = graph, rightGraph = graph, map = map }
+	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
+	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
+	-- map = { [<index>] = <index> }*
+
+	local function _vertex( vertex )
+		if vertex.side == 'left' then
+			return {
+				vertex[1],
+				vertex[2],
+				side = 'left',
+				tags = table.copy(vertex.tags),
+				lock = vertex.lock and true or false,
+			}
+		else
+			return { 
+				vertex[1],
+				vertex[2],
+				side = 'right',
+				tag = vertex.tag,
+				mapped = vertex.mapped and true or false,
+			}
+		end
+	end
+
+	local function _graph( graph )
+		local vertexIndices = {}
+
+		local result = Graph.new()
+
+		for index, vertex in ipairs(graph.vertices) do
+			local copy = _vertex(vertex)
+			result:addVertex(copy)
+			vertexIndices[index] = copy
+		end
+
+		for _, edge in pairs(graph.edges) do
+			local side = vertexIndices[edge[1]].side
+			local cosmetic = edge.cosmetic and true or false
+			local subdivide = edge.subdivide and true or false
+			local newEdge = {
+				side = side,
+				cosmetic = cosmetic,
+				subdivide = subdivide,
+			} 
+			result:addEdge(newEdge, vertexIndices[edge[1]], vertexIndices[edge[2]])
+		end
+
+		return result, vertexIndices
+	end
+
+	local function _level( level )
+		local leftGraph, leftVertexIndices = _graph(level.leftGraph)
+		local rightGraph, rightVertexIndices = _graph(level.rightGraph)
+
+		local map = {}
+
+		for leftVertexIndex, rightVertexIndex in pairs(level.map) do
+			map[leftVertexIndices[leftVertexIndex]] = rightVertexIndices[rightVertexIndex]
+		end
+
+		return {
+			leftGraph = leftGraph,
+			rightGraph = rightGraph,
+			map = map
+		}
+	end
+
+	local data = theme.ruleset()
+
+	local result = {}
+
+	for index, level in ipairs(data) do
+		local copy = _level(level)
+
+		result[index] = copy
+	end
+
+	return result	
+end
+
+local function _calculateLengthFactors( level )
+	local leftGraph = level.leftGraph
+	local rightGraph = level.rightGraph
+
+	local meanLeftEdgeLength = graph2D.meanEdgeLength(leftGraph)
+	local meanRightEdgeLength = graph2D.meanEdgeLength(rightGraph)
+
+	-- print('length factors', meanLeftEdgeLength, meanRightEdgeLength)
+
+	local meanEdgeLength = meanLeftEdgeLength
+
+	if meanEdgeLength == 0 then
+		meanEdgeLength = meanRightEdgeLength
+	end
+
+	if meanEdgeLength > 0 then
+		for rightEdge, rightEndVerts in pairs(rightGraph.edges) do
+			if rightEdge.subdivide then
+				local edgeLength = Vector.toLength(rightEndVerts[1], rightEndVerts[2])
+
+				local lengthFactor = edgeLength / meanEdgeLength
+
+				-- print(edgeLength, meanEdgeLength, lengthFactor)
+
+				rightEdge.lengthFactor = lengthFactor
+			end
+		end
+	end
+end
+
+function themes.rule( level )
+	_calculateLengthFactors(level)
+
+	local pattern = level.leftGraph
+	local substitute = level.rightGraph
+	local map = level.map
+	local status, result = pcall(
+		function ()
+			return GraphGrammar.Rule.new(pattern, substitute, map)
+		end)
+	
+	if status then
+		return result
+	else
+		print(result)
+		return nil, result
+	end
+end
+
+function themes.rules( stack )
+	local rules = {}
+	local nextRuleId = 1
+
+	for _, level in ipairs(stack) do
+		local rule = themes.rule(level)
+
+		if rule then
+			local name = string.format("rule%d", nextRuleId)
+			printf('RULE %s!', name)
+			nextRuleId = nextRuleId + 1
+			rules[name] = rule
+		else
+			print('RULE FAIL')
+		end
+	end
+
+	print('RULEZ', #stack, table.count(rules))
+
+	return rules
 end
 
 local function _isName( value )
@@ -148,6 +388,19 @@ local function Theme( params )
 		function ( lhs, rhs )
 			return lhs.name < rhs.name
 		end)
+
+	-- Setup prevTheme and nextTheme fields.
+	for index = 1, #sortedDB do
+		local prevIndex = (index > 1) and index-1 or #sortedDB
+		local nextIndex = (index < #sortedDB) and index+1 or 1
+
+		local prevTheme = sortedDB[prevIndex]
+		local nextTheme = sortedDB[nextIndex]
+
+		local theme = sortedDB[index]
+		theme.prevTheme = prevTheme
+		theme.nextTheme = nextTheme
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -212,7 +465,10 @@ Theme {
 	template = base,
 	name = 'catacomb',
 
-	relaxEdgeLength = 50,
+	minExtent = 2,
+	maxExtent = 5,
+
+	relaxEdgeLength = 100,
 }
 
 Theme {

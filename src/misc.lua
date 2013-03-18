@@ -76,6 +76,17 @@ function table.shuffle( tbl )
 	end
 end
 
+function table.reverse( tbl )
+	local size = #tbl
+
+	for index = 1, math.ceil(size * 0.5) do
+		local mirrorIndex = size - (index - 1)
+		tbl[index], tbl[mirrorIndex] = tbl[mirrorIndex], tbl[index]
+	end
+
+	return tbl
+end
+
 function table.collect( tbl, func )
 	local result = {}
 

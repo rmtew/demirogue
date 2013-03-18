@@ -4,8 +4,8 @@ require 'AABB'
 Viewport = {}
 Viewport.__index = Viewport
 
-function Viewport.new( bounds )
-	local portal = AABB.new {
+function Viewport.new( bounds, portal )
+	local portal = portal or AABB.new {
 		xmin = 0,
 		xmax = love.graphics.getWidth(),
 		ymin = 0,
@@ -154,6 +154,11 @@ end
 
 function Viewport:setZoom( zoom )
 	self.zoomDamp.target = zoom
+end
+
+function Viewport:setZoomImmediate( zoom )
+	self.zoomDamp.target = zoom
+	self.zoomDamp.value = zoom
 end
 
 function Viewport:getZoom()

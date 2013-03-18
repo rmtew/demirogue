@@ -11,8 +11,8 @@ function AABB.new( tbl )
 		ymax = tbl.ymax,
 	}
 
-	assert(result.xmin <= result.xmax)
-	assert(result.ymin <= result.ymax)
+	assertf(result.xmin <= result.xmax, '%.2f <= %.2f failed', result.xmin, result.xmax)
+	assertf(result.ymin <= result.ymax, '%.2f <= %.2f failed', result.ymin, result.ymax)
 
 	setmetatable(result, AABB)
 

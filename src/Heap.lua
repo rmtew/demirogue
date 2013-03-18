@@ -1,17 +1,16 @@
 
 Heap = {}
--- Heap.debug = Debug and true
+Heap.__index = Heap
 Heap.debug = false
 
-function Heap:new( cmp )
+function Heap.new( cmp )
 	assert(type(cmp) == 'function')
 
 	local result = {
 		cmp = cmp,
 	}
 
-	setmetatable(result, self)
-	self.__index = self
+	setmetatable(result, Heap)
 
 	return result
 end
