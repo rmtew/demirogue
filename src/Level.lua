@@ -588,6 +588,7 @@ function Level.newThemed( theme )
 			theme.minExtent,
 			theme.maxExtent,
 			theme.radiusFudge,
+			theme.roomgen,
 			theme.relaxSpringStrength,
 			theme.relaxEdgeLength,
 			theme.relaxRepulsion,

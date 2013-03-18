@@ -36,7 +36,15 @@ function Viewport:_constrain()
 	local portalWidth, portalHeight = portal:width(), portal:height()
 	local borderWidth, borderHeight = bounds:width(), bounds:height()
 
-	if portalWidth <= borderWidth and portalHeight <= borderHeight then
+	local wide = portalWidth > borderWidth
+	local tall = portalHeight > borderHeight
+
+	local centre = bounds:centre()
+
+	if wide then
+		portal.xmin = math.round(centre[1] - portalWidth * 0.5)
+		portal.xmax = math.round(centre[1] + portalWidth * 0.5)
+	else
 		-- The portal is smaller than the screen so just move it.
 		
 		-- Portal is left of the bounds.
@@ -48,7 +56,12 @@ function Viewport:_constrain()
 			portal.xmax = bounds.xmax
 			portal.xmin = bounds.xmax - portalWidth
 		end
+	end
 
+	if tall then
+		portal.ymin = math.round(centre[2] - portalHeight * 0.5)
+		portal.ymax = math.round(centre[2] + portalHeight * 0.5)
+	else
 		-- Portal is below the bounds.
 		if portal.ymin < bounds.ymin then
 			portal.ymin = bounds.ymin
@@ -58,15 +71,6 @@ function Viewport:_constrain()
 			portal.ymax = bounds.ymax
 			portal.ymin = bounds.ymax - portalHeight
 		end
-	else
-		-- The portal is taller or wider than the bounds so we force the portal
-		-- to centre on the bounds centre.
-		local centre = bounds:centre()
-
-		portal.xmin = math.round(centre[1] - portalWidth * 0.5)
-		portal.xmax = math.round(centre[1] + portalWidth * 0.5)
-		portal.ymin = math.round(centre[2] - portalHeight * 0.5)
-		portal.ymax = math.round(centre[2] + portalHeight * 0.5)
 	end
 end
 

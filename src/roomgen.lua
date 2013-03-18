@@ -238,8 +238,8 @@ function roomgen.cellulargrid( bbox, margin )
 
 	local mask = old
 
-	-- new.print()
-	-- print()
+	new.print()
+	print()
 	
 	local result = {}
 

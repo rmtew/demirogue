@@ -132,19 +132,20 @@ function voronoimode.draw()
 			else
 				local colour = { 64, 64, 64, 255 }
 
-				if not vertex.wall then
+				if not vertex.wall and not vertex.corridor then
 					-- colour = colours[1 + (id % #colours)]
-					colour = { 0, 255, 255, 255 }
+					colour = { 184, 118, 61, 255 }
+					-- colour = { 0, 255, 255, 255 }
+				elseif vertex.corridor then
+					colour = { 0, 128, 128, 255 }
 				end
 
 				if not vertex.wall or drawWalls then
 					love.graphics.setColor(unpack(colour))
 					love.graphics.polygon('fill', poly)
 
-					if not vertex.wall then
-						love.graphics.setColor(0, 0, 0, 255)
-						love.graphics.polygon('line', poly)
-					end
+					love.graphics.setColor(0, 0, 0, 255)
+					love.graphics.polygon('line', poly)
 				end
 			end
 		end
@@ -286,7 +287,6 @@ function voronoimode.draw()
 end
 
 function voronoimode.mousepressed( x, y, button )
-	print(viewport:getZoom(), minZoom, maxZoom)
 	if button == 'wu' then
 		local zoom = viewport:getZoom()
 

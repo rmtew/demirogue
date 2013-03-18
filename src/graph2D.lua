@@ -828,6 +828,7 @@ function graph2D.assignVertexRadiusAndRelax(
 	minExtent,
 	maxExtent,
 	radiusFudge,
+	roomgen,
 
 	-- The arguemnts below are the same as those to forceDraw() above.
 	springStrength,
@@ -855,7 +856,7 @@ function graph2D.assignVertexRadiusAndRelax(
 
 		-- TODO: this loop is to avoid NaNs, not the most elegant solution.
 		repeat
-			points = roomgen.browniangrid(aabb, margin)
+			points = roomgen(aabb, margin)
 			assert(#points > 2)
 			hull = geometry.convexHull(points)
 			-- TODO: this can return NaNs every now and again. Possibly when

@@ -1,13 +1,433 @@
 return {
     {
     ["rightGraph"] = {
-      ["vertices"] = {},
+      ["vertices"] = {
+        {
+          581,
+          82,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "x",
+        },
+        {
+          628,
+          144,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          628,
+          233,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          547,
+          236,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+        {
+          593,
+          295,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "e",
+        },
+        {
+          545,
+          148,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+      },
+      ["edges"] = {
+        {
+          2,
+          6,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          5,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          5,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          1,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          6,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          1,
+          6,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          4,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          6,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    ["map"] = {
+      5,
+    },
+    ["leftGraph"] = {
+      ["vertices"] = {
+        {
+          193,
+          295,
+          ["tags"] = {
+            ["s"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
       ["edges"] = {},
     },
-    ["map"] = {},
+    },
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {
+        {
+          726,
+          429,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          493,
+          428,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+        {
+          701,
+          284,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          708,
+          145,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          505,
+          288,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+        {
+          491,
+          147,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+      },
+      ["edges"] = {
+        {
+          5,
+          6,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          5,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          5,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          4,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          6,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          5,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          1,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    ["map"] = {
+      6,
+      1,
+      4,
+      2,
+    },
     ["leftGraph"] = {
-      ["vertices"] = {},
-      ["edges"] = {},
+      ["vertices"] = {
+        {
+          91,
+          147,
+          ["tags"] = {
+            ["l"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          326,
+          429,
+          ["tags"] = {
+            ["r"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          308,
+          145,
+          ["tags"] = {
+            ["r"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          93,
+          428,
+          ["tags"] = {
+            ["l"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
+      ["edges"] = {
+        {
+          4,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          3,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          4,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          4,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
+    },
+    },
+    {
+    ["rightGraph"] = {
+      ["vertices"] = {
+        {
+          662,
+          349,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          746,
+          315,
+          ["mapped"] = false,
+          ["side"] = "right",
+          ["tag"] = "c",
+        },
+        {
+          650,
+          176,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "r",
+        },
+        {
+          508,
+          349,
+          ["mapped"] = true,
+          ["side"] = "right",
+          ["tag"] = "l",
+        },
+      },
+      ["edges"] = {
+        {
+          1,
+          4,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          4,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+      },
+    },
+    ["map"] = {
+      4,
+      1,
+      3,
+    },
+    ["leftGraph"] = {
+      ["vertices"] = {
+        {
+          108,
+          349,
+          ["tags"] = {
+            ["l"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          262,
+          349,
+          ["tags"] = {
+            ["r"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+        {
+          250,
+          176,
+          ["tags"] = {
+            ["r"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+        },
+      },
+      ["edges"] = {
+        {
+          2,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          3,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = true,
+        },
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
     },
     },
 }

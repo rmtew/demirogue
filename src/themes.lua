@@ -2,6 +2,8 @@
 -- themes.lua
 --
 
+require 'roomgen'
+
 themes = {
 	db = {},
 	sortedDB = {},
@@ -338,6 +340,7 @@ local function Theme( params )
 	checkf(_isNonNegInt(params.maxExtent), 'maxExtent should be > 0')
 	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
 	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
+	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
 	
 	checkf(_isPosNum(params.relaxSpringStrength), 'relaxSpringStrength should be > 0')
 	checkf(_isPosNum(params.relaxEdgeLength), 'relaxEdgeLength should be > 0')
@@ -403,6 +406,21 @@ local function Theme( params )
 	end
 end
 
+local grid = roomgen.grid
+local randgrid = roomgen.randgrid
+local browniangrid = roomgen.browniangrid
+local cellulargrid = roomgen.cellulargrid
+local hexgrid = roomgen.hexgrid
+
+local function choice( tbl )
+	return
+		function ( aabb, margin )
+			local gen = tbl[math.random(1, #tbl)]
+
+			return gen(aabb, margin)
+		end
+end
+
 -------------------------------------------------------------------------------
 
 local base = {
@@ -428,6 +446,16 @@ local base = {
 	minExtent = 3,
 	maxExtent = 12,
 	radiusFudge = 1,
+	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
+	roomgen = browniangrid,
+
+	-- tags = {
+	-- 	a = {
+	-- 		minExtent = 3,
+	-- 		maxExtent = 4,
+	-- 		roomgen = roomgen.brownian
+	-- 	},
+	-- },
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
