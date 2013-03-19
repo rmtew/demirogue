@@ -28,8 +28,11 @@ local theme = themes.db.catacomb
 local viewport = Viewport.new(bounds)
 local minZoom = 1
 local maxZoom = 1
+local roomColours = nil
 
 local function _gen()
+	roomColours = nil
+
 	local level = Level.newThemed(theme)
 
 	local portal = AABB.new {
@@ -78,7 +81,8 @@ local drawVoronoi = true
 local drawHulls = false
 local drawEdges = false
 local drawCore = false
-local drawFringe = true
+local drawFringes = true
+local drawRims = true
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -122,16 +126,31 @@ function voronoimode.draw()
 
 		local fringe = {}
 
-		if drawFringe then
-			local walkable = {}
+		local walkable = {}
 
-			for vertex, _ in pairs(level.graph.vertices) do
-				if vertex.terrain.walkable then
-					walkable[vertex] = true
+		for vertex, _ in pairs(level.graph.vertices) do
+			if vertex.terrain.walkable then
+				walkable[vertex] = true
+			end
+		end
+
+		fringe = level.graph:multiSourceDistanceMap(walkable, 2)
+
+		for vertex, _ in pairs(level.graph.vertices) do
+			local poly = vertex.poly
+
+			if #poly < 3*2 then
+				printf('vertex with only %d components in the poly, need at least 6', #poly)
+			else
+				local walkable = vertex.terrain.walkable
+				local depth = fringe[vertex] or 0
+
+				if not walkable and (drawUnwalkables or depth > 0) then
+					local colour = vertex.terrain.colour
+					love.graphics.setColor(unpack(colour))
+					love.graphics.polygon('fill', poly)
 				end
 			end
-
-			fringe = level.graph:multiSourceDistanceMap(walkable, 2)
 		end
 
 		for vertex, _ in pairs(level.graph.vertices) do
@@ -141,13 +160,64 @@ function voronoimode.draw()
 				printf('vertex with only %d components in the poly, need at least 6', #poly)
 			else
 				local colour = vertex.terrain.colour
+				local walkable = vertex.terrain.walkable
 
-				if vertex.terrain.walkable or drawUnwalkables or fringe[vertex] then
+				if walkable then
 					love.graphics.setColor(unpack(colour))
 					love.graphics.polygon('fill', poly)
 
-					love.graphics.setColor(0, 0, 0, 255)
-					love.graphics.polygon('line', poly)
+					if drawRims then
+						love.graphics.setColor(0, 0, 0, 255)
+						love.graphics.polygon('line', poly)
+					end
+				end
+			end
+		end
+	end
+
+	if drawFringes then
+		if not roomColours then
+			local colours = {
+				{ 255, 0, 0, 255 },
+				{ 0, 255, 0, 255 },
+				{ 0, 0, 255, 255 },
+				{ 255, 255, 0, 255 },
+				{ 255, 0, 255, 255 },
+				{ 0, 255, 255, 255 },
+			}
+
+			roomColours = {}
+
+			for room, fringe in pairs(level.fringes) do
+				local colour = colours[math.random(1, #colours)]
+				roomColours[room] = colour
+
+				local r = math.random()
+
+				if r < 1/3 then
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.tree
+					end
+				elseif r < 2/3 then
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.water
+					end
+				else
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.lava
+					end
+				end
+			end
+		end
+
+		local maxdepth = math.round(time) % 6
+
+		for room, fringe in pairs(level.fringes) do
+			local colour = roomColours[room]
+			love.graphics.setColor(unpack(colour))
+			for vertex, depth in pairs(fringe) do
+				if depth <= maxdepth then
+					love.graphics.polygon('line', vertex.poly)
 				end
 			end
 		end
@@ -184,7 +254,7 @@ function voronoimode.draw()
 		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
 		
 		for edge, endverts in pairs(level.graph.edges) do
-			if endverts[1].terrain.walkable and not endverts[2].terrain.walkable then
+			if endverts[1].terrain.walkable and endverts[2].terrain.walkable then
 				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 			end
 		end
@@ -257,10 +327,11 @@ function voronoimode.draw()
 		numPoints = numPoints + #room.points
 	end
 
-	shadowf(10, 10, 'fps:%.2f <%s> #p:%d',
+	shadowf(10, 10, 'fps:%.2f <%s> %d/%d',
 		love.timer.getFPS(),
 		theme.name,
-		numPoints)
+		numPoints,
+		table.count(level.graph.vertices))
 end
 
 function voronoimode.mousepressed( x, y, button )
@@ -304,9 +375,9 @@ function voronoimode.keypressed( key )
 	elseif key == 'p' then
 		drawPoints = not drawPoints
 	elseif key == 'f' then
-		drawFringe = not drawFringe
+		drawFringes = not drawFringes
 	elseif key == 'r' then
-		viewport.portal = AABB.new(viewport.bounds)
+		drawRims = not drawRims
 	elseif key == ' ' then
 		level = _gen()
 	elseif key == 'left' then

@@ -21,6 +21,21 @@ terrains.wall = {
 	colour = { 64, 64, 64, 255 },	
 }
 
+terrains.tree = {
+	walkable = false,
+	colour = { 72, 163, 103, 255 },
+}
+
+terrains.water = {
+	walkable = false,
+	colour = { 0, 121, 194, 255 }
+}
+
+terrains.lava = {
+	walkable = false,
+	colour = { 255.5, 149, 0, 255 }
+}
+
 for name, params in pairs(terrains) do
 	params.name = name
 end

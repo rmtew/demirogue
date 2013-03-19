@@ -436,6 +436,51 @@ function Level.newThemed( theme )
 		corridors = _aStarCorridors(relaxed, graph, theme.margin)
 	end
 
+	local locales = {}
+
+	for _, room in ipairs(rooms) do
+		local set = {}
+		for _, point in pairs(room.points) do
+			set[point] = true
+		end
+
+		local maxdepth = 5
+		local locale = graph:multiSourceDistanceMap(set, maxdepth)
+
+		for vertex, depth in pairs(locale) do
+			if depth == 0 or vertex.terrain.walkable then
+				locale[vertex] = nil
+			end
+		end
+
+		locales[room] = locale
+	end
+
+	local fringes = {}
+
+	for vertex, _ in pairs(graph.vertices) do
+		local distance = math.huge
+		local nearest = nil
+
+		for room, locale in pairs(locales) do
+			local d = locale[vertex]
+			if d and d < distance then
+				distance = d
+				nearest = room
+			end
+		end
+
+		if nearest then
+			local fringe = fringes[nearest]
+
+			if fringe then
+				fringe[vertex] = distance
+			else
+				fringes[nearest] = { [vertex] = distance }
+			end
+		end
+	end
+
 	-- TEST: to save trying to write straight skeleton generating code.
 	-- RESULT: it works but is quite slow and only works for single cells.
 	local offsetStart = love.timer.getMicroTime()
@@ -513,6 +558,7 @@ function Level.newThemed( theme )
 		diagram = diagram,
 		graph = graph,
 		cores = cores,
+		fringes = fringes,
 	}
 
 	setmetatable(result, Level)
