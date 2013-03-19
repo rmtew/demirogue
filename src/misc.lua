@@ -56,6 +56,14 @@ function table.count( tbl )
 	return result
 end
 
+function table.append( tbl1, tbl2 )
+	for i = 1, #tbl2 do
+		tbl1[#tbl1+1] = tbl2[i]
+	end
+
+	return tbl1
+end
+
 function table.random( tbl )
 	local count = table.count(tbl)
 
@@ -85,6 +93,16 @@ function table.reverse( tbl )
 	end
 
 	return tbl
+end
+
+function table.inverse( tbl )
+	local result = {}
+
+	for k, v in pairs(tbl) do
+		result[v] = k
+	end
+
+	return result
 end
 
 function table.collect( tbl, func )

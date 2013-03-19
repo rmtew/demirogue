@@ -34,6 +34,8 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	assert(pattern:isConnectedWithEdgeFilter(_edgeFilter), 'pattern is not connected')
 	assert(substitute:isConnectedWithEdgeFilter(_edgeFilter), 'substitute is not connected')
 
+	local negated = false
+
 	-- Check that the pattern and substitute graphs have tags.
 	for vertex, _ in pairs(pattern.vertices) do
 		assert(vertex.tags, 'no tags for pattern vertex')
@@ -41,6 +43,18 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		assert(vertex[1] == vertex[1], 'pattern vertex X value is NaN')
 		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'pattern vertex has no Y value')
 		assert(vertex[2] == vertex[2], 'pattern vertex Y value is NaN')
+
+		local numPositive = 0
+
+		for tag, cond in pairs(vertex.tags) do
+			if cond then
+				numPositive = numPositive + 1
+			else
+				negated = true
+			end
+		end
+
+		assert(numPositive > 0, 'need one or more positive tags for a pattern vertex')
 	end
 
 	local tags = {}
@@ -173,6 +187,7 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 		substitute = substitute,
 		map = map,
 		tags = tags,
+		negated = negated,
 		vertexDelta = vertexDelta,
 		valenceDeltas = valenceDeltas,
 		start = start,
@@ -230,6 +245,9 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 	-- - If the valence of a vertex gets too high the graph drawing will create
 	--   a lot of intersecting edges. So we have a maxValence parameter and
 	--   check to see if it would be exceeded by the application of the rule.
+	--
+	-- - Check that negated neighbours are not present. A negated neighbour is
+	--   a tag in the pattern tag set with a false value.
 	--
 	-- - TODO: need to add blocked neighbours checking.
 	if success then
@@ -307,6 +325,37 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 				if outputValence > maxValence then
 					numValenceFails = numValenceFails + 1
 					success = false
+				end
+			end
+
+			-- Check that no negated neightbours exist.
+			if success and self.negated then
+				local inverseMatch = table.inverse(match)
+
+				for patternVertex, _ in pairs(self.pattern.vertices) do
+					for tag, cond in pairs(patternVertex.tags) do
+						if not cond then
+							local graphVertex = match[patternVertex]
+							local graphPeers = graph.vertices[graphVertex]
+
+							for graphPeer, _ in pairs(graphPeers) do
+								-- The negated tag only applies to no-matched
+								-- graph vertices.
+								if not inverseMatch[graphPeer] and graphPeer.tag == tag then
+									success = false
+									break
+								end
+							end
+						end
+
+						if not success then
+							break
+						end
+					end
+
+					if not success then
+						break
+					end
 				end
 			end
 
@@ -516,25 +565,31 @@ function GraphGrammar.Rule:replace( graph, match, params )
 					local x41, y41 = graphOrigin[1], graphOrigin[2]
 					local x42, y42 = coord[1], coord[2]
 
-					while not gProgress do
-						love.graphics.setLineWidth(5)
-						
-						love.graphics.setColor(255, 0, 255, 255)
-						love.graphics.line(x11, y11, x12, y12)
-						
-						love.graphics.setLineWidth(3)
-						
-						love.graphics.setColor(255, 0, 0, 255)
-						love.graphics.line(x21, y21, x22, y22)
-						
-						love.graphics.setColor(0, 0, 255, 255)
-						love.graphics.line(x31, y31, x32, y32)
+					local lines = {
+						{ x11, y11 },
+						{ x12, y12 },
+						{ x21, y21 },
+						{ x22, y22 },
+						{ x31, y31 },
+						{ x32, y32 },
+						{ x11, y41 },
+						{ x42, y42 },
+					}
 
-						love.graphics.setColor(255, 255, 255, 255)
-						love.graphics.line(x41, y41, x42, y42)
+					local dummy = next(graph.vertices)
+
+					if dummy then
+						dummy.lines = lines
+					end
+
+					while not gProgress do
 						coroutine.yield(graph)
 					end
 					gProgress = false
+					
+					if dummy then
+						dummy.lines = nil
+					end
 				end
 
 				-- -- NaN checks.
@@ -611,9 +666,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 
 	if params.replaceYield then
 		while not gProgress do
-			love.graphics.setLine(3, 'rough')
-			love.graphics.setColor(0, 0, 255, 255)
-			love.graphics.rectangle('line', matchAABB.xmin, matchAABB.ymin, matchAABB:width(), matchAABB:height())
 			coroutine.yield(graph)
 		end
 		gProgress = false

@@ -190,15 +190,22 @@ local showLengthFactors = false
 local function _tags( vertex )
 	assert(vertex.side == 'left')
 
-	local parts = {}
+	local posParts = {}
+	local negParts = {}
 
-	for tag, _ in pairs(vertex.tags) do
-		parts[#parts+1] = tag
+	for tag, cond in pairs(vertex.tags) do
+		if cond then
+			posParts[#posParts+1] = tag
+		else
+			negParts[#negParts+1] = '!' .. tag
+		end
 	end
 
-	table.sort(parts)
+	table.sort(posParts)
+	table.sort(negParts)
+	table.append(posParts, negParts)
 
-	return table.concat(parts, ',')
+	return table.concat(posParts, ',')
 end
 
 function graphmode.draw()
@@ -612,22 +619,24 @@ function graphmode.keypressed( key )
 			end
 		end
 	elseif key:find('^([a-z])$') then
-		print('tag', key)
+		local append = love.keyboard.isDown('lshift', 'rshift')
+		local negate = love.keyboard.isDown('lctrl', 'rctrl')
+		
+		printf('tag %s %s%s', key, append and '+' or '', negate and '!' or '')
+
 		if state.selection and state.selection.type == 'vertex' then
 			local vertex = state.selection.vertex
 
 			if vertex.side == 'right' then
 				vertex.tag = key
 			else
-				local append = love.keyboard.isDown('lshift', 'rshift')
-
 				-- It makes no sense to have start vertices be in a tag set.
 				if append and key ~= 's' then
-					vertex.tags[key] = true
+					vertex.tags[key] = not negate
 				else
-					vertex.tags = { [key] = true }
+					vertex.tags = { [key] = not negate }
 					-- No point setting the right hand vertex to 's'.
-					if tag ~= 's' then
+					if key ~= 's' and not negate then
 						local level = state.stack[state.index]
 						level.map[vertex].tag = key
 					end

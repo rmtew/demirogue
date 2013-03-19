@@ -466,6 +466,10 @@ local base = {
 	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
 	roomgen = brownianhexgrid,
 
+	-- Ideas for assigning roomgen params to tags.
+
+	-- Simplest: each tag gets a sets of params.
+	--
 	-- tags = {
 	-- 	a = {
 	-- 		minExtent = 3,
@@ -473,6 +477,14 @@ local base = {
 	-- 		roomgen = roomgen.brownian
 	-- 	},
 	-- },
+
+	-- Assign tags to sets, then give params to sets.
+	--
+	-- sets = {
+	--     abyss = { 'a' },
+	--     peripheral = { 'p' },
+	--     crypt = { 'c' },
+    -- }
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
