@@ -151,6 +151,80 @@ function roomgen.browniangrid( bbox, margin )
 	return points
 end
 
+function roomgen.brownianhexgrid( bbox, margin )
+	local points = {}
+
+	local w = bbox:width()
+	local h = bbox:height()
+
+	local ymargin = math.sqrt(0.75) * margin
+
+	local numx, gapx = math.modf(w / margin)
+	local numy, gapy = math.modf(h / ymargin)
+	numx, numy = numx + 1, numy + 1
+	gapx, gapy = gapx * margin, gapy * margin
+
+	local mask = _mask(numx, numy, false)
+
+	local centrex, centrey = math.floor(0.5 + (numx * 0.5)), math.floor(0.5 + (numy * 0.5))
+	local x, y = centrex, centrey
+	local walked = 0
+	local maxattempts = 2 * numx * numy
+
+	local dirs = {
+		{  0, -1 },
+		{  0,  1 },
+		{ -1,  0 },
+		{  1,  0 },
+	}
+
+	local xmin, xmax = numx, 1
+	local ymin, ymax = numy, 1
+
+	repeat
+		mask.set(x, y, true)
+		local dir = dirs[math.random(1, #dirs)]
+		x = x + dir[1]
+		y = y + dir[2]
+		if (x < 1 or numx < x) or (y < 1 or numy < y) then
+			if walked > maxattempts * 0.25 and math.random(1, 3) == 1 then
+				break
+			else
+				-- break
+				x = centrex
+				y = centrey
+			end
+		end
+		xmin = math.min(xmin, x)
+		xmax = math.max(xmax, x)
+		ymin = math.min(ymin, y)
+		ymax = math.max(ymax, y)
+		walked = walked + 1
+	until walked > maxattempts 
+
+	-- mask.print()
+	-- print(x, y, numx, numy)
+
+	local xmin = bbox.xmin + (gapx * 0.5)
+	local yoffset = bbox.ymin + (gapy * 0.5)
+
+	for y = 0, numy-1 do
+		local even = (y % 2) == 0
+		local xoffset = xmin + (even and 0.5 or 0) * margin
+
+		for x = 0, numx-(even and 2 or 1) do
+			if mask.get(x+1, y+1) then
+				local x = xoffset + (x * margin)
+				local y = yoffset + (y * ymargin)
+
+				points[#points+1] = { x, y }
+			end
+		end
+	end
+
+	return points
+end
+
 function roomgen.cellulargrid( bbox, margin )
 
 	local w = bbox:width()

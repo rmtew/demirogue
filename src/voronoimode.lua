@@ -71,9 +71,8 @@ function voronoimode.update()
 	viewport:update()
 end
 
-local drawPoints = true
+local drawPoints = false
 local drawRoomAABBs = false
-local drawQuadtree = false
 local drawWalls = false
 local drawVoronoi = true
 local drawHulls = false
@@ -99,17 +98,13 @@ function voronoimode.draw()
 	love.graphics.push()	
 	
 	viewport:setup()
+	local zoom = viewport:getZoom()
+	local scaler = (zoom <  1) and 1/zoom or 1
 
 	love.graphics.setLineStyle('rough')
 
 	if drawVoronoi then
-		local linewidth = 2
-		-- love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
-		local zoom = viewport:getZoom()
-
-		if zoom < 1 then
-			linewidth = linewidth * (1/zoom)
-		end
+		local linewidth = 2 * scaler
 
 		love.graphics.setLine(linewidth, 'rough')
 
@@ -151,41 +146,8 @@ function voronoimode.draw()
 		end
 	end
 
-	if drawQuadtree then
-		local branch = { 0, 255, 255, 64 }
-		local leaf = { 255, 0, 255, 64 }
-
-		local function aux( node )
-			local style = 'line'
-			if node.leaf then
-				love.graphics.setColor(unpack(leaf))
-				
-				if not node.point then
-					style = 'fill'
-				end
-			else
-				love.graphics.setColor(unpack(branch))
-			end
-
-			local aabb = node.aabb
-			love.graphics.rectangle(style, aabb.xmin, aabb.ymin, aabb:width(), aabb:height())
-
-			if not node.leaf then
-				for i = 1, 4 do
-					local child = node[i]
-					aux(child)
-				end
-			end
-		end
-
-		local root = level.quadtree.root
-		if root then
-			aux(root)
-		end
-	end
-
 	if drawRoomAABBs then
-		love.graphics.setLineWidth(3)
+		love.graphics.setLineWidth(3 * scaler)
 		love.graphics.setColor(0, 255, 0, 255)
 
 		for index, room in ipairs(level.rooms) do
@@ -210,13 +172,21 @@ function voronoimode.draw()
 	end
 
 	if drawEdges then
-		love.graphics.setColor(0, 255, 0, 255)
-		local linewidth = 5
+		love.graphics.setColor(0, 0, 255, 255)
+		local linewidth = 3 * scaler
 		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
 		
 		for edge, endverts in pairs(level.graph.edges) do
 			if not endverts[1].wall and not endverts[2].wall then
 				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			end
+		end
+
+		local radius = 4 * scaler
+
+		for vertex, _ in pairs(level.graph.vertices) do
+			if not vertex.wall then
+				love.graphics.circle('fill', vertex[1], vertex[2], radius)
 			end
 		end
 	end
@@ -227,7 +197,7 @@ function voronoimode.draw()
 		for index, room in ipairs(level.rooms) do
 			for _, point in ipairs(room.points) do
 				local radius = 2
-				love.graphics.circle('fill', point[1], point[2], radius)	
+				love.graphics.circle('fill', point[1], point[2], radius)
 			end
 		end
 
@@ -287,6 +257,11 @@ function voronoimode.draw()
 end
 
 function voronoimode.mousepressed( x, y, button )
+	local screen = Vector.new { x, y }
+	local world = viewport:screenToWorld(screen)
+
+	viewport:setCentre(world)
+
 	if button == 'wu' then
 		local zoom = viewport:getZoom()
 
@@ -301,13 +276,6 @@ function voronoimode.mousepressed( x, y, button )
 			viewport:setZoom(math.max(minZoom, zoom * 0.75))
 			printf('zoom:%.2f -> %.2f', zoom, viewport:getZoom())
 		end
-	elseif button == 'l' then
-		local screen = Vector.new { x, y }
-		local world = viewport:screenToWorld(screen)
-
-		print(screen, world)
-
-		viewport:setCentre(world)
 	end
 end
 
@@ -318,8 +286,6 @@ end
 function voronoimode.keypressed( key )
 	if key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
-	elseif key == 'q' then
-		drawQuadtree = not drawQuadtree
 	elseif key == 'w' then
 		drawWalls = not drawWalls
 	elseif key == 'v' then
@@ -328,20 +294,12 @@ function voronoimode.keypressed( key )
 		drawHulls = not drawHulls
 	elseif key == 'e' then
 		drawEdges = not drawEdges
+	elseif key == 'p' then
+		drawPoints = not drawPoints
 	elseif key == 'r' then
 		viewport.portal = AABB.new(viewport.bounds)
 	elseif key == ' ' then
 		level = _gen()
-	-- elseif key == 'right' then
-	-- 	xform.origin[1] = xform.origin[1] + (100 * xform.scale)
-	-- elseif key == 'left' then
-	-- 	xform.origin[1] = xform.origin[1] - (100 * xform.scale)
-	-- elseif key == 'up' then
-	-- 	xform.origin[2] = xform.origin[2] - (100 * xform.scale)
-	-- elseif key == 'down' then
-	-- 	xform.origin[2] = xform.origin[2] + (100 * xform.scale)
-	elseif key == 'p' then
-		local paths = level.graph:allPairsShortestPaths()
 	elseif key == 'left' then
 		theme = theme.prevTheme
 		level = _gen()

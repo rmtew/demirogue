@@ -9,6 +9,72 @@ themes = {
 	sortedDB = {},
 }
 
+local _emptyRuleset = [[
+return {
+    {
+	    leftGraph = {
+	        vertices = {},
+	        edges = {},
+	    },
+	    rightGraph = {
+	        vertices = {},
+	        edges = {},
+	    },
+	    map = {},
+	},
+}
+]]
+
+function themes.load()
+	if not love.filesystem.isDirectory('rulesets') then
+		love.filesystem.mkdir('rulesets')
+	end
+
+	for name, theme in pairs(themes.db) do
+		-- Now we find the ruleset data.
+		local userRulesetPath = string.format("rulesets/%s", name)
+		local packageRulesetPath = string.format("resources/rulesets/%s", name)
+		theme.path = userRulesetPath
+
+		local readPath = userRulesetPath
+		if not love.filesystem.isFile(readPath) then
+			printf('[themes] %s is not in user storage', name)
+			readPath = packageRulesetPath
+		end
+
+		if love.filesystem.isFile(readPath) then
+			local file = love.filesystem.newFile(readPath)
+			file:open('r')
+			local code = file:read()
+			file:close()
+
+			local result, msg = loadstring(code)
+
+			if result then
+				theme.ruleset = result
+
+				-- Make sure there's a copy in the user data.
+				if readPath ~= userRulesetPath then
+					local stack = themes.loadRuleset(theme)
+					themes.saveRuleset(theme, stack)
+				end			
+			end
+		else
+			printf('[themes] %s is not in package storage', name)
+		end
+
+		-- If there is no ruleset we need an empty one.
+		if not theme.ruleset then
+			printf('[themes] %s is empty', name)
+			theme.ruleset = loadstring(_emptyRuleset)
+
+			local stack = themes.loadRuleset(theme)
+
+			themes.saveRuleset(theme, stack)
+		end
+	end
+end
+
 function themes.saveRuleset( theme, stack )
 	-- Make a nice to save version of the state.
 
@@ -102,7 +168,8 @@ function themes.saveRuleset( theme, stack )
 	theme.ruleset = ruleset
 
 	local file = love.filesystem.newFile(theme.path)
-	file:open('w')
+	local success = file:open('w')
+	assertf(success, 'could not open %s', theme.path)
 	file:write(code)
 	file:close()
 end
@@ -290,22 +357,6 @@ local function checkf( cond, ... )
 	end
 end
 
-local _emptyRuleset = [[
-return {
-    {
-	    leftGraph = {
-	        vertices = {},
-	        edges = {},
-	    },
-	    rightGraph = {
-	        vertices = {},
-	        edges = {},
-	    },
-	    map = {},
-	},
-}
-]]
-
 local function Theme( params )
 	local template = params.template
 
@@ -348,41 +399,6 @@ local function Theme( params )
 	checkf(_isPosNum(params.relaxMaxDelta), 'relaxMaxDelta should be > 0')
 	checkf(_isPosNum(params.relaxConvergenceDistance), 'relaxConvergenceDistance should be > 0')
 
-	-- Now we find the ruleset data.
-	local userRulesetPath = string.format("rulesets/%s", params.name)
-	local packageRulesetPath = string.format("src/resources/rulesets/%s", params.name)
-	params.path = userRulesetPath
-
-	local readPath = userRulesetPath
-	if not love.filesystem.isFile(readPath) then
-		readPath = packageRulesetPath
-	end
-
-	if love.filesystem.isFile(readPath) then
-		local file = love.filesystem.newFile(readPath)
-		file:open('r')
-		local code = file:read()
-		file:close()
-
-		local result, msg = loadstring(code)
-
-		if result then
-			params.ruleset = result
-
-			-- Make sure there's a copy in the user data.
-			if readPath ~= userRulesetPath then
-				themes.saveRuleset(params, result())
-			end			
-		end
-	end
-
-	-- If there is no ruleset we need an empty one.
-	if not params.ruleset then
-		params.ruleset = loadstring(_emptyRuleset)
-
-		themes.saveRuleset(params, params.ruleset())
-	end
-
 	themes.db[params.name] = params
 	local sortedDB = themes.sortedDB
 	sortedDB[#sortedDB+1] = params
@@ -409,6 +425,7 @@ end
 local grid = roomgen.grid
 local randgrid = roomgen.randgrid
 local browniangrid = roomgen.browniangrid
+local brownianhexgrid = roomgen.brownianhexgrid
 local cellulargrid = roomgen.cellulargrid
 local hexgrid = roomgen.hexgrid
 
@@ -447,7 +464,7 @@ local base = {
 	maxExtent = 12,
 	radiusFudge = 1,
 	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
-	roomgen = browniangrid,
+	roomgen = brownianhexgrid,
 
 	-- tags = {
 	-- 	a = {

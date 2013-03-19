@@ -1,6 +1,8 @@
 -- All other lua files assume this is loaded before they are.
 require 'misc'
 
+require 'themes'
+
 -- require 'gamemode'
 require 'voronoimode'
 require 'graphmode'
@@ -36,6 +38,8 @@ function love.load()
 	gFont30 = love.graphics.newFont('resources/inconsolata.otf', 30)
 	gFont15 = love.graphics.newFont('resources/inconsolata.otf', 15)
 	love.graphics.setFont(gFont30)
+
+	themes.load()
 end
 
 function love.update()
