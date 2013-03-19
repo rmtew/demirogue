@@ -73,11 +73,12 @@ end
 
 local drawPoints = false
 local drawRoomAABBs = false
-local drawWalls = false
+local drawUnwalkables = false
 local drawVoronoi = true
 local drawHulls = false
 local drawEdges = false
 local drawCore = false
+local drawFringe = true
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -119,23 +120,29 @@ function voronoimode.draw()
 			{ 255, 255, 255, 255 },
 		}
 
+		local fringe = {}
+
+		if drawFringe then
+			local walkable = {}
+
+			for vertex, _ in pairs(level.graph.vertices) do
+				if vertex.terrain.walkable then
+					walkable[vertex] = true
+				end
+			end
+
+			fringe = level.graph:multiSourceDistanceMap(walkable, 2)
+		end
+
 		for vertex, _ in pairs(level.graph.vertices) do
 			local poly = vertex.poly
 
 			if #poly < 3*2 then
 				printf('vertex with only %d components in the poly, need at least 6', #poly)
 			else
-				local colour = { 64, 64, 64, 255 }
+				local colour = vertex.terrain.colour
 
-				if not vertex.wall and not vertex.corridor then
-					-- colour = colours[1 + (id % #colours)]
-					colour = { 184, 118, 61, 255 }
-					-- colour = { 0, 255, 255, 255 }
-				elseif vertex.corridor then
-					colour = { 0, 128, 128, 255 }
-				end
-
-				if not vertex.wall or drawWalls then
+				if vertex.terrain.walkable or drawUnwalkables or fringe[vertex] then
 					love.graphics.setColor(unpack(colour))
 					love.graphics.polygon('fill', poly)
 
@@ -177,7 +184,7 @@ function voronoimode.draw()
 		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
 		
 		for edge, endverts in pairs(level.graph.edges) do
-			if not endverts[1].wall and not endverts[2].wall then
+			if endverts[1].terrain.walkable and not endverts[2].terrain.walkable then
 				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 			end
 		end
@@ -185,7 +192,7 @@ function voronoimode.draw()
 		local radius = 4 * scaler
 
 		for vertex, _ in pairs(level.graph.vertices) do
-			if not vertex.wall then
+			if vertex.terrain.walkable then
 				love.graphics.circle('fill', vertex[1], vertex[2], radius)
 			end
 		end
@@ -208,7 +215,7 @@ function voronoimode.draw()
 			love.graphics.circle('fill', point[1], point[2], radius)
 		end
 
-		if drawWalls then
+		if drawUnwalkables then
 			love.graphics.setColor(128, 128 , 128, 255)
 
 			for index, point in ipairs(level.walls) do
@@ -287,7 +294,7 @@ function voronoimode.keypressed( key )
 	if key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
 	elseif key == 'w' then
-		drawWalls = not drawWalls
+		drawUnwalkables = not drawUnwalkables
 	elseif key == 'v' then
 		drawVoronoi = not drawVoronoi
 	elseif key == 'h' then
@@ -296,6 +303,8 @@ function voronoimode.keypressed( key )
 		drawEdges = not drawEdges
 	elseif key == 'p' then
 		drawPoints = not drawPoints
+	elseif key == 'f' then
+		drawFringe = not drawFringe
 	elseif key == 'r' then
 		viewport.portal = AABB.new(viewport.bounds)
 	elseif key == ' ' then

@@ -283,3 +283,5 @@ Some unresolved issues:
 
 - So there's an issue with the relax stage of the force drawing. It leaves
   vertices spaced too far out.
+
+  Managed to control is a bit better by changing relax parameters.

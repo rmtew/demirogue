@@ -21,6 +21,11 @@ function math.logb( x, base )
 	return math.log(x) / math.log(base)
 end
 
+-- Not infinite or a NaN
+function math.finite( value )
+	return math.abs(value) ~= math.huge and value == value
+end
+
 function push( tbl, value )
 	tbl[#tbl+1] = value
 end

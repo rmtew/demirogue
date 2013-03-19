@@ -308,6 +308,43 @@ function Graph:distanceMap( source, maxdepth )
 end
 
 -- TODO: If we could avoid the allocations of all but the result that would be cool
+function Graph:multiSourceDistanceMap( sources, maxdepth )
+	maxdepth = maxdepth or math.huge
+
+	local result = {}
+	local frontier = {}
+
+	local vertices = self.vertices
+
+	for vertex, _ in pairs(sources) do
+		assert(vertices[vertex])
+
+		result[vertex] = 0
+		frontier[vertex] = true
+	end
+
+	local depth = 0
+
+	while depth < maxdepth and next(frontier) do
+		depth = depth + 1
+		local newFrontier = {}
+
+		for vertex, _ in pairs(frontier) do
+			for peer, _ in pairs(vertices[vertex]) do
+				if not frontier[peer] and not result[peer] then
+					result[peer] = depth
+					newFrontier[peer] = true
+				end
+			end
+		end
+
+		frontier = newFrontier
+	end
+
+	return result
+end
+
+-- TODO: If we could avoid the allocations of all but the result that would be cool
 function Graph:vertexAndEdgeFilteredDistanceMap( source, vertexFilter, edgeFilter )
 	maxdepth = maxdepth or math.huge
 

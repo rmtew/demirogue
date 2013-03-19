@@ -854,19 +854,22 @@ function graph2D.assignVertexRadiusAndRelax(
 		local hull
 		local centroid
 
-		-- TODO: this loop is to avoid NaNs, not the most elegant solution.
+		-- This is to avoid rooms without enough verts or invalid centroids.
 		repeat
 			points = roomgen(aabb, margin)
-			assert(#points > 2)
-			hull = geometry.convexHull(points)
-			-- TODO: this can return NaNs every now and again. Possibly when
-			--       the points are colinear.
-			centroid = geometry.convexHullCentroid(hull)
-		until centroid[1] == centroid[1] and centroid[2] == centroid[2]
+			local enoughPoints = #points > 2
+			local finiteCentroid = false
+			
+			if enoughPoints then			
+				hull = geometry.convexHull(points)
+				-- NOTE: This returns NaNs and infinities every now and again.
+				--       Probably because of colinear points.
+				centroid = geometry.convexHullCentroid(hull)
 
-		-- Check for NaNs.
-		assert(centroid[1] == centroid[1])
-		assert(centroid[2] == centroid[2])
+				-- NaN check.
+				finiteCentroid = math.finite(centroid[1]) and math.finite(centroid[2])
+			end
+		until enoughPoints and finiteCentroid
 
 		local furthest, distance =  geometry.furthestPointFrom(centroid, hull)
 		local radius = distance + (radiusFudge * margin)
@@ -874,6 +877,7 @@ function graph2D.assignVertexRadiusAndRelax(
 		-- This moves the hull as well becuase the points aren't copied by
 		-- geometry.convexHull().
 		for _, point in ipairs(points) do
+			assert(point.terrain)
 			point[1] = point[1] - centroid[1]
 			point[2] = point[2] - centroid[2]
 		end

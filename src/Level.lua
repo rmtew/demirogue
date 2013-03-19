@@ -5,6 +5,7 @@ require 'graph2D'
 require 'Quadtree'
 require 'Voronoi'
 require 'geometry'
+require 'terrains'
 
 local V = Vector.new
 local VN = Vector.normal
@@ -19,8 +20,7 @@ Level.__index = Level
 -- vertex = {
 --     x,
 --     y,
---     corridor = true | nil,
---     wall = true | nil,
+--     terrain = terrains.<name>
 -- }
 --
 -- TODO: sort out room structure as well. Below is the current setup.
@@ -32,56 +32,6 @@ Level.__index = Level
 --     hull   = clockwise list of Vectors representing the convex hull of the vertices.
 -- }
 --
-
--- Uses a relative neighbourhood graph (RNG) to connect the rooms.
--- TODO: The results are a little too connected. Play with removing edges.
-local function _connect( rooms, margin )
-	local centres = {}
-
-	for index, room in ipairs(rooms) do
-		local centre = room.aabb:centre()
-		centre.room = room
-		centres[index] = centre
-	end
-
-	-- Relative Neighbourhood Graph ensures no rooms are left unconnected and
-	-- is also a bit sparse so we don;t get too much connectivity.
-	local skele = graphgen.rng(centres)
-
-	-- Now create corridor the points along the edges.
-	local points = {}
-
-	for edge, verts in pairs(skele.edges) do
-		local room1, room2 = verts[1].room, verts[2].room
-
-		-- Choose the nearest two points of the two rooms to connect.
-		local distance, near1, near2 = Vector.nearest(room1.points, room2.points)
-
-		-- This should always succeed.
-		if near1 and near2 then
-			-- We already have the end points of the corridor so we only create
-			-- the internal points.
-			-- TODO: if numPoints < 1 then something has gone wrong, maybe
-			--       assert on it. Need to ensure the layoutgen functions
-			--       always leave at least 2*margin distance between rooms.
-			local numPoints = math.round(distance / margin) - 1
-			local segLength = distance / (numPoints + 1)
-			local normal = Vector.to(near1, near2):normalise()
-
-			for i = 1, numPoints do
-				local point = {
-					near1[1] + (i * segLength * normal[1]),
-					near1[2] + (i * segLength * normal[2]),
-					corridor = true,
-				}
-
-				points[#points+1] = point
-			end			
-		end
-	end
-
-	return points
-end
 
 -- TODO: this can generate points that are too close together so corridors end
 --       up merging. Might need to use path finding code instead...
@@ -111,7 +61,7 @@ local function _corridors( graph, margin )
 					local point = {
 						near1[1] + (i * segLength * normal[1]),
 						near1[2] + (i * segLength * normal[2]),
-						corridor = true,
+						terrain = terrains.corridor,
 					}
 
 					points[#points+1] = point
@@ -143,7 +93,10 @@ local function _aStarCorridors( roomGraph, graph, margin )
 						local length = graph.vertices[fromVertex][toVertex].length
 						print('edgeLength', length, margin * 0.5)
 						if length > margin * 0.5 then
-							return toVertex.wall or toVertex == near2
+							local isWall = not toVertex.terrain.walkable
+							local isTarget = toVertex == near2
+
+							return isWall or isTarget
 						end
 
 						return false
@@ -154,9 +107,8 @@ local function _aStarCorridors( roomGraph, graph, margin )
 				printf('[path] #%d', #path)
 
 				for _, vertex in ipairs(path) do
-					if vertex.wall then
-						vertex.wall = nil
-						vertex.corridor = true
+					if vertex.terrain == terrains.wall then
+						vertex.terrain = terrains.corridor
 					end
 				end
 			end
@@ -197,6 +149,8 @@ local function _enclose( points, aabb, margin )
 			grid.set(x, y, { point })
 		end
 	end
+
+	local wall = terrains.wall
 	
 	local result = {}
 
@@ -210,8 +164,8 @@ local function _enclose( points, aabb, margin )
 
 		local mx = aabb.xmin + ((x-1) * margin) + (margin * 0.5)
 
-		local topWall = { mx, aabb.ymin + (margin * 0.5), wall = true }
-		local bottomWall = { mx, aabb.ymax - (margin * 0.5), wall = true }
+		local topWall = { mx, aabb.ymin + (margin * 0.5), terrain = wall }
+		local bottomWall = { mx, aabb.ymax - (margin * 0.5), terrain = wall }
 
 		grid.set(x, 1, { topWall })
 		grid.set(x, height, { bottomWall })
@@ -229,8 +183,8 @@ local function _enclose( points, aabb, margin )
 
 		local my = aabb.ymin + ((y-1) * margin) + (margin * 0.5)
 
-		local leftWall = { aabb.xmin + (margin * 0.5), my, wall = true }
-		local rightWall = { aabb.xmax - (margin * 0.5), my, wall = true }
+		local leftWall = { aabb.xmin + (margin * 0.5), my, terrain = wall }
+		local rightWall = { aabb.xmax - (margin * 0.5), my, terrain = wall }
 
 		grid.set(1, y, { leftWall })
 		grid.set(width, y, { rightWall })
@@ -261,7 +215,7 @@ local function _enclose( points, aabb, margin )
 				local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
 				local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-				local candidate = { rx, ry, wall = true }
+				local candidate = { rx, ry, terrain = wall }
 				local empty = {}
 				local accepted = true
 
@@ -352,9 +306,11 @@ function Level.newThemed( theme )
 		local points = {}
 
 		for index, relPoint in ipairs(vertex.points) do
-			points[index] = Vector.new {
+			assert(relPoint.terrain)
+			points[index] = {
 				vertex[1] + relPoint[1],
 				vertex[2] + relPoint[2],
+				terrain = relPoint.terrain,
 			}
 		end
 
@@ -396,6 +352,7 @@ function Level.newThemed( theme )
 		local points = rooms[index].points
 
 		for j = 1, #points do
+			assert(points[j].terrain)
 			all[#all+1] = points[j]
 		end
 	end
@@ -419,7 +376,7 @@ function Level.newThemed( theme )
 		local site = {
 			x = point[1],
 			y = point[2],
-			point = point,
+			vertex = point,
 			index = index,
 		}
 
@@ -486,9 +443,10 @@ function Level.newThemed( theme )
 	local offset = theme.margin * 0.2
 	local cores = {}
 	local voronoi = Voronoi:new()
+	local wall = terrains.wall
 
 	for _, cell in ipairs(diagram.cells) do
-		if not cell.site.wall and false then
+		if cell.site.vertex.terrain.walkable and false then
 			local neighbours = cell:getNeighborIds()
 			local points = { { cell.site.x, cell.site.y } }
 

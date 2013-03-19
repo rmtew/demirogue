@@ -438,6 +438,22 @@ local function choice( tbl )
 		end
 end
 
+local function deck( tbl )
+	local index = #tbl + 1
+	return
+		function ( aabb, margin )
+			if index > #tbl then
+				table.shuffle(tbl)
+				index = 1
+			end
+
+			local gen = tbl[index]
+			index = index + 1
+
+			return gen(aabb, margin)
+		end
+end
+
 -------------------------------------------------------------------------------
 
 local base = {

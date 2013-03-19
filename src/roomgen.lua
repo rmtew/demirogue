@@ -8,6 +8,8 @@
 -- An array of points is the result.
 --
 
+require 'terrains'
+
 roomgen = {
 	grid = nil,
 }
@@ -54,6 +56,16 @@ local function _mask( width, height, default )
 	}
 end
 
+local function vertex( x, y, terrain )
+	terrain = terrain or terrains.floor
+
+	return {
+		x, y,
+		terrain = terrain,
+		poly = nil, -- This is set in Level.lua.
+	}
+end
+
 function roomgen.grid( bbox, margin )
 	local points = {}
 
@@ -73,7 +85,7 @@ function roomgen.grid( bbox, margin )
 			local x = xoffset + (x * margin)
 			local y = yoffset + (y * margin)
 
-			points[#points+1] = Vector.new { x, y }
+			points[#points+1] = vertex(x, y)
 		end
 	end
 
@@ -143,7 +155,7 @@ function roomgen.browniangrid( bbox, margin )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * margin)
 
-				points[#points+1] = Vector.new { x, y }
+				points[#points+1] = vertex(x, y)
 			end
 		end
 	end
@@ -217,7 +229,7 @@ function roomgen.brownianhexgrid( bbox, margin )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * ymargin)
 
-				points[#points+1] = { x, y }
+				points[#points+1] = vertex(x, y)
 			end
 		end
 	end
@@ -326,7 +338,7 @@ function roomgen.cellulargrid( bbox, margin )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * margin)
 
-				result[#result+1] = Vector.new { x, y }
+				result[#result+1] = vertex(x, y)
 			end
 		end
 	end
@@ -358,7 +370,7 @@ function roomgen.randgrid( bbox, margin )
 			local y = yoffset + (y * margin)
 
 			if math.random() > 0.33 then
-				result[#result+1] = Vector.new { x, y }
+				result[#result+1] = vertex(x, y)
 			end
 		end
 	end
@@ -390,7 +402,7 @@ function roomgen.hexgrid( bbox, margin )
 			local x = xoffset + (x * margin)
 			local y = yoffset + (y * ymargin)
 
-			result[#result+1] = { x, y }
+			result[#result+1] = vertex(x, y)
 		end
 	end
 
@@ -422,7 +434,7 @@ function roomgen.randhexgrid( bbox, margin )
 			local y = yoffset + (y * ymargin)
 
 			if math.random() > 0.33 then
-				result[#result+1] = Vector.new { x, y }
+				result[#result+1] = vertex(x, y)
 			end
 		end
 	end
@@ -436,7 +448,7 @@ local function _sanitise( bbox, margin, points )
 	local result = {}
 
 	for i, v in ipairs(points) do
-		result[i] = Vector.new(v)
+		result[i] = vertex(v[1], v[2], v.terrain)
 	end
 
 	local count = 0
@@ -487,10 +499,9 @@ function roomgen.random( bbox, margin )
 	local numpoints = 1.5 * ((w * h) / (margin * margin))
 
 	for i = 1, numpoints do
-		result[#result+1] = Vector.new {
+		result[#result+1] = vertex(
 			math.random(bbox.xmin, bbox.xmax),
-			math.random(bbox.ymin, bbox.ymax),
-		}
+			math.random(bbox.ymin, bbox.ymax))
 	end
 
 	result = _sanitise(bbox, margin, result)
@@ -533,7 +544,7 @@ function roomgen.enclose( aabb, margin )
 					local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
 					local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-					local candidate = { rx, ry }
+					local candidate = vertex(rx, ry)
 					local empty = {}
 					local accepted = true
 
