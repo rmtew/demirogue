@@ -443,6 +443,7 @@ function Level.newThemed( theme )
 	local locales = {}
 	local border = terrains.border
 	
+	-- No room, corridor or border vertex should be in a room's fringe.
 	local function vertexFilter( vertex )
 		return not skeleton[vertex] and vertex.terrain ~= border
 	end
@@ -453,6 +454,7 @@ function Level.newThemed( theme )
 			set[point] = true
 		end
 
+		-- TODO: this should be defined somewhere as a parameter...
 		local maxdepth = 5
 		local locale = graph:vertexFilteredMultiSourceDistanceMap(set, maxdepth, vertexFilter)
 
