@@ -285,3 +285,21 @@ Some unresolved issues:
   vertices spaced too far out.
 
   Managed to control is a bit better by changing relax parameters.
+
+
+
+Rule Constraints
+----------------
+
+- Min and max uses: would be easier to just do max uses because you can't
+  guarantee that all min uses will be possible beforehand.
+
+- Don't repeat: not the same as a max use of 1, it means don't use the rule
+  twice in a row.
+
+- Combined max usage: You may want only one of a set of rules applied.
+
+- Priorities: after all rules have been checked for other constraints use the
+  higest priority.
+
+- Passes: sets of rules to be applied in certain orders.

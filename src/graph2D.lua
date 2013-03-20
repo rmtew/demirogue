@@ -821,37 +821,17 @@ end
 
 -- TODO: needs a passed in function that generates AABBs for each vertex.
 -- TODO: circles aren't very flexible, maybe axis aligned elipses...
-function graph2D.assignVertexRadiusAndRelax(
-	graph,
+-- TODO: too many params, just use a theme...
+function graph2D.assignRoomsAndRelax( graph, theme, yield )
 
-	margin,
-	minExtent,
-	maxExtent,
-	radiusFudge,
-	roomgen,
-
-	tags,
-
-	-- The arguemnts below are the same as those to forceDraw() above.
-	springStrength,
-	edgeLength,
-	repulsion,
-	maxDelta,
-	convergenceDistance,
-	yield )
+	local margin = theme.margin
+	local radiusFudge = theme.radiusFudge
+	local tags = theme.tags
 
 	local preRoomSelfIntersect = graph2D.isSelfIntersecting(graph)
 
-	local defaultRoomParams = {
-		minExtent = minExtent,
-		maxExtent = maxExtent,
-		roomgen = roomgen,
-		terrain = terrains.floor,
-		surround = nil,
-	}
-
 	for vertex, _ in pairs(graph.vertices) do
-		local params = defaultRoomParams
+		local params = theme
 		
 		if tags then
 			params = tags[vertex.tag] or params
@@ -947,11 +927,11 @@ function graph2D.assignVertexRadiusAndRelax(
 	-- Use force drawing to relax the size of the graph.
 	graph2D.forceDraw(
 		graph,
-		springStrength,
-		edgeLength,
-		repulsion,
-		maxDelta,
-		convergenceDistance,
+		theme.relaxSpringStrength,
+		theme.relaxEdgeLength,
+		theme.relaxRepulsion,
+		theme.relaxMaxDelta,
+		theme.relaxConvergenceDistance,
 		yield)
 
 	-- Now we set all the vertices and points to integer coordinates.

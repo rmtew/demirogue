@@ -768,6 +768,17 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 	local rules = self.rules
 	local totalTime = 0
 
+	local stats = {}
+	-- Map of rule names to the number of times the rule has been applied.
+	local numUses = {}
+	-- Number of iterations until a rule can be used.
+	local countdowns = {}
+
+	for name, rule in pairs(rules) do
+		numUses[name] = 0
+		countdowns[name] = 0
+	end
+
 	for iteration = 1, maxIterations do
 		local start = love.timer.getMicroTime()
 		-- local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
@@ -776,6 +787,9 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 
 		printf('#%d', iteration)
 
+		local totalMatches = 0
+		local ticker = {}
+
 		for name, rule in pairs(rules) do
 			if numVertices + rule.vertexDelta > maxVertices then
 				printf('  %s would pop vertex count', name)
@@ -783,11 +797,15 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 				local success, matches = rule:matches(graph, maxValence)
 
 				if success then
+					totalMatches = totalMatches + #matches
+					ticker[#ticker+1] = string.format("%s=%d", name, #matches)
 					rulesMatches[#rulesMatches+1] = {
 						name = name,
 						rule = rule,
 						matches = matches
 					}
+				else
+					ticker[#ticker+1] = string.format("%s=0", name)
 				end
 
 				printf('  %s #%d', name, not success and 0 or #matches)
@@ -819,12 +837,23 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 
 			ruleMatch.rule:replace(graph, match, self)
 
+			stats[#stats+1] = {
+				rule = ruleMatch.name,
+				ticker = table.concat(ticker, ","),
+				totalMatches = totalMatches,
+			}
+			numUses[ruleMatch.name] = numUses[ruleMatch.name] + 1
+
 			numVertices = numVertices + ruleMatch.rule.vertexDelta
 		end
 
 		local finish = love.timer.getMicroTime()
 		local duration = finish - start
 		totalTime = totalTime + duration
+
+		for iteration, stat in pairs(stats) do
+			printf('  #%d %s (%d) - %s', iteration, stat.rule, stat.totalMatches, stat.ticker)
+		end
 
 		printf('  %.2fs', duration)
 

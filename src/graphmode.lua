@@ -789,20 +789,7 @@ function graphmode.keypressed( key )
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 						local yield = true
-						graph2D.assignVertexRadiusAndRelax(
-							graph,
-							theme.margin,
-							theme.minExtent,
-							theme.maxExtent,
-							theme.radiusFudge,
-							theme.roomgen,
-							theme.tags,
-							relaxSpringStrength,
-							relaxEdgeLength,
-							relaxRepulsion,
-							relaxMaxDelta,
-							relaxConvergenceDistance,
-							yield )
+						graph2D.assignRoomsAndRelax(state.graph, theme, yield)
 					end)
 			end
 		elseif shift then
@@ -823,20 +810,7 @@ function graphmode.keypressed( key )
 			state.graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 			local yield = false
-			graph2D.assignVertexRadiusAndRelax(
-				state.graph,
-				theme.margin,
-				theme.minExtent,
-				theme.maxExtent,
-				theme.radiusFudge,
-				theme.roomgen,
-				theme.tags,
-				relaxSpringStrength,
-				relaxEdgeLength,
-				relaxRepulsion,
-				relaxMaxDelta,
-				relaxConvergenceDistance,
-				yield)
+			graph2D.assignRoomsAndRelax(state.graph, theme, yield)
 
 			state.show = true
 			state.coro = nil
@@ -866,20 +840,7 @@ function graphmode.keypressed( key )
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 						local yield = false
-						local _, stat = graph2D.assignVertexRadiusAndRelax(
-							graph,
-							theme.margin,
-							theme.minExtent,
-							theme.maxExtent,
-							theme.radiusFudge,
-							theme.roomgen,
-							theme.tags,
-							relaxSpringStrength,
-							relaxEdgeLength,
-							relaxRepulsion,
-							relaxMaxDelta,
-							relaxConvergenceDistance,
-							yield)
+						local _, stat = graph2D.assignRoomsAndRelax(state.graph, theme, yield)
 
 						local failed, msg = graph2D.isSelfIntersecting(graph)
 						local finish = love.timer.getMicroTime()

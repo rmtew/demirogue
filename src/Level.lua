@@ -35,7 +35,7 @@ Level.__index = Level
 
 -- TODO: this can generate points that are too close together so corridors end
 --       up merging. Might need to use path finding code instead...
-local function _corridors( graph, margin )
+local function _corridors( graph, margin, terrain )
 	-- Now create corridor the points along the edges.
 	local points = {}
 
@@ -61,7 +61,7 @@ local function _corridors( graph, margin )
 					local point = {
 						near1[1] + (i * segLength * normal[1]),
 						near1[2] + (i * segLength * normal[2]),
-						terrain = terrains.corridor,
+						terrain = terrain,
 					}
 
 					points[#points+1] = point
@@ -75,7 +75,7 @@ end
 
 -- TODO: this avoids the overlapping issue with _corridors() above. This issue
 --       with this is that the halfedges between cells can be very small.
-local function _aStarCorridors( roomGraph, graph, margin )
+local function _aStarCorridors( roomGraph, graph, margin, terrain, surround )
 	-- Now create corridor the points along the edges.
 	local vertices = {}
 
@@ -107,8 +107,8 @@ local function _aStarCorridors( roomGraph, graph, margin )
 				printf('[path] #%d', #path)
 
 				for _, vertex in ipairs(path) do
-					if vertex.terrain == terrains.wall then
-						vertex.terrain = terrains.corridor
+					if vertex.terrain == surround then
+						vertex.terrain = terrain
 					end
 				end
 			end
@@ -122,7 +122,7 @@ end
 -- 1. Put all the points into a margin sized grid of buckets.
 -- 2. For each cell try 10 times to create a random point within the cell.
 -- 3. Check the point isn't too close (within margin distance) of other points.
-local function _enclose( points, aabb, margin )
+local function _enclose( points, aabb, margin, terrain )
 	local width = math.ceil(aabb:width() / margin)
 	local height = math.ceil(aabb:height() / margin)
 
@@ -150,7 +150,7 @@ local function _enclose( points, aabb, margin )
 		end
 	end
 
-	local wall = terrains.wall
+	local border = terrains.border
 	
 	local result = {}
 
@@ -164,14 +164,14 @@ local function _enclose( points, aabb, margin )
 
 		local mx = aabb.xmin + ((x-1) * margin) + (margin * 0.5)
 
-		local topWall = { mx, aabb.ymin + (margin * 0.5), terrain = wall }
-		local bottomWall = { mx, aabb.ymax - (margin * 0.5), terrain = wall }
+		local topBorder = { mx, aabb.ymin + (margin * 0.5), terrain = border }
+		local bottomBorder = { mx, aabb.ymax - (margin * 0.5), terrain = border }
 
-		grid.set(x, 1, { topWall })
-		grid.set(x, height, { bottomWall })
+		grid.set(x, 1, { topBorder })
+		grid.set(x, height, { bottomBorder })
 
-		result[#result+1] = topWall
-		result[#result+1] = bottomWall
+		result[#result+1] = topBorder
+		result[#result+1] = bottomBorder
 	end
 
 	for y = 2, height-1 do
@@ -183,8 +183,8 @@ local function _enclose( points, aabb, margin )
 
 		local my = aabb.ymin + ((y-1) * margin) + (margin * 0.5)
 
-		local leftWall = { aabb.xmin + (margin * 0.5), my, terrain = wall }
-		local rightWall = { aabb.xmax - (margin * 0.5), my, terrain = wall }
+		local leftWall = { aabb.xmin + (margin * 0.5), my, terrain = border }
+		local rightWall = { aabb.xmax - (margin * 0.5), my, terrain = border }
 
 		grid.set(1, y, { leftWall })
 		grid.set(width, y, { rightWall })
@@ -215,7 +215,7 @@ local function _enclose( points, aabb, margin )
 				local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
 				local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-				local candidate = { rx, ry, terrain = wall }
+				local candidate = { rx, ry, terrain = terrain }
 				local empty = {}
 				local accepted = true
 
@@ -285,20 +285,7 @@ function Level.newThemed( theme )
 		relaxed = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
 
 		local yield = false
-		graph2D.assignVertexRadiusAndRelax(
-			relaxed,
-			theme.margin,
-			theme.minExtent,
-			theme.maxExtent,
-			theme.radiusFudge,
-			theme.roomgen,
-			theme.tags,
-			theme.relaxSpringStrength,
-			theme.relaxEdgeLength,
-			theme.relaxRepulsion,
-			theme.relaxMaxDelta,
-			theme.relaxConvergenceDistance,
-			yield)
+		graph2D.assignRoomsAndRelax(relaxed, theme, yield)
 	until not graph2D.isSelfIntersecting(relaxed)
 
 	local rooms = {}
@@ -327,6 +314,7 @@ function Level.newThemed( theme )
 			aabb =  aabb,
 			hull = hull,
 			vertex = vertex,
+			index = #rooms+1,
 		}
 
 		vertex.room = room
@@ -337,7 +325,7 @@ function Level.newThemed( theme )
 	local corridors = {}
 
 	if not useAStarConnect then
-		corridors = _corridors(relaxed, theme.margin)
+		corridors = _corridors(relaxed, theme.margin, theme.corridorTerrain)
 
 		for _, corridor in ipairs(corridors) do
 			assert(corridor.terrain)
@@ -373,7 +361,7 @@ function Level.newThemed( theme )
 
 	-- Ensure the map is surrounded by wall so expand the AABB a bit.
 	local safe = Vector.aabb(all):shrink(-3 * theme.margin)
-	local walls = _enclose(all, safe, theme.margin)
+	local walls = _enclose(all, safe, theme.margin, theme.surround)
 
 	for _, wall in ipairs(walls) do
 		all[#all+1] = wall
@@ -424,7 +412,9 @@ function Level.newThemed( theme )
 
 		vertex.poly = poly
 
-		graph:addVertex(vertex)
+		if #poly >= 6 then
+			graph:addVertex(vertex)
+		end
 	end
 
 	-- Now the connections.
@@ -443,7 +433,7 @@ function Level.newThemed( theme )
 	end
 
 	if useAStarConnect then
-		corridors = _aStarCorridors(relaxed, graph, theme.margin)
+		corridors = _aStarCorridors(relaxed, graph, theme.margin, theme.corridorTerrain, theme.surround)
 
 		for _, corridor in ipairs(corridors) do
 			skeleton[corridor] = true
@@ -451,9 +441,10 @@ function Level.newThemed( theme )
 	end
 
 	local locales = {}
+	local border = terrains.border
 	
 	local function vertexFilter( vertex )
-		return not skeleton[vertex]
+		return not skeleton[vertex] and vertex.terrain ~= border
 	end
 
 	for _, room in ipairs(rooms) do
@@ -496,6 +487,10 @@ function Level.newThemed( theme )
 				vertex.terrain = surround
 			end
 
+			if vertex.terrain.walkable then
+				skeleton[vertex] = true
+			end
+
 			local fringe = fringes[nearest]
 
 			if fringe then
@@ -518,7 +513,6 @@ function Level.newThemed( theme )
 	local offset = theme.margin * 0.2
 	local cores = {}
 	local voronoi = Voronoi:new()
-	local wall = terrains.wall
 
 	for _, cell in ipairs(diagram.cells) do
 		if cell.site.vertex.terrain.walkable and false then
@@ -572,6 +566,21 @@ function Level.newThemed( theme )
 
 	printf('cell offset %.3fs', offsetFinish - offsetStart)
 
+	-- Set of terrain indexed sets of vertices. So all granite vertices
+	-- are in a set and all floor vertices in another and so on.
+	local batches = {}
+
+	for vertex, _ in pairs(graph.vertices) do
+		local terrain = vertex.terrain
+		local batch = batches[terrain]
+
+		if batch then
+			batch[vertex] = true
+		else
+			batches[terrain] = { [vertex] = true }
+		end
+	end
+
 	local levelFinish = love.timer.getMicroTime()
 
 	printf('Level.new() %.3fs', levelFinish - levelStart)
@@ -587,6 +596,7 @@ function Level.newThemed( theme )
 		graph = graph,
 		cores = cores,
 		fringes = fringes,
+		batches = batches,
 	}
 
 	setmetatable(result, Level)

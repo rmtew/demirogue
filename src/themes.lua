@@ -398,6 +398,9 @@ local function Theme( params )
 	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
 	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
 	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
+	checkf(isTerrain(params.terrain), 'terrain should be a valid terrain')
+	checkf(isTerrain(params.corridorTerrain), 'corridorTerrain should be a valid terrain')
+	checkf(isTerrain(params.surround), 'surround should be a valid terrain')
 	
 	local tags = params.tags
 
@@ -413,8 +416,8 @@ local function Theme( params )
 			checkf(_isNonNegInt(maxExtent), 'tags.%s.maxExtent should be > 0', tag)
 			checkf(minExtent < maxExtent, 'tags.%s.minExtent should be < tags.%s.maxExtent', tag, tag)
 			checkf(type(roomgen) == 'function', 'tags.%s.roomgen should be a function', tag)
-			checkf(isTerrain(terrain), 'tags.%s.terrain should be a valid terrain')
-			checkf(isTerrain(surround), 'tags.%s.surround should be a valid terrain or nil')
+			checkf(isTerrain(terrain), 'tags.%s.terrain should be a valid terrain', tag)
+			checkf(isTerrain(surround), 'tags.%s.surround should be a valid terrain', tag)
 		end
 	end
 
@@ -442,8 +445,8 @@ local function Theme( params )
 		local nextTheme = sortedDB[nextIndex]
 
 		local theme = sortedDB[index]
-		theme.prevTheme = prevTheme
-		theme.nextTheme = nextTheme
+		theme.prevTheme = prevTheme.name
+		theme.nextTheme = nextTheme.name
 	end
 end
 
@@ -488,6 +491,26 @@ local base = {
 	maxVertices = 20,
 	maxValence = 8,
 
+	-- Rules for how to apply rules...
+	metarules = {
+		-- Maximum number of times a rule can be used.
+		max = {
+			rule1 = 5,
+			rule3 = 2,
+		},
+		-- How many iterations until a rule can be used again. 0-based.
+		cooldown = {
+			rule3 = 1,
+		},
+		-- Like maximum uses but for more than one rule.
+		combined = {
+			{
+				max = 5,
+				rules = { 'rule1', 'rule2' },
+			},
+		}
+	},
+
 	-- Graph drawing parameters to use during construction.
 	springStrength = 1,
 	edgeLength = 100,
@@ -502,6 +525,9 @@ local base = {
 	radiusFudge = 1,
 	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
 	roomgen = brownianhexgrid,
+	terrain = terrains.floor,
+	corridorTerrain = terrains.corridor,
+	surround = terrains.granite,
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
@@ -517,6 +543,24 @@ Theme {
 	name = 'default',
 
 	maxVertices = 10,
+
+	tags = {
+		a = {
+			minExtent = 3,
+			maxExtent = 12,
+			roomgen = browniangrid,
+			terrain = terrains.floor,
+			surround = terrains.dirt,
+		},
+		b = {
+			minExtent = 3,
+			maxExtent = 12,
+			roomgen = browniangrid,
+			terrain = terrains.floor,
+			surround = terrains.dirt,
+		},
+	},
+
 	relaxEdgeLength = 25,
 }
 
@@ -541,6 +585,8 @@ Theme {
 
 	minExtent = 2,
 	maxExtent = 5,
+
+	corridorTerrain = terrains.dirt,
 
 	tags = {
 		a = {

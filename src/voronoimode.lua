@@ -82,7 +82,7 @@ local drawHulls = false
 local drawEdges = false
 local drawCore = false
 local drawFringes = false
-local drawRims = true
+local drawRims = false
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -182,7 +182,7 @@ function voronoimode.draw()
 			end
 		end
 
-		local maxdepth = math.round(time) % 6
+		local maxdepth = math.round(time*5) % 6
 
 		for room, fringe in pairs(level.fringes) do
 			local colour = roomColours[room]
@@ -363,7 +363,7 @@ function voronoimode.keypressed( key )
 					end
 				else
 					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.abyss
+						vertex.terrain = terrains.lava
 					end
 				end
 			end
@@ -373,10 +373,10 @@ function voronoimode.keypressed( key )
 	elseif key == ' ' then
 		level = _gen()
 	elseif key == 'left' then
-		theme = theme.prevTheme
+		theme = themes.db[theme.prevTheme]
 		level = _gen()
 	elseif key == 'right' then
-		theme = theme.nextTheme
+		theme = themes.db[theme.nextTheme]
 		level = _gen()
 	end
 end
