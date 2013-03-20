@@ -273,9 +273,15 @@ function graphmode.draw()
 			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 		end
 
-		love.graphics.setColor(0, 0, 255, 255)
+		
 
 		for vertex, _ in pairs(level.rightGraph.vertices) do
+			if vertex.cosmetic then
+				love.graphics.setColor(128, 128, 128, 255)
+			else
+				love.graphics.setColor(0, 0, 255, 255)
+			end
+
 			love.graphics.circle('fill', vertex[1], vertex[2], radius)
 
 			if vertex.lock then
@@ -549,6 +555,7 @@ function graphmode.mousepressed( x, y, button )
 			side = 'left',
 			tags = { a = true },
 			lock = false,
+			cosmetic = false,
 		}
 
 		local rightVertex = {
@@ -559,6 +566,7 @@ function graphmode.mousepressed( x, y, button )
 			tag = 'a',
 			lock = false,
 			subdivide = false,
+			cosmetic = false,
 		}
 
 		level.leftGraph:addVertex(leftVertex)
@@ -575,12 +583,37 @@ function graphmode.mousepressed( x, y, button )
 			tag = 'a',
 			lock = false,
 			subdivide = false,
+			cosmetic = false,
 		}
 		level.rightGraph:addVertex(rightVertex)
 	end
 end
 
 function graphmode.mousereleased( x, y, button )
+end
+
+-- A cosmetic vertex cannot have any non-cosmetic edges.
+-- A non-cosmetic vertex must have at least one non-cosmetic edge.
+local function _ensureCosmeticInvariants( graph )
+	local changed = true
+	while changed do
+		changed = false
+
+		for vertex, peers in pairs(graph.vertices) do
+			local allEdgesCosmetic = true
+
+			for peer, edge in pairs(peers) do
+				if not edge.cosmetic then
+					allEdgesCosmetic = false
+				end
+			end
+
+			if allEdgesCosmetic ~= vertex.cosmetic then
+				vertex.cosmetic = allEdgesCosmetic
+				changed = true
+			end
+		end
+	end
 end
 
 function graphmode.keypressed( key )
@@ -763,6 +796,7 @@ function graphmode.keypressed( key )
 							theme.maxExtent,
 							theme.radiusFudge,
 							theme.roomgen,
+							theme.tags,
 							relaxSpringStrength,
 							relaxEdgeLength,
 							relaxRepulsion,
@@ -796,6 +830,7 @@ function graphmode.keypressed( key )
 				theme.maxExtent,
 				theme.radiusFudge,
 				theme.roomgen,
+				theme.tags,
 				relaxSpringStrength,
 				relaxEdgeLength,
 				relaxRepulsion,
@@ -838,6 +873,7 @@ function graphmode.keypressed( key )
 							theme.maxExtent,
 							theme.radiusFudge,
 							theme.roomgen,
+							theme.tags,
 							relaxSpringStrength,
 							relaxEdgeLength,
 							relaxRepulsion,
@@ -900,6 +936,24 @@ function graphmode.keypressed( key )
 		if selection and selection.type == 'edge' then
 			local edge = selection.edge
 			edge.cosmetic = not edge.cosmetic
+
+			local level = state.stack[state.index]
+			local graph = (edge.side == 'left') and level.leftGraph or level.rightGraph
+			_ensureCosmeticInvariants(graph)
+		end
+
+		if selection and selection.type == 'vertex' then
+			local vertex = selection.vertex
+			vertex.cosmetic = not vertex.cosmetic
+
+			local level = state.stack[state.index]
+			local graph = (vertex.side == 'left') and level.leftGraph or level.rightGraph
+
+			for peer, edge in pairs(graph.vertices[vertex]) do
+				edge.cosmetic = vertex.cosmetic
+			end
+
+			_ensureCosmeticInvariants(graph)
 		end
 	elseif key == '$' then
 		local selection = state.selection

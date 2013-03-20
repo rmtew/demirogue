@@ -25,14 +25,18 @@ local function _edgeFilter( edge )
 	return not edge.cosmetic
 end
 
+local function _vertexCheck( vertex )
+	return vertex.cosmetic
+end
+
 function GraphGrammar.Rule.new( pattern, substitute, map )
 	assert(not pattern:isEmpty(), 'pattern graph is empty')
 	assert(not substitute:isEmpty(), 'substitute graph is empty')
 
 	-- All vertices must be connected disregarding cosmetic edges.
 	-- TODO: we may need the concept of cosmetic vertex...
-	assert(pattern:isConnectedWithEdgeFilter(_edgeFilter), 'pattern is not connected')
-	assert(substitute:isConnectedWithEdgeFilter(_edgeFilter), 'substitute is not connected')
+	assert(pattern:isConnectedWithEdgeFilterAndVertexCheck(_edgeFilter, _vertexCheck), 'pattern is not connected')
+	assert(substitute:isConnectedWithEdgeFilterAndVertexCheck(_edgeFilter, _vertexCheck), 'substitute is not connected')
 
 	local negated = false
 

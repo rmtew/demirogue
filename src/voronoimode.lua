@@ -76,12 +76,12 @@ end
 
 local drawPoints = false
 local drawRoomAABBs = false
-local drawUnwalkables = false
+local drawNonSkeleton = false
 local drawVoronoi = true
 local drawHulls = false
 local drawEdges = false
 local drawCore = false
-local drawFringes = true
+local drawFringes = false
 local drawRims = true
 
 function shadowf( x, y, ... )
@@ -125,16 +125,9 @@ function voronoimode.draw()
 		}
 
 		local fringe = {}
+		local skeleton = level.skeleton
 
-		local walkable = {}
-
-		for vertex, _ in pairs(level.graph.vertices) do
-			if vertex.terrain.walkable then
-				walkable[vertex] = true
-			end
-		end
-
-		fringe = level.graph:multiSourceDistanceMap(walkable, 2)
+		fringe = level.graph:multiSourceDistanceMap(skeleton, 2)
 
 		for vertex, _ in pairs(level.graph.vertices) do
 			local poly = vertex.poly
@@ -145,7 +138,7 @@ function voronoimode.draw()
 				local walkable = vertex.terrain.walkable
 				local depth = fringe[vertex] or 0
 
-				if not walkable and (drawUnwalkables or depth > 0) then
+				if fringe[vertex] or drawNonSkeleton then
 					local colour = vertex.terrain.colour
 					love.graphics.setColor(unpack(colour))
 					love.graphics.polygon('fill', poly)
@@ -162,14 +155,9 @@ function voronoimode.draw()
 				local colour = vertex.terrain.colour
 				local walkable = vertex.terrain.walkable
 
-				if walkable then
-					love.graphics.setColor(unpack(colour))
-					love.graphics.polygon('fill', poly)
-
-					if drawRims then
-						love.graphics.setColor(0, 0, 0, 255)
-						love.graphics.polygon('line', poly)
-					end
+				if walkable or drawRims then
+					love.graphics.setColor(0, 0, 0, 255)
+					love.graphics.polygon('line', poly)
 				end
 			end
 		end
@@ -191,22 +179,6 @@ function voronoimode.draw()
 			for room, fringe in pairs(level.fringes) do
 				local colour = colours[math.random(1, #colours)]
 				roomColours[room] = colour
-
-				local r = math.random()
-
-				if r < 1/3 then
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.tree
-					end
-				elseif r < 2/3 then
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.water
-					end
-				else
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.lava
-					end
-				end
 			end
 		end
 
@@ -216,7 +188,7 @@ function voronoimode.draw()
 			local colour = roomColours[room]
 			love.graphics.setColor(unpack(colour))
 			for vertex, depth in pairs(fringe) do
-				if depth <= maxdepth then
+				if depth == maxdepth then
 					love.graphics.polygon('line', vertex.poly)
 				end
 			end
@@ -285,7 +257,7 @@ function voronoimode.draw()
 			love.graphics.circle('fill', point[1], point[2], radius)
 		end
 
-		if drawUnwalkables then
+		if drawNonSkeleton then
 			love.graphics.setColor(128, 128 , 128, 255)
 
 			for index, point in ipairs(level.walls) do
@@ -364,8 +336,8 @@ end
 function voronoimode.keypressed( key )
 	if key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
-	elseif key == 'w' then
-		drawUnwalkables = not drawUnwalkables
+	elseif key == 's' then
+		drawNonSkeleton = not drawNonSkeleton
 	elseif key == 'v' then
 		drawVoronoi = not drawVoronoi
 	elseif key == 'h' then
@@ -374,8 +346,28 @@ function voronoimode.keypressed( key )
 		drawEdges = not drawEdges
 	elseif key == 'p' then
 		drawPoints = not drawPoints
-	elseif key == 'f' then
+	elseif key == 'f' or key == 'F' then
 		drawFringes = not drawFringes
+
+		if drawFringes and love.keyboard.isDown('lshift', 'rshift') then
+			for room, fringe in pairs(level.fringes) do
+				local r = math.random()
+
+				if r < 1/3 then
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.tree
+					end
+				elseif r < 2/3 then
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.water
+					end
+				else
+					for vertex, depth in pairs(fringe) do
+						vertex.terrain = terrains.abyss
+					end
+				end
+			end
+		end
 	elseif key == 'r' then
 		drawRims = not drawRims
 	elseif key == ' ' then

@@ -277,6 +277,30 @@ function Graph:isConnectedWithEdgeFilter( edgeFilter )
 	return true
 end
 
+function Graph:isConnectedWithEdgeFilterAndVertexCheck( edgeFilter, vertexCheck )
+	local vertex = nil
+
+	for candidate, _ in pairs(self.vertices) do
+		if not vertexCheck(candidate) then
+			vertex = candidate
+		end
+	end
+
+	if vertex then
+		local island = self:edgeFilteredDistanceMap(vertex, nil, edgeFilter)
+
+		for vertex, peers in pairs(self.vertices) do
+			if not island[vertex] and not vertexCheck(vertex) then
+				print('disconnected', vertex.tag)
+				return false
+			end
+		end
+	end
+
+	return true
+end
+
+
 -- TODO: If we could avoid the allocations of all but the result that would be cool
 function Graph:distanceMap( source, maxdepth )
 	maxdepth = maxdepth or math.huge
@@ -334,6 +358,44 @@ function Graph:multiSourceDistanceMap( sources, maxdepth )
 				if not frontier[peer] and not result[peer] then
 					result[peer] = depth
 					newFrontier[peer] = true
+				end
+			end
+		end
+
+		frontier = newFrontier
+	end
+
+	return result
+end
+
+function Graph:vertexFilteredMultiSourceDistanceMap( sources, maxdepth, vertexFilter )
+	maxdepth = maxdepth or math.huge
+
+	local result = {}
+	local frontier = {}
+
+	local vertices = self.vertices
+
+	for vertex, _ in pairs(sources) do
+		assert(vertices[vertex])
+
+		result[vertex] = 0
+		frontier[vertex] = true
+	end
+
+	local depth = 0
+
+	while depth < maxdepth and next(frontier) do
+		depth = depth + 1
+		local newFrontier = {}
+
+		for vertex, _ in pairs(frontier) do
+			for peer, _ in pairs(vertices[vertex]) do
+				if vertexFilter(peer) then
+					if not frontier[peer] and not result[peer] then
+						result[peer] = depth
+						newFrontier[peer] = true
+					end
 				end
 			end
 		end

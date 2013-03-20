@@ -3,6 +3,7 @@
 --
 
 require 'roomgen'
+require 'terrains'
 
 themes = {
 	db = {},
@@ -82,7 +83,14 @@ function themes.saveRuleset( theme, stack )
 	-- level = { leftGraph = graph, rightGraph = graph, map = map }
 	-- graph = { vertices = { vertex }+, edges = { edge }+ }
 	-- edge = { <index>, <index>, cosmetic = <boolean>, subdivide = <boolean> }
-	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
+	-- vertex = {
+	--     <x>,
+	--     <y>,
+	--     side = 'left'|'right',
+	--     tag = <string>,
+	--     mapped = <boolean>|nil,
+	--     cosmetic = <boolean>,
+	-- }
 	-- map = { [<index>] = <index> }*
 
 	local function _vertex( vertex )
@@ -93,6 +101,7 @@ function themes.saveRuleset( theme, stack )
 				side = 'left',
 				tags = table.copy(vertex.tags),
 				lock = vertex.lock and true or false,
+				cosmetic = vertex.cosmetic and true or false,
 			}
 		else
 			return { 
@@ -101,6 +110,7 @@ function themes.saveRuleset( theme, stack )
 				side = 'right',
 				tag = vertex.tag,
 				mapped = vertex.mapped and true or false,
+				cosmetic = vertex.cosmetic and true or false,
 			}
 		end
 	end
@@ -177,12 +187,6 @@ end
 function themes.loadRuleset( theme )
 	-- Turn the saved version of the state into a runtime usable version.
 
-	-- { level }+
-	-- level = { leftGraph = graph, rightGraph = graph, map = map }
-	-- graph = { vertices = { vertex }+, edges = { { <index>, <index> } }+ }
-	-- vertex = { <x>, <y>, side = 'left'|'right', tag = <string>, mapped = <boolean>|nil }
-	-- map = { [<index>] = <index> }*
-
 	local function _vertex( vertex )
 		if vertex.side == 'left' then
 			return {
@@ -191,6 +195,7 @@ function themes.loadRuleset( theme )
 				side = 'left',
 				tags = table.copy(vertex.tags),
 				lock = vertex.lock and true or false,
+				cosmetic = vertex.cosmetic and true or false,
 			}
 		else
 			return { 
@@ -199,6 +204,7 @@ function themes.loadRuleset( theme )
 				side = 'right',
 				tag = vertex.tag,
 				mapped = vertex.mapped and true or false,
+				cosmetic = vertex.cosmetic and true or false,
 			}
 		end
 	end
@@ -393,6 +399,25 @@ local function Theme( params )
 	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
 	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
 	
+	local tags = params.tags
+
+	if tags then
+		for tag, values in pairs(tags) do
+			local minExtent = values.minExtent
+			local maxExtent = values.maxExtent
+			local roomgen = values.roomgen
+			local terrain = values.terrain
+			local surround = values.surround
+
+			checkf(_isNonNegInt(minExtent), 'tags.%s.minExtent should be > 0', tag)
+			checkf(_isNonNegInt(maxExtent), 'tags.%s.maxExtent should be > 0', tag)
+			checkf(minExtent < maxExtent, 'tags.%s.minExtent should be < tags.%s.maxExtent', tag, tag)
+			checkf(type(roomgen) == 'function', 'tags.%s.roomgen should be a function', tag)
+			checkf(isTerrain(terrain), 'tags.%s.terrain should be a valid terrain')
+			checkf(isTerrain(surround), 'tags.%s.surround should be a valid terrain or nil')
+		end
+	end
+
 	checkf(_isPosNum(params.relaxSpringStrength), 'relaxSpringStrength should be > 0')
 	checkf(_isPosNum(params.relaxEdgeLength), 'relaxEdgeLength should be > 0')
 	checkf(_isPosNum(params.relaxRepulsion), 'relaxRepulsion should be > 0')
@@ -470,37 +495,13 @@ local base = {
 	maxDelta = 0.5,
 	convergenceDistance = 4,
 
-	-- TODO: Parameters that govern vertex room assignment.
-	-- - Need someway to choose the roomgen.
-	-- - There is a fundamental value called margin (the shortest distance
-	--   between points between) that needs to be defined.
-	-- - Currently 
 	margin = 50,
+	
 	minExtent = 3,
 	maxExtent = 12,
 	radiusFudge = 1,
 	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
 	roomgen = brownianhexgrid,
-
-	-- Ideas for assigning roomgen params to tags.
-
-	-- Simplest: each tag gets a sets of params.
-	--
-	-- tags = {
-	-- 	a = {
-	-- 		minExtent = 3,
-	-- 		maxExtent = 4,
-	-- 		roomgen = roomgen.brownian
-	-- 	},
-	-- },
-
-	-- Assign tags to sets, then give params to sets.
-	--
-	-- sets = {
-	--     abyss = { 'a' },
-	--     peripheral = { 'p' },
-	--     crypt = { 'c' },
-    -- }
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
@@ -540,6 +541,16 @@ Theme {
 
 	minExtent = 2,
 	maxExtent = 5,
+
+	tags = {
+		a = {
+			minExtent = 5,
+			maxExtent = 8,
+			roomgen = browniangrid,
+			terrain = terrains.abyss,
+			surround = terrains.abyss,
+		},
+	},
 
 	relaxEdgeLength = 100,
 }

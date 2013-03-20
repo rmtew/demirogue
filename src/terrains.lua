@@ -36,6 +36,17 @@ terrains.lava = {
 	colour = { 255.5, 149, 0, 255 }
 }
 
+terrains.abyss = {
+	walkable = false,
+	colour = { 55, 4, 112, 255 }
+}
+
 for name, params in pairs(terrains) do
 	params.name = name
+end
+
+local _inverse = table.inverse(terrains)
+
+function isTerrain( value )
+	return _inverse[value] ~= nil
 end

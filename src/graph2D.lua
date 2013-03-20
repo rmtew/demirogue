@@ -830,6 +830,8 @@ function graph2D.assignVertexRadiusAndRelax(
 	radiusFudge,
 	roomgen,
 
+	tags,
+
 	-- The arguemnts below are the same as those to forceDraw() above.
 	springStrength,
 	edgeLength,
@@ -840,8 +842,22 @@ function graph2D.assignVertexRadiusAndRelax(
 
 	local preRoomSelfIntersect = graph2D.isSelfIntersecting(graph)
 
+	local defaultRoomParams = {
+		minExtent = minExtent,
+		maxExtent = maxExtent,
+		roomgen = roomgen,
+		terrain = terrains.floor,
+		surround = nil,
+	}
+
 	for vertex, _ in pairs(graph.vertices) do
-		local extent = math.random(minExtent, maxExtent)
+		local params = defaultRoomParams
+		
+		if tags then
+			params = tags[vertex.tag] or params
+		end
+
+		local extent = math.random(params.minExtent, params.maxExtent)
 
 		local aabb = AABB.new {
 			xmin = 0,
@@ -856,7 +872,7 @@ function graph2D.assignVertexRadiusAndRelax(
 
 		-- This is to avoid rooms without enough verts or invalid centroids.
 		repeat
-			points = roomgen(aabb, margin)
+			points = params.roomgen(aabb, margin, params.terrain)
 			local enoughPoints = #points > 2
 			local finiteCentroid = false
 			
@@ -877,7 +893,7 @@ function graph2D.assignVertexRadiusAndRelax(
 		-- This moves the hull as well becuase the points aren't copied by
 		-- geometry.convexHull().
 		for _, point in ipairs(points) do
-			assert(point.terrain)
+			assert(point.terrain == params.terrain)
 			point[1] = point[1] - centroid[1]
 			point[2] = point[2] - centroid[2]
 		end
@@ -889,6 +905,7 @@ function graph2D.assignVertexRadiusAndRelax(
 		vertex.points = points
 		vertex.hull = hull
 		vertex.centroid = Vector.new { 0, 0 }
+		vertex.surround = params.surround
 
 		-- forceDraw() knows about the radius and treats it properly-ish.
 		vertex.radius = radius

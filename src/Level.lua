@@ -28,7 +28,7 @@ Level.__index = Level
 -- room = {
 --     points = cell sites/vertices in the room, can't rely on order.
 --     aabb   = the tight bounding box of the rooms vertices.
---     border = the original AABB passed into the roomgen.
+--     index  = position in the rooms array
 --     hull   = clockwise list of Vectors representing the convex hull of the vertices.
 -- }
 --
@@ -292,6 +292,7 @@ function Level.newThemed( theme )
 			theme.maxExtent,
 			theme.radiusFudge,
 			theme.roomgen,
+			theme.tags,
 			theme.relaxSpringStrength,
 			theme.relaxEdgeLength,
 			theme.relaxRepulsion,
@@ -301,17 +302,21 @@ function Level.newThemed( theme )
 	until not graph2D.isSelfIntersecting(relaxed)
 
 	local rooms = {}
+	-- Room and corridor vertices.
+	local skeleton = {}
 
 	for vertex, _ in pairs(relaxed.vertices) do
 		local points = {}
 
 		for index, relPoint in ipairs(vertex.points) do
 			assert(relPoint.terrain)
-			points[index] = {
+			local point = {
 				vertex[1] + relPoint[1],
 				vertex[2] + relPoint[2],
 				terrain = relPoint.terrain,
 			}
+			skeleton[point] = true
+			points[index] = point
 		end
 
 		local aabb = Vector.aabb(points)
@@ -333,6 +338,11 @@ function Level.newThemed( theme )
 
 	if not useAStarConnect then
 		corridors = _corridors(relaxed, theme.margin)
+
+		for _, corridor in ipairs(corridors) do
+			assert(corridor.terrain)
+			skeleton[corridor] = true
+		end
 
 		for i = 1, #corridors-1 do
 			for j = i+1, #corridors do
@@ -434,9 +444,17 @@ function Level.newThemed( theme )
 
 	if useAStarConnect then
 		corridors = _aStarCorridors(relaxed, graph, theme.margin)
+
+		for _, corridor in ipairs(corridors) do
+			skeleton[corridor] = true
+		end
 	end
 
 	local locales = {}
+	
+	local function vertexFilter( vertex )
+		return not skeleton[vertex]
+	end
 
 	for _, room in ipairs(rooms) do
 		local set = {}
@@ -445,7 +463,7 @@ function Level.newThemed( theme )
 		end
 
 		local maxdepth = 5
-		local locale = graph:multiSourceDistanceMap(set, maxdepth)
+		local locale = graph:vertexFilteredMultiSourceDistanceMap(set, maxdepth, vertexFilter)
 
 		for vertex, depth in pairs(locale) do
 			if depth == 0 or vertex.terrain.walkable then
@@ -455,6 +473,8 @@ function Level.newThemed( theme )
 
 		locales[room] = locale
 	end
+
+	local fringeStart = love.timer.getMicroTime()
 
 	local fringes = {}
 
@@ -471,6 +491,11 @@ function Level.newThemed( theme )
 		end
 
 		if nearest then
+			local surround = nearest.vertex.surround
+			if surround then
+				vertex.terrain = surround
+			end
+
 			local fringe = fringes[nearest]
 
 			if fringe then
@@ -480,6 +505,11 @@ function Level.newThemed( theme )
 			end
 		end
 	end
+
+	local fringeFinish = love.timer.getMicroTime()
+	printf('fringes %.3fs', fringeFinish - fringeStart)
+
+
 
 	-- TEST: to save trying to write straight skeleton generating code.
 	-- RESULT: it works but is quite slow and only works for single cells.
@@ -542,9 +572,6 @@ function Level.newThemed( theme )
 
 	printf('cell offset %.3fs', offsetFinish - offsetStart)
 
-	-- TODO: convert Voronoi representation into something easier to use.
-	-- TODO: create cell connectivity graph.
-
 	local levelFinish = love.timer.getMicroTime()
 
 	printf('Level.new() %.3fs', levelFinish - levelStart)
@@ -553,6 +580,7 @@ function Level.newThemed( theme )
 		aabb = safe,
 		rooms = rooms,
 		corridors = corridors,
+		skeleton = skeleton,
 		walls = walls,
 		all = all,
 		diagram = diagram,
