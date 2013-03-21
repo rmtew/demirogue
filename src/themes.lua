@@ -349,6 +349,10 @@ local function _isInt( value )
 end
 
 local function _isNonNegInt( value )
+	return _isInt(value) and value >= 0
+end
+
+local function _isPosInt( value )
 	return _isInt(value) and value > 0
 end
 
@@ -380,11 +384,26 @@ local function Theme( params )
 	checkf(_isName(params.name), 'every theme needs a valid name')
 	checkf(themes.db[params.name] == nil, 'found more than one theme called %s', params.name)
 
-	checkf(_isNonNegInt(params.maxIterations), 'maxIterations should be > 0')
-	checkf(_isNonNegInt(params.minVertices), 'minVertices should be > 0')
-	checkf(_isNonNegInt(params.maxVertices), 'maxVertices should be > 0')
+	checkf(_isPosInt(params.maxIterations), 'maxIterations should be > 0')
+	checkf(_isPosInt(params.minVertices), 'minVertices should be > 0')
+	checkf(_isPosInt(params.maxVertices), 'maxVertices should be > 0')
 	checkf(params.minVertices < params.maxVertices, 'minVertices should be < maxVertices')
-	checkf(_isNonNegInt(params.maxValence), 'maxValence should be > 0')
+	checkf(_isPosInt(params.maxValence), 'maxValence should be > 0')
+
+	local metarules = params.metarules
+
+	if metarules then
+		local max = metarules.max
+
+		if max then
+			checkf(type(max) == 'table', 'max metarule should be a table')
+
+			for ruleName, count in pairs(max) do
+				checkf(_isName(ruleName), 'rule name %q is not a name', tostring(ruleName))
+				checkd(_isPosInt(count), 'the max rule value must be > 0')
+			end
+		end
+	end
 
 	checkf(_isPosNum(params.springStrength), 'springStrength should be > 0')
 	checkf(_isPosNum(params.edgeLength), 'edgeLength should be > 0')
@@ -392,11 +411,11 @@ local function Theme( params )
 	checkf(_isPosNum(params.maxDelta), 'maxDelta should be > 0')
 	checkf(_isPosNum(params.convergenceDistance), 'convergenceDistance should be > 0')
 
-	checkf(_isNonNegInt(params.margin), 'margin should be > 0')
-	checkf(_isNonNegInt(params.minExtent), 'minExtent should be > 0')
-	checkf(_isNonNegInt(params.maxExtent), 'maxExtent should be > 0')
+	checkf(_isPosInt(params.margin), 'margin should be > 0')
+	checkf(_isPosInt(params.minExtent), 'minExtent should be > 0')
+	checkf(_isPosInt(params.maxExtent), 'maxExtent should be > 0')
 	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
-	checkf(_isNonNegInt(params.radiusFudge), 'radiusFudge should be > 0')
+	checkf(_isPosInt(params.radiusFudge), 'radiusFudge should be > 0')
 	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
 	checkf(isTerrain(params.terrain), 'terrain should be a valid terrain')
 	checkf(isTerrain(params.corridorTerrain), 'corridorTerrain should be a valid terrain')
@@ -412,8 +431,8 @@ local function Theme( params )
 			local terrain = values.terrain
 			local surround = values.surround
 
-			checkf(_isNonNegInt(minExtent), 'tags.%s.minExtent should be > 0', tag)
-			checkf(_isNonNegInt(maxExtent), 'tags.%s.maxExtent should be > 0', tag)
+			checkf(_isPosInt(minExtent), 'tags.%s.minExtent should be > 0', tag)
+			checkf(_isPosInt(maxExtent), 'tags.%s.maxExtent should be > 0', tag)
 			checkf(minExtent < maxExtent, 'tags.%s.minExtent should be < tags.%s.maxExtent', tag, tag)
 			checkf(type(roomgen) == 'function', 'tags.%s.roomgen should be a function', tag)
 			checkf(isTerrain(terrain), 'tags.%s.terrain should be a valid terrain', tag)

@@ -12,6 +12,10 @@ The limits on the graph grammar rules are:
   - So the number of substitute vertices is >= the number of pattern vertices.
 - Pattern vertices (but not substitute or host vertices) have a tag set, so
   they can match more than one different host graph tag.
+- The value part of the tag set can either be true or false. True denotes what
+  host graph vertex tags can be matched. False denotes that any host vertices
+  attached via unmapped (edges not in the pattern) host edges should not have
+  the tag.
 - There is a maxValence parameter that stops rules from exceeding it. However
   if a substitute graph has a greater valence it can still be used.
 - If a pattern vertex is tagged as '-' it is a wildcard that allows it to match
@@ -288,11 +292,44 @@ Some unresolved issues:
 
 
 
-Rule Constraints
-----------------
+Metarules or Rules for applying Rules
+=====================================
+
+While it is possible to use clever tag assignments and features like negated
+tags to control the application of rules this is not always the most direct
+way. For example consider a rule that be recursively applied:
+
+  a - a    a - a - a
+  |   | => |   |   |
+  a - a    a - a - a
+
+If by random chance this rule was applied a lot it would create a long sequence
+of quads. You could limit it by using a set of rules, e.g.
+
+  a - a    b - b - b
+  |   | => |   |   |
+  a - a    b - b - b
+
+  a - a    b - b - b - b
+  |   | => |   |   |   |
+  a - a    b - b - b - b
+
+  a - a    b - b - b - b - b
+  |   | => |   |   |   |   |
+  a - a    b - b - b - b - b
+
+The above would only crate between 2 and four quads. However it seems a lot
+simpler to just say that the original rule cannot be applied more than twice.
+
+Ideas
+-----
 
 - Min and max uses: would be easier to just do max uses because you can't
-  guarantee that all min uses will be possible beforehand.
+  guarantee that all min uses will be possible beforehand. Also certain prior
+  rule choices may stop underused rule from being used.
+
+  It may be possible to do a prepass on the ruleset to detect this but it feels
+  like a nasty problem that may be intractable or very inefficient.
 
 - Don't repeat: not the same as a max use of 1, it means don't use the rule
   twice in a row.
@@ -303,3 +340,6 @@ Rule Constraints
   higest priority.
 
 - Passes: sets of rules to be applied in certain orders.
+
+TODO: need some discussion about using CPS during generation.
+

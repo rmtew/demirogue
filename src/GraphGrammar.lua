@@ -755,7 +755,7 @@ function GraphGrammar.new( params )
 	return result
 end
 
-function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence )
+function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence, metarules )
 	assert(0 < minVertices)
 	assert(minVertices <= maxVertices)
 	assert(math.floor(minVertices) == minVertices)

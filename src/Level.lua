@@ -489,6 +489,8 @@ function Level.newThemed( theme )
 				vertex.terrain = surround
 			end
 
+			-- A wlakable fringe is considered as an extension of the room so
+			-- it is added to the skeleton.
 			if vertex.terrain.walkable then
 				skeleton[vertex] = true
 			end
