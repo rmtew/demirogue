@@ -761,6 +761,10 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 	assert(math.floor(minVertices) == minVertices)
 	assert(math.floor(maxVertices) == maxVertices)
 
+	metarules = metarules or {
+		max = {},
+	}
+
 	local graph = Graph.new()
 	graph:addVertex { 0, 0, tag = 's' }
 	local numVertices = 1
@@ -771,12 +775,9 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 	local stats = {}
 	-- Map of rule names to the number of times the rule has been applied.
 	local numUses = {}
-	-- Number of iterations until a rule can be used.
-	local countdowns = {}
 
 	for name, rule in pairs(rules) do
 		numUses[name] = 0
-		countdowns[name] = 0
 	end
 
 	for iteration = 1, maxIterations do
@@ -793,6 +794,8 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 		for name, rule in pairs(rules) do
 			if numVertices + rule.vertexDelta > maxVertices then
 				printf('  %s would pop vertex count', name)
+			elseif numUses[name] == metarules.max[name] then
+				printf('  %s has reached its quote of %d uses', name, metarules.max[name])
 			else
 				local success, matches = rule:matches(graph, maxValence)
 

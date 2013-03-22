@@ -764,6 +764,7 @@ function graphmode.keypressed( key )
 		local minVertices = theme.minVertices
 		local maxVertices = theme.maxVertices
 		local maxValence = theme.maxValence
+		local metarules = theme.metarules
 
 		if not shift and not ctrl then
 			state.show = not state.show
@@ -786,7 +787,7 @@ function graphmode.keypressed( key )
 
 				state.coro = coroutine.create(
 					function ()
-						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence, metarules)
 
 						local yield = true
 						graph2D.assignRoomsAndRelax(state.graph, theme, yield)
@@ -807,7 +808,7 @@ function graphmode.keypressed( key )
 				replaceYield = false,
 			}
 
-			state.graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+			state.graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence, metarules)
 
 			local yield = false
 			graph2D.assignRoomsAndRelax(state.graph, theme, yield)
@@ -837,7 +838,7 @@ function graphmode.keypressed( key )
 					local stats = {}
 					while true do
 						local start = love.timer.getMicroTime()
-						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence, metarules)
 
 						local yield = false
 						local _, stat = graph2D.assignRoomsAndRelax(state.graph, theme, yield)

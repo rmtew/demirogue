@@ -83,6 +83,7 @@ local drawEdges = false
 local drawCore = false
 local drawFringes = false
 local drawRims = false
+local drawNonHJKLYUBNCells = false
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -275,11 +276,15 @@ function voronoimode.draw()
 		end
 	end
 
-	for vertex, peers in pairs(level.graph.vertices) do
-		if table.count(peers) > 8 then
-			love.graphics.setColor(0, 0, 0, 128)
-			local radius = 10
-			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+	-- Cells with more than 8 neightbours would problematic for traditional
+	-- roguelike movement controls, hjklyubn.
+	if drawNonHJKLYUBNCells then
+		for vertex, peers in pairs(level.graph.vertices) do
+			if table.count(peers) > 8 then
+				love.graphics.setColor(0, 0, 0, 128)
+				local radius = 10
+				love.graphics.circle('fill', vertex[1], vertex[2], radius)
+			end
 		end
 	end
 

@@ -400,7 +400,7 @@ local function Theme( params )
 
 			for ruleName, count in pairs(max) do
 				checkf(_isName(ruleName), 'rule name %q is not a name', tostring(ruleName))
-				checkd(_isPosInt(count), 'the max rule value must be > 0')
+				checkf(_isPosInt(count), 'the max rule value must be > 0')
 			end
 		end
 	end
@@ -510,26 +510,6 @@ local base = {
 	maxVertices = 20,
 	maxValence = 8,
 
-	-- Rules for how to apply rules...
-	metarules = {
-		-- Maximum number of times a rule can be used.
-		max = {
-			rule1 = 5,
-			rule3 = 2,
-		},
-		-- How many iterations until a rule can be used again. 0-based.
-		cooldown = {
-			rule3 = 1,
-		},
-		-- Like maximum uses but for more than one rule.
-		combined = {
-			{
-				max = 5,
-				rules = { 'rule1', 'rule2' },
-			},
-		}
-	},
-
 	-- Graph drawing parameters to use during construction.
 	springStrength = 1,
 	edgeLength = 100,
@@ -623,4 +603,10 @@ Theme {
 Theme {
 	template = base,
 	name = 'spiral',
+
+	metarules = {
+		max = {
+			rule2 = 2,
+		},
+	},
 }

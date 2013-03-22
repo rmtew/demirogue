@@ -279,10 +279,11 @@ function Level.newThemed( theme )
 	local minVertices = theme.minVertices
 	local maxVertices = theme.maxVertices
 	local maxValence = theme.maxValence
+	local metarules = theme.metarules
 	local relaxed = nil
 
 	repeat
-		relaxed = grammar:build(maxIterations, minVertices, maxVertices, maxValence)
+		relaxed = grammar:build(maxIterations, minVertices, maxVertices, maxValence, metarules)
 
 		local yield = false
 		graph2D.assignRoomsAndRelax(relaxed, theme, yield)
