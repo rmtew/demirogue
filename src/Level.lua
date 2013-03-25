@@ -456,7 +456,7 @@ function Level.newThemed( theme )
 		end
 
 		-- TODO: this should be defined somewhere as a parameter...
-		local maxdepth = 5
+		local maxdepth = 100
 		local locale = graph:vertexFilteredMultiSourceDistanceMap(set, maxdepth, vertexFilter)
 
 		for vertex, depth in pairs(locale) do
@@ -471,6 +471,7 @@ function Level.newThemed( theme )
 	local fringeStart = love.timer.getMicroTime()
 
 	local fringes = {}
+	local maxFringeDepth = 0
 
 	for vertex, _ in pairs(graph.vertices) do
 		local distance = math.huge
@@ -485,6 +486,8 @@ function Level.newThemed( theme )
 		end
 
 		if nearest then
+			maxFringeDepth = math.max(maxFringeDepth, distance)
+
 			local surround = nearest.vertex.surround
 			if surround then
 				vertex.terrain = surround
@@ -602,6 +605,7 @@ function Level.newThemed( theme )
 		cores = cores,
 		fringes = fringes,
 		batches = batches,
+		maxFringeDepth = maxFringeDepth,
 	}
 
 	setmetatable(result, Level)

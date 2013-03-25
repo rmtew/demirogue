@@ -183,7 +183,7 @@ function voronoimode.draw()
 			end
 		end
 
-		local maxdepth = math.round(time*5) % 6
+		local maxdepth = math.round(time*10) % (level.maxFringeDepth + 1)
 
 		for room, fringe in pairs(level.fringes) do
 			local colour = roomColours[room]

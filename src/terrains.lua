@@ -10,7 +10,11 @@ terrains = {}
 -- TODO: would be nice to have variations, e.g. different greens for trees.
 -- TODO: Might be worth colouring based on distance, have an abyss darker in
 --       the middle.
+-- TODO: probably need more flags on top of walkable, e.g. whether it obstructs
+--       line of sight. I guess there's quite a few of game specific paramters.
 
+-- Used to put a border around all levels. This is a special terrain type that
+-- the code assumes will exist.
 terrains.border = {
 	walkable = false,
 	colour = { 48, 48, 48, 255 },

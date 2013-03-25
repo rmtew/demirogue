@@ -77,37 +77,6 @@ Some points on the algorithm used:
         (no yielding) it is actually very fast unless you have a large number
         of vertices (30+).
 
-- After a graph has been successfully generated each vertex the graph is put
-  through a 'relax' phase.
-
-  - Each vertex has a room created for it based on theme paramters.
-  - Each room has a bounding circle calculated for it.
-  - The vertices are then scaled out so that none of the circles overlap.
-  - The graph is then but through a final force draw step (with paramters
-    defined in the theme) to bring the rooms closer together.
-
-Some ideas for future work:
----------------------------
-
-- Need some more control parameters:
-  - Apply a particular rule only once. Good for special rules.
-  - Weight the choice of particular rules.
-  - Try and control the cardinality of certain tags. Consider a level that has
-    three main sections and you want them to be equally developed. The current
-    random rule selection makes that hard to achieve without some complex tag
-    assignments.
-
-- Should pass the graph to a Constraint Propagation Solver (CPS) so we can
-  allow for some cunning logic to be applied (maybe before the relax stage):
-  - What type of room generation to employ.
-  - What sizes the room should be.
-  - Could allow edges to be removed (made cosmetic) as long as the graph is
-    still connected.
-  - Where to place entrances, exits, keys, monsters, treasure, doors and so on.
-
-Some unresolved issues:
------------------------
-
 - It's easy to cause issues by connecting edges in the substitute graph that
   aren't connected in the pattern, e.g.
 
@@ -120,7 +89,11 @@ Some unresolved issues:
 
   Actually this is sometimes very useful, so caveat emptor.
 
-- It's too easy to create 'tassles', e.g.
+- The outcome of the following discussion has been implemented. I'm keeping
+  the discussion to show the thought process that wento into the negated tag
+  feature.
+
+  It's too easy to create 'tassles', e.g.
 
   a - b     a - b
     \ |  =>   \ |
@@ -160,31 +133,26 @@ Some unresolved issues:
   The !c means don't match if there's a c tagged vertex connected to the lower
   'b' vertex. This will be tricky to implement though:
 
-  - The blocked nodes shouldn't appear in the actual matching graph otherwise
-    it will only match graphs with an extra neighbour but just only if it's not
-    tagged as 'c'.
-  - The following case could cause issues:
+  Having explcit 'negated' vertices causes quite a few issues in the graph
+  editor. So instead I opted for allowing both positive and negative tags.
 
-    a - b         a - b
-      \ |      =>   \ |
-        b - !b        b - b
+  Normal tags are positive. A negated tag is interpreted as:
 
-    The matching would have to be able to distinguish between the higher b in
-    the pattern and the blocked b.
+  'Any vertices connected to the pattern vertex by unmapped edges in the host
+  graph must not have the negated tag.'
 
-  So here's a rough algorithm:
-  - A pattern vertex is allowed only one blocked neighbour and a blocked
-    vertex can only be attached to one non-blocked vertex.
-  - Allow an extra argument to the rules that is a map from pattern vertices to
-    a blocked peer tag (or tag sets).
-  - In GraphGrammer.Rule:matches() there's a filtering step.
-    - If the rule has any blocked vertices.
-      - Find the edges in the host not matched.
-        - For all matched vertices
-          - Is their a peer of the graph vertex not in the match
-            - Add the edge to the unmatched peer to the list.
+  So the above example becomes:
 
-- Sometimes the valence of vertices gets too high for the graph drawing to
+  a - b         a - b
+    \ |      =>   \ |
+     b,!c           b - c
+
+  The 'b,!c' is one positive 'b' tag and one negative 'c' tag.
+
+- The following has been implemented, keeping dicussion for pedagogical
+  reason.
+
+  Sometimes the valence of vertices gets too high for the graph drawing to
   handle, e.g.
 
   a - b     a - b
@@ -203,7 +171,18 @@ Some unresolved issues:
   drawing are very strong when the edge is too short. This pushes other edges
   into overlapping positions.
 
-  NOTE: maxValence has been added as a build parameter.
+- After a graph has been successfully generated each vertex the graph is put
+  through a 'relax' phase.
+
+  - Each vertex has a room created for it based on theme paramters.
+  - Each room has a bounding circle calculated for it.
+  - The vertices are then scaled out so that none of the circles overlap.
+  - The graph is then but through a final force draw step (with paramters
+    defined in the theme) to bring the rooms closer together.
+
+Ideas at various stages of implementation
+-----------------------------------------
+
 
 - What about setting edge length factors at the end of each force draw?
 
@@ -293,7 +272,7 @@ Ideas
 -----
 
 - Max uses: pretty easy to implement and understand.
-  IMPLEMENTED
+  <IMPLEMENTED>
 
 - Min uses: far more problematic than max uses because you can't guarantee that
   all min uses will be possible beforehand. Also certain prior rule choices may
@@ -317,5 +296,86 @@ Ideas
   equivalent to passing the result of a graph build into another grammar as a
   starting point. Slightly tricky to implement but easy enough to understand.
 
-TODO: need some discussion about using CPS during generation.
+Constraint Propagation Solvers (CPS) and Graph Generation
+---------------------------------------------------------
 
+So I have a basic CPS and am eager to use it. How could it be used in the
+various stages of the current level generation algorithm?
+
+The various phases it could be inserted into are:
+
+- Before rule application: It could be used to choose which rule to apply.
+  - Would this require all possible graphs to be generated?
+  - What kind of constraints would be useful?
+    - Limiting the number of vertices.
+    - Limiting the valence of vertices.
+    - Limiting dead-ends. Defined as either vertices with a valence of 1 or
+      given a set of sources and sinks the vertices not on direct paths
+      between the sources and sinks.
+    - Controlling the number of paths through a level.
+    - Limiting the length chains of rooms. A chain being a maximal subgraph
+      where each vertex has only two neighbours.
+
+- Room assignment phase: the first part of 'relaxing'. It could be used to do
+  the following:
+  - Decide room size and roomgen algorithm.
+  - Decide terrain and surround parameters for rooms.
+  - Could turn non-cosmetic edges or rooms into cosmetic edges or rooms as long
+    as connectivity was mainted.
+  - It could remove rooms entirely, connectivity permitting.
+
+- Decoration phase: Not yet implemented phase where items, monsters and other
+  objects are added to the level. Other examples would be:
+  - Entrances and exits.
+  - Keys and doors.
+
+There a general issue with applying constraints during graph construction. As
+an example you could have a constraint that is violated but subsequent rule
+applications would fix like adding dead-ends that a rule ends up connecting
+together.
+
+
+Terrain and Fringes
+===================
+
+The current setup is:
+
+- There is a special terrain type for the borders of the level
+- The theme defines terrain, surround and corridor terrain.
+- The theme's surround is used to set the terrain type of the cells created by
+  the enclosing code.
+- Rooms can have their own terrain and surround defined.
+- A fringe is the set of non-room and non-corridor cells bordering a room
+  selected by a breadth first search to a fixed depth.
+- Where fringes overlap the cell is given to the closest room. Cells that are
+  equally close to rooms are assigned to just one rooms fringe.
+
+While the above is quite simple I'm not getting the results I'd really like.
+
+A fixed fringe depth is obviously not ideal. There are also examples I'd like
+to implement that require more than a single surround type, e.g. hut floor
+surrounded by hit walls with a fringe of dirt finally surrounded by trees.
+
+One would also expect that certain terrain types would interact in certain
+ways, e.g. Two different types of trees would dither into each other, lava
+should errode certain terrain types next to it. Also fringes should be
+
+
+I wonder if the fringes could be defined entirely on terrain types?
+
+So a terrain type could have a set of fringes associated with it and a
+terrain interaction matrix could define how they interact.
+
+Fringe Types
+------------
+
+- Solid: based on depth limited multi-source distance map.
+- Organic: grows out from an area in a connected manner like grass or trees.
+- Tendrils: like orgranic but with distinct probe like prominences.
+- Stippled: like a castle wall that has occaisional gaps.
+
+fringes = {
+    { 'solid', depth = 1, terrain = hut_wall },
+    { 'solid', depth = 1, terrain = dirt },
+    { 'organic', mindepth=1, maxdepth=5, growth = 0.5, terrain = tree },
+}
