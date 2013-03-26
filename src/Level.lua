@@ -361,7 +361,10 @@ function Level.newThemed( theme )
 	end
 
 	-- Ensure the map is surrounded by wall so expand the AABB a bit.
-	local safe = Vector.aabb(all):shrink(-3 * theme.margin)
+	-- TODO: the safety margin is a bit of a magic number, may be worth
+	-- defining in the theme.
+	local safetyMargin = 3 * theme.margin
+	local safe = Vector.aabb(all):expand(safetyMargin)
 	local walls = _enclose(all, safe, theme.margin, theme.surround)
 
 	for _, wall in ipairs(walls) do

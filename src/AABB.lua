@@ -123,6 +123,10 @@ function AABB:shrink( amount )
 	}
 end
 
+function AABB:expand( amount )
+	self:shrink(-amount)
+end
+
 function AABB:centre()
 	return Vector.new {
 		self.xmin + self:width() * 0.5,

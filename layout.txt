@@ -379,3 +379,39 @@ fringes = {
     { 'solid', depth = 1, terrain = dirt },
     { 'organic', mindepth=1, maxdepth=5, growth = 0.5, terrain = tree },
 }
+
+Inside and Outside
+------------------
+
+Consider a castle, it has a wall and bit of grass outside the wall then a moat.
+If the moat appeared inside the castle as well that would be quite bizarre so
+we do somehow need to define the idea of inside and outside.
+
+The general level generation procedure creates the following sets of cells:
+- Rooms and corridors. These form the 'skeleton' of a level and cannot be
+  assigned to a fringe.
+- Each level has an AABB generated and a one cell thick, rectangular 'border'
+  is created to delimit the level. They cannot be assigned to fringes.
+- An enclosing procedure is invoked on the skeleton and the border to fill in
+  any unoccupied space. These cells are 'filler' and can be assigned to
+  fringes. It is worth noting that rooms are not guaranteed to totally occupy
+  their bounds so filler cells can be placed inside them. Also roomgen
+  functions are allowed to emit filler calls themselves.
+
+If we form connected sets of filler cells (islands) they can be categorised as
+follows:
+
+- Room-interior: islands of filler cells totally surrounded by cells created by
+  roomgen functions or even created by roomgen functions themselves.
+- Skeleton interior: islands surrounded by rooms and corridors but no border
+  cells.
+- Skeleton exterior: islands that have border cells and skeleton cells on their
+  exterior.
+
+There is a problem with this though. If you consider two castles connected in a
+level the above categories only work if they are connected by a single
+corridor. If there are two or more connections that enclose an area the above
+would consider it as one big castle.
+
+There needs to be someway of having the inside and outside take into account
+subgraphs.

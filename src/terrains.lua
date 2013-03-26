@@ -20,6 +20,14 @@ terrains.border = {
 	colour = { 48, 48, 48, 255 },
 }
 
+-- Cell created to fill empty space are set to this special terrain type. It
+-- should be present in a final level (hence the magenta colour) but it used to
+-- set the filler cells apart from rooms, corridors and borders.
+terrains.filler = {
+	walkable = false,
+	colour = { 255, 0, 255, 255 },
+}
+
 terrains.floor = {
 	walkable = true,
 	colour = { 184, 118, 61, 255 },
