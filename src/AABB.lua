@@ -124,7 +124,7 @@ function AABB:shrink( amount )
 end
 
 function AABB:expand( amount )
-	self:shrink(-amount)
+	return self:shrink(-amount)
 end
 
 function AABB:centre()

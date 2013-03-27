@@ -543,22 +543,22 @@ Theme {
 
 	maxVertices = 10,
 
-	tags = {
-		a = {
-			minExtent = 3,
-			maxExtent = 12,
-			roomgen = browniangrid,
-			terrain = terrains.floor,
-			surround = terrains.dirt,
-		},
-		b = {
-			minExtent = 3,
-			maxExtent = 12,
-			roomgen = browniangrid,
-			terrain = terrains.floor,
-			surround = terrains.dirt,
-		},
-	},
+	-- tags = {
+	-- 	a = {
+	-- 		minExtent = 3,
+	-- 		maxExtent = 12,
+	-- 		roomgen = browniangrid,
+	-- 		terrain = terrains.floor,
+	-- 		surround = terrains.dirt,
+	-- 	},
+	-- 	b = {
+	-- 		minExtent = 3,
+	-- 		maxExtent = 12,
+	-- 		roomgen = browniangrid,
+	-- 		terrain = terrains.floor,
+	-- 		surround = terrains.dirt,
+	-- 	},
+	-- },
 
 	relaxEdgeLength = 25,
 }

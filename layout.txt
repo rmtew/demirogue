@@ -413,5 +413,28 @@ level the above categories only work if they are connected by a single
 corridor. If there are two or more connections that enclose an area the above
 would consider it as one big castle.
 
+It's probably fair to assume that these subgraphs should be disjoint, i.e. not
+share any edges or vertices.
+
 There needs to be someway of having the inside and outside take into account
-subgraphs.
+subgraphs. A few issues then present themselves:
+
+- Should all vertices be classified into subgraphs? It makes sense that edges
+  between subgraphs might not be part of either subgraph.
+- How to define the subgraphs?
+  - Based on sets of vertex tags: So you could say tags a, b and c form a
+    subgraph and the system could try and make maximal subgraphs from those
+    tags. Would mean you'd have to be careful with tags which could lead to an
+    increase in the number of rules.
+  - Terrain definitions: So rooms with the same terrain definitions are
+    collected into maximal subgraphs. Seems a bit too specific for example a
+    castle could easily have different terrain types for the floors of its
+    rooms.
+  - Fringe definitions: If fringe defs are made into a pseudo-DB like terrains
+    are and become a cell/vertex property maximal subgraphs could be made
+    based on them.
+- We need to be able to define the inside and outside of subgraphs.
+  - The inside should only be classified as such if entirely bounded by rooms
+    and edges in the subgraph.
+- Should the 'global' concept of inside and outside still be usable?
+
