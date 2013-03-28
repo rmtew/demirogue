@@ -2,7 +2,6 @@
 -- the tests at the bottom of the file can be run outside of Love.
 require 'misc'
 
-require 'Heap'
 
 --
 -- Graph.lua
@@ -439,6 +438,38 @@ function Graph:vertexAndEdgeFilteredDistanceMap( source, vertexFilter, edgeFilte
 end
 
 -- TODO: If we could avoid the allocations of all but the result that would be cool
+function Graph:vertexFilteredDistanceMap( source, vertexFilter )
+	maxdepth = maxdepth or math.huge
+
+	local vertices = self.vertices
+	assert(vertices[source])
+
+	local result = { [source] = 0 }
+	local frontier = { [source] = true }
+	local found = false
+
+	while not found and next(frontier) do
+		depth = depth + 1
+		local newFrontier = {}
+
+		for vertex, _ in pairs(frontier) do
+			for peer, edge in pairs(vertices[vertex]) do
+				if vertexFilter(peer) then
+					if not frontier[peer] and not result[peer] then
+						result[peer] = depth
+						newFrontier[peer] = true
+					end
+				end
+			end
+		end
+
+		frontier = newFrontier
+	end
+
+	return result
+end
+
+-- TODO: If we could avoid the allocations of all but the result that would be cool
 function Graph:edgeFilteredDistanceMap( source, maxdepth, edgeFilter )
 	maxdepth = maxdepth or math.huge
 
@@ -469,6 +500,76 @@ function Graph:edgeFilteredDistanceMap( source, maxdepth, edgeFilter )
 
 	return result
 end
+
+-- Given a function that assigns vertices to a key value, partition into
+-- maximal subgraphs based on the key value.
+function Graph:partition( vertexMapping )
+	local bags = {}
+	local vertices = self.vertices
+
+	-- First partition the vertices into bags based on the vertex mapping.
+	for vertex, peers in pairs(vertices) do
+		local key = vertexMapping(vertex)
+
+		-- The vertex mapping function doesn't need to be complete.
+		if key ~= nil then
+			local bag = bags[key]
+
+			if bag then
+				bag[vertex] = true
+			else
+				bags[key] = { [vertex] = true }
+			end
+		end
+	end
+
+	-- Now build the maximal subgraphs.
+	local result = {}
+
+	for key, bag in pairs(bags) do
+		while true do
+			-- Try and pick a vertex as the start of the subgraph.
+			local vertex = next(bag)
+
+			if not vertex then
+				break
+			end
+
+			local vertexFilter = 
+				function ( vertex )
+					return bag[vertex] ~= nil
+				end
+
+			local connected = self:vertexFilteredDistanceMap(vertex, vertexFilter)
+			local subgraph = Graph.new()			
+
+			for vertex, _ in pairs(connected) do
+				subgraph:addVertex(vertex)
+				bag[vertex] = nil
+			end
+
+			-- TODO: not the most efficient way to do it.
+			for edge, endverts in pairs(self.edges) do
+				local vertex1, vertex2 = endverts[1], endverts[2]
+
+				if connected[vertex1] and connected[vertex2] then
+					subgraph:addEdge(edge, vertex1, vertex2)
+				end
+			end
+
+			local subgraphs = result[key]
+
+			if subgraphs then
+				subgraphs[#subgraphs+1] = subgraph
+			else
+				result[key] = { subgraph }
+			end
+		end
+	end
+
+	return result
+end
+
 
 -- Floyd-Warshall, for sparse graphs it would be more efficient to use a
 -- breadth first traversal from each vertex.

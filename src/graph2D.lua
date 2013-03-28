@@ -819,11 +819,9 @@ function graph2D.forceDrawRelax(
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
 end
 
--- TODO: needs a passed in function that generates AABBs for each vertex.
--- TODO: circles aren't very flexible, maybe axis aligned elipses...
--- TODO: too many params, just use a theme...
+-- TODO: circles aren't very flexible, maybe axis aligned elipses or just use
+--       the convex hulls of the rooms.
 function graph2D.assignRoomsAndRelax( graph, theme, yield )
-
 	local margin = theme.margin
 	local radiusFudge = theme.radiusFudge
 	local tags = theme.tags
