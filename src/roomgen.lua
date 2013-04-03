@@ -57,17 +57,20 @@ local function _mask( width, height, default )
 	}
 end
 
-local function vertex( x, y, terrain )
-	terrain = terrain or terrains.floor
+local function vertex( x, y, terrain, fringe )
+	assert(terrain)
+	assert(fringe)
 
 	return {
 		x, y,
 		terrain = terrain,
+		fringe = fringe,
+		room = nil, -- This is set in Level.lua.
 		poly = nil, -- This is set in Level.lua.
 	}
 end
 
-function roomgen.grid( bbox, margin, terrain )
+function roomgen.grid( bbox, margin, terrain, fringe )
 	local points = {}
 
 	local w = bbox:width()
@@ -86,14 +89,14 @@ function roomgen.grid( bbox, margin, terrain )
 			local x = xoffset + (x * margin)
 			local y = yoffset + (y * margin)
 
-			points[#points+1] = vertex(x, y, terrain)
+			points[#points+1] = vertex(x, y, terrain, fringe)
 		end
 	end
 
 	return points
 end
 
-function roomgen.browniangrid( bbox, margin, terrain )
+function roomgen.browniangrid( bbox, margin, terrain, fringe )
 	local points = {}
 
 	local w = bbox:width()
@@ -156,7 +159,7 @@ function roomgen.browniangrid( bbox, margin, terrain )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * margin)
 
-				points[#points+1] = vertex(x, y, terrain)
+				points[#points+1] = vertex(x, y, terrain, fringe)
 			end
 		end
 	end
@@ -164,7 +167,7 @@ function roomgen.browniangrid( bbox, margin, terrain )
 	return points
 end
 
-function roomgen.brownianhexgrid( bbox, margin, terrain )
+function roomgen.brownianhexgrid( bbox, margin, terrain, fringe )
 	local points = {}
 
 	local w = bbox:width()
@@ -230,7 +233,7 @@ function roomgen.brownianhexgrid( bbox, margin, terrain )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * ymargin)
 
-				points[#points+1] = vertex(x, y, terrain)
+				points[#points+1] = vertex(x, y, terrain, fringe)
 			end
 		end
 	end
@@ -238,7 +241,7 @@ function roomgen.brownianhexgrid( bbox, margin, terrain )
 	return points
 end
 
-function roomgen.cellulargrid( bbox, margin, terrain )
+function roomgen.cellulargrid( bbox, margin, terrain, fringe )
 
 	local w = bbox:width()
 	local h = bbox:height()
@@ -339,7 +342,7 @@ function roomgen.cellulargrid( bbox, margin, terrain )
 				local x = xoffset + (x * margin)
 				local y = yoffset + (y * margin)
 
-				result[#result+1] = vertex(x, y, terrain)
+				result[#result+1] = vertex(x, y, terrain, fringe)
 			end
 		end
 	end
@@ -349,7 +352,7 @@ function roomgen.cellulargrid( bbox, margin, terrain )
 	return result
 end
 
-function roomgen.randgrid( bbox, margin, terrain )
+function roomgen.randgrid( bbox, margin, terrain, fringe )
 	local result = {}
 
 	local w = bbox:width()
@@ -371,7 +374,7 @@ function roomgen.randgrid( bbox, margin, terrain )
 			local y = yoffset + (y * margin)
 
 			if math.random() > 0.33 then
-				result[#result+1] = vertex(x, y, terrain)
+				result[#result+1] = vertex(x, y, terrain, fringe)
 			end
 		end
 	end
@@ -379,7 +382,7 @@ function roomgen.randgrid( bbox, margin, terrain )
 	return result
 end
 
-function roomgen.hexgrid( bbox, margin, terrain )
+function roomgen.hexgrid( bbox, margin, terrain, fringe )
 	local result = {}
 
 	local w = bbox:width()
@@ -403,14 +406,14 @@ function roomgen.hexgrid( bbox, margin, terrain )
 			local x = xoffset + (x * margin)
 			local y = yoffset + (y * ymargin)
 
-			result[#result+1] = vertex(x, y, terrain)
+			result[#result+1] = vertex(x, y, terrain, fringe)
 		end
 	end
 
 	return result
 end
 
-function roomgen.randhexgrid( bbox, margin, terrain )
+function roomgen.randhexgrid( bbox, margin, terrain, fringe )
 	local result = {}
 
 	local w = bbox:width()
@@ -435,7 +438,7 @@ function roomgen.randhexgrid( bbox, margin, terrain )
 			local y = yoffset + (y * ymargin)
 
 			if math.random() > 0.33 then
-				result[#result+1] = vertex(x, y, terrain)
+				result[#result+1] = vertex(x, y, terrain, fringe)
 			end
 		end
 	end
@@ -490,7 +493,7 @@ local function _sanitise( bbox, margin, points )
 	return result
 end
 
-function roomgen.random( bbox, margin, terrain )
+function roomgen.random( bbox, margin, terrain, fringe )
 	local result = {}
 
 	local w = bbox:width()
@@ -512,7 +515,7 @@ function roomgen.random( bbox, margin, terrain )
 end
 
 -- Based on the _enclose() function in Level.lua.
-function roomgen.enclose( aabb, margin, terrain )
+function roomgen.enclose( aabb, margin, terrain, fringe )
 	local width = math.ceil(aabb:width() / margin)
 	local height = math.ceil(aabb:height() / margin)
 
@@ -546,7 +549,7 @@ function roomgen.enclose( aabb, margin, terrain )
 					local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
 					local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-					local candidate = vertex(rx, ry, terrain)
+					local candidate = vertex(rx, ry, terrain, fringe)
 					local empty = {}
 					local accepted = true
 

@@ -79,7 +79,14 @@ local drawRoomAABBs = false
 local drawNonSkeleton = false
 local drawVoronoi = true
 local drawHulls = false
-local drawEdges = false
+
+local drawEdgesOptions = {
+	'none',
+	'walkable',
+	'all',
+}
+
+local drawEdgesIndex = 1
 local drawCore = false
 local drawFringes = false
 local drawRims = false
@@ -221,13 +228,17 @@ function voronoimode.draw()
 		end
 	end
 
-	if drawEdges then
+	if drawEdgesIndex ~= 1 then
 		love.graphics.setColor(0, 0, 255, 255)
 		local linewidth = 3 * scaler
 		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
+
+		local drawUnwalkableEdges = drawEdgesOptions[drawEdgesIndex] == 'all'
 		
 		for edge, endverts in pairs(level.graph.edges) do
-			if endverts[1].terrain.walkable and endverts[2].terrain.walkable then
+			local walkable = endverts[1].terrain.walkable and endverts[2].terrain.walkable
+
+			if drawUnwalkableEdges or walkable then
 				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 			end
 		end
@@ -235,7 +246,7 @@ function voronoimode.draw()
 		local radius = 4 * scaler
 
 		for vertex, _ in pairs(level.graph.vertices) do
-			if vertex.terrain.walkable then
+			if drawUnwalkableEdges or vertex.terrain.walkable then
 				love.graphics.circle('fill', vertex[1], vertex[2], radius)
 			end
 		end
@@ -264,6 +275,14 @@ function voronoimode.draw()
 			for index, point in ipairs(level.walls) do
 				local radius = 3
 				love.graphics.circle('fill', point[1], point[2], radius)
+			end
+		end
+
+		for vertex, _ in pairs(level.graph.vertices) do
+			local localeId = vertex.localeId
+
+			if localeId then
+				shadowf(vertex[1], vertex[2], '%d', localeId)
 			end
 		end
 	end
@@ -348,31 +367,35 @@ function voronoimode.keypressed( key )
 	elseif key == 'h' then
 		drawHulls = not drawHulls
 	elseif key == 'e' then
-		drawEdges = not drawEdges
+		drawEdgesIndex = drawEdgesIndex + 1
+
+		if drawEdgesIndex > #drawEdgesOptions then
+			drawEdgesIndex = 1
+		end
 	elseif key == 'p' then
 		drawPoints = not drawPoints
-	elseif key == 'f' or key == 'F' then
-		drawFringes = not drawFringes
+	-- elseif key == 'f' or key == 'F' then
+	-- 	drawFringes = not drawFringes
 
-		if drawFringes and love.keyboard.isDown('lshift', 'rshift') then
-			for room, fringe in pairs(level.fringes) do
-				local r = math.random()
+	-- 	if drawFringes and love.keyboard.isDown('lshift', 'rshift') then
+	-- 		for room, fringe in pairs(level.fringes) do
+	-- 			local r = math.random()
 
-				if r < 1/3 then
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.tree
-					end
-				elseif r < 2/3 then
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.water
-					end
-				else
-					for vertex, depth in pairs(fringe) do
-						vertex.terrain = terrains.lava
-					end
-				end
-			end
-		end
+	-- 			if r < 1/3 then
+	-- 				for vertex, depth in pairs(fringe) do
+	-- 					vertex.terrain = terrains.tree
+	-- 				end
+	-- 			elseif r < 2/3 then
+	-- 				for vertex, depth in pairs(fringe) do
+	-- 					vertex.terrain = terrains.water
+	-- 				end
+	-- 			else
+	-- 				for vertex, depth in pairs(fringe) do
+	-- 					vertex.terrain = terrains.lava
+	-- 				end
+	-- 			end
+	-- 		end
+	-- 	end
 	elseif key == 'r' then
 		drawRims = not drawRims
 	elseif key == ' ' then

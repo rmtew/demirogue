@@ -439,8 +439,6 @@ end
 
 -- TODO: If we could avoid the allocations of all but the result that would be cool
 function Graph:vertexFilteredDistanceMap( source, vertexFilter )
-	maxdepth = maxdepth or math.huge
-
 	local vertices = self.vertices
 	assert(vertices[source])
 
@@ -449,14 +447,13 @@ function Graph:vertexFilteredDistanceMap( source, vertexFilter )
 	local found = false
 
 	while not found and next(frontier) do
-		depth = depth + 1
 		local newFrontier = {}
 
 		for vertex, _ in pairs(frontier) do
 			for peer, edge in pairs(vertices[vertex]) do
 				if vertexFilter(peer) then
 					if not frontier[peer] and not result[peer] then
-						result[peer] = depth
+						result[peer] = true
 						newFrontier[peer] = true
 					end
 				end

@@ -4,6 +4,7 @@
 
 require 'roomgen'
 require 'terrains'
+require 'fringes'
 
 themes = {
 	db = {},
@@ -418,8 +419,11 @@ local function Theme( params )
 	checkf(_isPosInt(params.radiusFudge), 'radiusFudge should be > 0')
 	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
 	checkf(isTerrain(params.terrain), 'terrain should be a valid terrain')
+	checkf(isTerrain(params.filler), 'filler should be a valid terrain')
+	checkf(params.filler ~= terrains.filler, 'filler should not be the same as terrains.filler')
 	checkf(isTerrain(params.corridorTerrain), 'corridorTerrain should be a valid terrain')
-	checkf(isTerrain(params.surround), 'surround should be a valid terrain')
+	checkf(isFringe(params.corridorFringe), 'corridorFringe should be a valid fringe')
+	checkf(isFringe(params.fringe), 'fringe should be a valid fringe')
 	
 	local tags = params.tags
 
@@ -429,14 +433,14 @@ local function Theme( params )
 			local maxExtent = values.maxExtent
 			local roomgen = values.roomgen
 			local terrain = values.terrain
-			local surround = values.surround
+			local fringe = values.fringe
 
 			checkf(_isPosInt(minExtent), 'tags.%s.minExtent should be > 0', tag)
 			checkf(_isPosInt(maxExtent), 'tags.%s.maxExtent should be > 0', tag)
 			checkf(minExtent < maxExtent, 'tags.%s.minExtent should be < tags.%s.maxExtent', tag, tag)
 			checkf(type(roomgen) == 'function', 'tags.%s.roomgen should be a function', tag)
 			checkf(isTerrain(terrain), 'tags.%s.terrain should be a valid terrain', tag)
-			checkf(isTerrain(surround), 'tags.%s.surround should be a valid terrain', tag)
+			checkf(isFringe(fringe), 'tags.%s.fringe should be a valid fringe', tag)
 		end
 	end
 
@@ -525,8 +529,14 @@ local base = {
 	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
 	roomgen = brownianhexgrid,
 	terrain = terrains.floor,
+	-- This is used to set the terrain of any cells that don;t get their
+	-- terrain set via either border, room, corridor or fringe.
+	filler = terrains.granite,
+	-- TODO: need to set corridor terrain and fringe using more expressive
+	--       criteria.
 	corridorTerrain = terrains.corridor,
-	surround = terrains.granite,
+	corridorFringe = fringes.empty,
+	fringe = fringes.castle,
 
 	-- Graph drawing parameters to use during relaxation.
 	relaxSpringStrength = 10,
@@ -593,7 +603,7 @@ Theme {
 			maxExtent = 8,
 			roomgen = browniangrid,
 			terrain = terrains.abyss,
-			surround = terrains.abyss,
+			fringe = fringes.abyss,
 		},
 	},
 

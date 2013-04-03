@@ -850,7 +850,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 
 		-- This is to avoid rooms without enough verts or invalid centroids.
 		repeat
-			points = params.roomgen(aabb, margin, params.terrain)
+			points = params.roomgen(aabb, margin, params.terrain, params.fringe)
 			local enoughPoints = #points > 2
 			local finiteCentroid = false
 			
@@ -883,7 +883,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		vertex.points = points
 		vertex.hull = hull
 		vertex.centroid = Vector.new { 0, 0 }
-		vertex.surround = params.surround
+		vertex.fringe = params.fringe
 
 		-- forceDraw() knows about the radius and treats it properly-ish.
 		vertex.radius = radius

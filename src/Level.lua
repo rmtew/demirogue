@@ -35,7 +35,7 @@ Level.__index = Level
 
 -- TODO: this can generate points that are too close together so corridors end
 --       up merging. Might need to use path finding code instead...
-local function _corridors( graph, margin, terrain )
+local function _corridors( graph, margin, terrain, fringe )
 	-- Now create corridor the points along the edges.
 	local points = {}
 
@@ -58,10 +58,22 @@ local function _corridors( graph, margin, terrain )
 				local normal = Vector.to(near1, near2):normalise()
 
 				for i = 1, numPoints do
+					local bias = 0.5
+
+					if numPoints > 1 then
+						bias = lerpf(i, 1, numPoints, 0, 1)
+					end
+
 					local point = {
 						near1[1] + (i * segLength * normal[1]),
 						near1[2] + (i * segLength * normal[2]),
 						terrain = terrain,
+						fringe = fringe,
+						corridor = {
+							room1 = room1,
+							room2 = room2,
+							bias = bias,
+						},
 					}
 
 					points[#points+1] = point
@@ -75,9 +87,10 @@ end
 
 -- TODO: this avoids the overlapping issue with _corridors() above. This issue
 --       with this is that the halfedges between cells can be very small.
-local function _aStarCorridors( roomGraph, graph, margin, terrain, surround )
+local function _aStarCorridors( roomGraph, graph, margin, terrain, fringe )
 	-- Now create corridor the points along the edges.
 	local vertices = {}
+	local filler = terrains.filler
 
 	for edge, verts in pairs(roomGraph.edges) do
 		if not edge.cosmetic then
@@ -106,9 +119,22 @@ local function _aStarCorridors( roomGraph, graph, margin, terrain, surround )
 
 				printf('[path] #%d', #path)
 
-				for _, vertex in ipairs(path) do
-					if vertex.terrain == surround then
+				for index, vertex in ipairs(path) do
+					local bias = 0.5
+
+					if #path > 1 then
+						bias = lerpf(index, 1, #path, 0, 1)
+					end
+
+					if vertex.terrain == filler then
 						vertex.terrain = terrain
+						vertex.fringe = fringe
+						vertex.room = nil
+						vertex.corridor = {
+							room1 = room1,
+							room2 = room2,
+							bias = bias,
+						}
 					end
 				end
 			end
@@ -296,12 +322,22 @@ function Level.newThemed( theme )
 	for vertex, _ in pairs(relaxed.vertices) do
 		local points = {}
 
+		local room = {
+			points = nil,
+			aabb =  nil,
+			hull = nil,
+			vertex = vertex,
+			index = #rooms+1,
+		}
+
 		for index, relPoint in ipairs(vertex.points) do
 			assert(relPoint.terrain)
 			local point = {
 				vertex[1] + relPoint[1],
 				vertex[2] + relPoint[2],
 				terrain = relPoint.terrain,
+				fringe = relPoint.fringe,
+				room = room,
 			}
 			skeleton[point] = true
 			points[index] = point
@@ -310,13 +346,9 @@ function Level.newThemed( theme )
 		local aabb = Vector.aabb(points)
 		local hull = geometry.convexHull(points)
 
-		local room = {
-			points = points,
-			aabb =  aabb,
-			hull = hull,
-			vertex = vertex,
-			index = #rooms+1,
-		}
+		room.points = points
+		room.aabb =  aabb
+		room.hull = hull
 
 		vertex.room = room
 
@@ -326,7 +358,7 @@ function Level.newThemed( theme )
 	local corridors = {}
 
 	if not useAStarConnect then
-		corridors = _corridors(relaxed, theme.margin, theme.corridorTerrain)
+		corridors = _corridors(relaxed, theme.margin, theme.corridorTerrain, theme.corridorFringe)
 
 		for _, corridor in ipairs(corridors) do
 			assert(corridor.terrain)
@@ -365,7 +397,7 @@ function Level.newThemed( theme )
 	-- defining in the theme.
 	local safetyMargin = 3 * theme.margin
 	local safe = Vector.aabb(all):expand(safetyMargin)
-	local walls = _enclose(all, safe, theme.margin, theme.surround)
+	local walls = _enclose(all, safe, theme.margin, terrains.filler)
 
 	for _, wall in ipairs(walls) do
 		all[#all+1] = wall
@@ -405,6 +437,7 @@ function Level.newThemed( theme )
 	for _, cell in ipairs(diagram.cells) do
 		local vertex = all[cell.site.index]
 
+		-- { x1, y1, x2, y2, ..., xN, yN }
 		local poly = {}
 
 		for _, halfedge in ipairs(cell.halfedges) do
@@ -437,84 +470,93 @@ function Level.newThemed( theme )
 	end
 
 	if useAStarConnect then
-		corridors = _aStarCorridors(relaxed, graph, theme.margin, theme.corridorTerrain, theme.surround)
+		corridors = _aStarCorridors(relaxed, graph, theme.margin, theme.corridorTerrain)
 
 		for _, corridor in ipairs(corridors) do
 			skeleton[corridor] = true
 		end
 	end
 
-	local locales = {}
-	local border = terrains.border
-	
-	-- No room, corridor or border vertex should be in a room's fringe.
-	local function vertexFilter( vertex )
-		return not skeleton[vertex] and vertex.terrain ~= border
-	end
-
-	for _, room in ipairs(rooms) do
-		local set = {}
-		for _, point in pairs(room.points) do
-			set[point] = true
-		end
-
-		-- TODO: this should be defined somewhere as a parameter...
-		local maxdepth = 100
-		local locale = graph:vertexFilteredMultiSourceDistanceMap(set, maxdepth, vertexFilter)
-
-		for vertex, depth in pairs(locale) do
-			if depth == 0 or vertex.terrain.walkable then
-				locale[vertex] = nil
-			end
-		end
-
-		locales[room] = locale
-	end
-
+	-- Calculate fringes.
 	local fringeStart = love.timer.getMicroTime()
-
-	local fringes = {}
-	local maxFringeDepth = 0
+	
+	-- Skeleton and border cells can't be in a fringe.
+	local mask = table.copy(skeleton)
 
 	for vertex, _ in pairs(graph.vertices) do
-		local distance = math.huge
-		local nearest = nil
+		if vertex.terrain == terrains.border then
+			mask[vertex] = true
+		end
+	end
 
-		for room, locale in pairs(locales) do
-			local d = locale[vertex]
-			if d and d < distance then
-				distance = d
-				nearest = room
-			end
+	local vertexMapping = 
+		function ( vertex )
+			return vertex.fringe
 		end
 
-		if nearest then
-			maxFringeDepth = math.max(maxFringeDepth, distance)
+	-- Split the graph into maximal connected subgraphs based on fringe
+	-- definition.
+	local partitions = graph:partition(vertexMapping)
+	local locales = {}
 
-			local surround = nearest.vertex.surround
-			if surround then
-				vertex.terrain = surround
+	for fringe, subgraphs in pairs(partitions) do
+		for index, subgraph in ipairs(subgraphs) do
+			local sources = subgraph.vertices
+			local fringe = calcFringe(fringe, graph, sources, mask)
+
+			-- Now get the distances for the fringe vertices.
+			local vertexFilter =
+				function ( vertex )
+					return fringe[vertex] ~= nil
+				end
+
+			local distances = graph:vertexFilteredMultiSourceDistanceMap(sources, nil, vertexFilter)
+
+			locales[#locales+1] = {
+				fringe = fringe,
+				distances = distances,
+			}
+
+			-- Useful for debugging.
+			for vertex, _ in pairs(sources) do
+				vertex.localeId = #locales
+			end
+		end
+	end
+
+	printf('#locales:%d', #locales)
+
+	-- Now we check each vertex and pick the closest terrain choice from the
+	-- fringes if it has one.
+	for vertex, _ in pairs(graph.vertices) do
+		if not mask[vertex] then
+			local terrain = nil
+			local distance = math.huge
+
+			for _, locale in ipairs(locales) do
+				local d = locale.distances[vertex]
+
+				if d and d < distance then
+					terrain = locale.fringe[vertex]
+					distance = d
+				end
 			end
 
-			-- A wlakable fringe is considered as an extension of the room so
-			-- it is added to the skeleton.
-			if vertex.terrain.walkable then
-				skeleton[vertex] = true
+			if terrain then
+				vertex.terrain = terrain
 			end
+		end
+	end
 
-			local fringe = fringes[nearest]
-
-			if fringe then
-				fringe[vertex] = distance
-			else
-				fringes[nearest] = { [vertex] = distance }
-			end
+	-- If there's any filler cells left set them to the themes filler terrain.
+	for vertex, _ in pairs(graph.vertices) do
+		if vertex.terrain == terrains.filler then
+			vertex.terrain = theme.filler
 		end
 	end
 
 	local fringeFinish = love.timer.getMicroTime()
 	printf('fringes %.3fs', fringeFinish - fringeStart)
-
 
 
 	-- TEST: to save trying to write straight skeleton generating code.
@@ -526,7 +568,7 @@ function Level.newThemed( theme )
 	local voronoi = Voronoi:new()
 
 	for _, cell in ipairs(diagram.cells) do
-		if cell.site.vertex.terrain.walkable and false then
+		if false and cell.site.vertex.terrain.walkable then
 			local neighbours = cell:getNeighborIds()
 			local points = { { cell.site.x, cell.site.y } }
 

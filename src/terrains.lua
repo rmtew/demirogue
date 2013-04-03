@@ -38,6 +38,11 @@ terrains.dirt = {
 	colour = { 204, 138, 81, 255 },
 }
 
+terrains.unwalkableDirt = {
+	walkable = false,
+	colour = { 204, 138, 81, 255 },
+}
+
 terrains.corridor = {
 	walkable = true,
 	colour = { 0, 128, 128, 255 },

@@ -4,13 +4,17 @@ require 'terrains'
 
 fringes = {}
 
-local style = {}
+local styles = {}
+
+function styles.empty( params, graph, sources, mask )
+	return {}
+end
 
 -- params = {
 --     depth = <number>,
 --     terrain = <terrain>,
 -- }
-function style.solid( params, graph, sources, mask )
+function styles.solid( params, graph, sources, mask )
 	local depth = params.depth
 	local terrain = params.terrain
 
@@ -23,7 +27,7 @@ function style.solid( params, graph, sources, mask )
 			return not mask[vertex] 
 		end
 
-	local fringe = graph:vertexFilteredMultiSourceDistanceMap(source, depth, vertexFilter)
+	local fringe = graph:vertexFilteredMultiSourceDistanceMap(sources, depth, vertexFilter)
 
 	local result = {}
 
@@ -41,7 +45,7 @@ end
 --     probability = (0..1),
 --     terrain = <terrain>,
 -- }
-function style.random( params, graph, sources, mask )
+function styles.random( params, graph, sources, mask )
 	local depth = params.depth
 	local probability = params.probability
 	local terrain = params.terrain
@@ -56,7 +60,7 @@ function style.random( params, graph, sources, mask )
 			return not mask[vertex] 
 		end
 
-	local fringe = graph:vertexFilteredMultiSourceDistanceMap(source, depth, vertexFilter)
+	local fringe = graph:vertexFilteredMultiSourceDistanceMap(sources, depth, vertexFilter)
 
 	local result = {}
 
@@ -75,7 +79,7 @@ end
 --     seeding = (0..1),
 --     terrain = <terrain>,
 -- }
-function style.organic( params, graph, sources, mask )
+function styles.organic( params, graph, sources, mask )
 	local depth = params.depth
 	local seeding = params.seeding
 	local terrain = params.terrain
@@ -85,18 +89,28 @@ function style.organic( params, graph, sources, mask )
 	assert(0 < seeding and seeding < 1)
 	assert(isTerrain(terrain))
 
+	-- We will be changing the sources table so make a copy.
+	local accumSources = table.copy(sources)
+
 	local vertexFilter = 
 		function ( vertex )
-			return not mask[vertex] 
+			return not mask[vertex]
 		end
-
-	local fringe = graph:vertexFilteredMultiSourceDistanceMap(source, depth, vertexFilter)
 
 	local result = {}
 
-	for probe = 1, depth do
+	for iteration = 1, depth do
+		local fringe = graph:vertexFilteredMultiSourceDistanceMap(accumSources, 1, vertexFilter)
+
 		for vertex, distance in pairs(fringe) do
-			if distance == probe then
+			if distance == 1 then
+				local r = math.random()
+
+				if r < seeding then
+					result[vertex] = terrain
+
+					accumSources[vertex] = true
+				end
 			end
 		end
 	end
@@ -104,29 +118,94 @@ function style.organic( params, graph, sources, mask )
 	return result
 end
 
-
-local function _sequence( defs, graph, sources, mask )
+-- params = {
+--     { params }+
+-- }
+function styles.sequence( params, graph, sources, mask )
 	local result = {}
 
 	-- We will be changing the sources and mask tables so make a copy.
-	sources = table.copy(sources)
-	mask = table.copy(mask)
+	local accumSources = table.copy(sources)
+	local accumMask = table.copy(mask)
 
-	for index, params in ipairs(defs) do
-		local func = style[params[1]]
-		assert(func)
+	for index, subparams in ipairs(params) do
+		local style = styles[subparams.style]
+		assert(style)
 
-		local fringe = func(params, graph, sources, mask)
+		local fringe = style(subparams, graph, accumSources, accumMask)
 
 		for vertex, terrain in pairs(fringe) do
 			result[vertex] = terrain
 
 			-- We don't want subsequent steps of the sequence to change what
 			-- previous steps have chosen so we add to the sources and mask.
-			sources[vertex] = true
-			mask[vertex] = true
+			accumSources[vertex] = true
+			accumMask[vertex] = true
 		end
 	end
 
 	return result
+end
+
+fringes.empty = {
+	style = 'empty',
+}
+
+fringes.graniteWall = {
+	style = 'organic',
+	depth = 3,
+	seeding = 0.5,
+	terrain = terrains.granite,
+}
+
+fringes.abyss = {
+	style = 'organic',
+	depth = 10,
+	seeding = 0.75,
+	terrain = terrains.abyss,
+}
+
+fringes.castle = {
+	style = 'sequence',
+	{
+		style = 'solid',
+		depth = 1,
+		terrain = terrains.granite,
+	},
+	{
+		style = 'solid',
+		depth = 2,
+		terrain = terrains.water,
+	},
+	{
+		style = 'solid',
+		depth = 1,
+		terrain = terrains.unwalkableDirt,
+	},
+	{
+		style = 'organic',
+		depth = 5,
+		seeding = 0.75,
+		terrain = terrains.tree,
+	},
+}
+
+for name, params in pairs(fringes) do
+	params.name = name
+	local style = params.style
+	assert(style)
+	assertf(styles[style], 'unknown fringe style %s', tostring(style))
+end
+
+local _inverse = table.inverse(fringes)
+
+function isFringe( value )
+	return _inverse[value] ~= nil
+end
+
+function calcFringe( fringe, graph, sources, mask )
+	local style = styles[fringe.style]
+	assert(style)
+
+	return style(fringe, graph, sources, mask)
 end
