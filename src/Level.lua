@@ -526,6 +526,8 @@ function Level.newThemed( theme )
 
 	printf('#locales:%d', #locales)
 
+	local distances = {}
+
 	-- Now we check each vertex and pick the closest terrain choice from the
 	-- fringes if it has one.
 	for vertex, _ in pairs(graph.vertices) do
@@ -544,6 +546,7 @@ function Level.newThemed( theme )
 
 			if terrain then
 				vertex.terrain = terrain
+				distances[vertex] = distance
 			end
 		end
 	end
@@ -651,6 +654,7 @@ function Level.newThemed( theme )
 		fringes = fringes,
 		batches = batches,
 		maxFringeDepth = maxFringeDepth,
+		distances = distances,
 	}
 
 	setmetatable(result, Level)

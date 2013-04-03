@@ -60,6 +60,7 @@ terrains.tree = {
 
 terrains.water = {
 	walkable = false,
+	shimmer = 0.1,
 	colour = { 0, 121, 194, 255 }
 }
 

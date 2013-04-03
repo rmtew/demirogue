@@ -147,8 +147,21 @@ function voronoimode.draw()
 				local depth = fringe[vertex] or 0
 
 				if fringe[vertex] or drawNonSkeleton then
-					local colour = vertex.terrain.colour
-					love.graphics.setColor(unpack(colour))
+					local terrain = vertex.terrain
+					local colour = terrain.colour
+					local r, g, b, a = colour[1], colour[2], colour[3], colour[4] 
+
+					if terrain.shimmer then
+						local minf, maxf = 1 - terrain.shimmer, 1 + terrain.shimmer
+						local offset = level.distances[vertex] or 0
+						local f = lerpf(math.sin(time + offset), -1, 1, minf, maxf)
+
+						r = r * f
+						g = g * f
+						b = b * f
+					end
+
+					love.graphics.setColor(r, g, b, a)
 					love.graphics.polygon('fill', poly)
 				end
 			end
@@ -280,9 +293,20 @@ function voronoimode.draw()
 
 		for vertex, _ in pairs(level.graph.vertices) do
 			local localeId = vertex.localeId
+			local distance = level.distances[vertex]
+
+			local text = nil
 
 			if localeId then
-				shadowf(vertex[1], vertex[2], '%d', localeId)
+				text = string.format("%d", localeId)
+			end
+
+			if distance then
+				text = (text or '') .. tostring(distance)
+			end
+
+			if text then
+				shadowf(vertex[1], vertex[2], text)
 			end
 		end
 	end
@@ -296,7 +320,7 @@ function voronoimode.draw()
 	end
 
 	-- Cells with more than 8 neightbours would problematic for traditional
-	-- roguelike movement controls, hjklyubn.
+	-- roguelike movement controls, hjklyubn or numpad.
 	if drawNonHJKLYUBNCells then
 		for vertex, peers in pairs(level.graph.vertices) do
 			if table.count(peers) > 8 then
