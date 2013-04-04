@@ -15,51 +15,9 @@ roomgen = {
 	grid = nil,
 }
 
--- TDOD: not as efficient as an array of arrays.
-local function _mask( width, height, default )
-	local data = {}
-
-	for i = 1, width * height do
-		data[i] = default and true or false
-	end
-
-	return {
-		width = width,
-		height = height,
-		set = 
-			function ( x, y, value )
-				data[((y-1) * width) + x] = value
-			end,
-		get =
-			function ( x, y )
-				return data[((y-1) * width) + x]
-			end,
-		count =
-			function ()
-				local result = 0
-
-				for i = 1, width * height do
-					result = result + (data[i] and 1 or 0)
-				end
-
-				return result
-			end,
-		print =
-			function ()
-				for x = 1, width do
-					local line = {}
-					for y = 1, height do
-						line[y] = data[((y-1) * width) + x] and 'x' or '.'
-					end
-					print(table.concat(line))
-				end
-			end,
-	}
-end
-
 local function vertex( x, y, terrain, fringe )
 	assert(terrain)
-	assert(fringe)
+	assert(fringe ~= nil or terrain == terrains.filler)
 
 	return {
 		x, y,
@@ -96,6 +54,36 @@ function roomgen.grid( bbox, margin, terrain, fringe )
 	return points
 end
 
+function roomgen.walledgrid( bbox, margin, terrain, fringe )
+	local points = {}
+
+	local w = bbox:width()
+	local h = bbox:height()
+
+	local numx, gapx = math.modf(w / margin)
+	local numy, gapy = math.modf(h / margin)
+	numx, numy = numx + 1, numy + 1
+	gapx, gapy = gapx * margin, gapy * margin
+
+	local xoffset = bbox.xmin + (gapx * 0.5)
+	local yoffset = bbox.ymin + (gapy * 0.5)
+
+	for x = 0, numx-1 do
+		for y = 0, numy-1 do
+			local x = xoffset + (x * margin)
+			local y = yoffset + (y * margin)
+
+			if x == 0 or x == numx-1 or y == 0 or y == numy-1 then
+				points[#points+1] = vertex(x, y, terrains.filler, nil)
+			else
+				points[#points+1] = vertex(x, y, terrain, fringe)
+			end
+		end
+	end
+
+	return points
+end
+
 function roomgen.browniangrid( bbox, margin, terrain, fringe )
 	local points = {}
 
@@ -107,8 +95,7 @@ function roomgen.browniangrid( bbox, margin, terrain, fringe )
 	numx, numy = numx + 1, numy + 1
 	gapx, gapy = gapx * margin, gapy * margin
 
-
-	local mask = _mask(numx, numy, false)
+	local mask = newgrid(numx, numy, false)
 
 	local centrex, centrey = math.floor(0.5 + (numx * 0.5)), math.floor(0.5 + (numy * 0.5))
 	local x, y = centrex, centrey
@@ -180,7 +167,7 @@ function roomgen.brownianhexgrid( bbox, margin, terrain, fringe )
 	numx, numy = numx + 1, numy + 1
 	gapx, gapy = gapx * margin, gapy * margin
 
-	local mask = _mask(numx, numy, false)
+	local mask = newgrid(numx, numy, false)
 
 	local centrex, centrey = math.floor(0.5 + (numx * 0.5)), math.floor(0.5 + (numy * 0.5))
 	local x, y = centrex, centrey
@@ -224,16 +211,18 @@ function roomgen.brownianhexgrid( bbox, margin, terrain, fringe )
 	local xmin = bbox.xmin + (gapx * 0.5)
 	local yoffset = bbox.ymin + (gapy * 0.5)
 
-	for y = 0, numy-1 do
-		local even = (y % 2) == 0
+	for y = 1, numy do
+		local even = ((y-1) % 2) == 0
 		local xoffset = xmin + (even and 0.5 or 0) * margin
 
-		for x = 0, numx-(even and 2 or 1) do
-			if mask.get(x+1, y+1) then
-				local x = xoffset + (x * margin)
-				local y = yoffset + (y * ymargin)
+		for x = 1, numx-(even and 1 or 0) do
+			if mask.get(x, y) then
+				local x = xoffset + ((x-1) * margin)
+				local y = yoffset + ((y-1) * ymargin)
 
 				points[#points+1] = vertex(x, y, terrain, fringe)
+			elseif mask.anyFourwayNeighboursSet(x, y) then
+				points[#points+1] = vertex(x, y, terrains.filler, fringes.empty)
 			end
 		end
 	end
@@ -251,7 +240,7 @@ function roomgen.cellulargrid( bbox, margin, terrain, fringe )
 	numx, numy = numx + 1, numy + 1
 	gapx, gapy = gapx * margin, gapy * margin
 
-	local old, new = _mask(numx, numy, false), _mask(numx, numy, false)
+	local old, new = newgrid(numx, numy, false), newgrid(numx, numy, false)
 
 	local centrex, centrey = math.floor(0.5 + (numx * 0.5)), math.floor(0.5 + (numy * 0.5))
 

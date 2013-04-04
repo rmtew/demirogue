@@ -871,7 +871,6 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		-- This moves the hull as well becuase the points aren't copied by
 		-- geometry.convexHull().
 		for _, point in ipairs(points) do
-			assert(point.terrain == params.terrain)
 			point[1] = point[1] - centroid[1]
 			point[2] = point[2] - centroid[2]
 		end

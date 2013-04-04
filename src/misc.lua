@@ -195,6 +195,28 @@ function newgrid( width, height, value )
 			function ( x, y )
 				return data[x][y]
 			end,
+		anyFourwayNeighboursSet =
+			function ( x, y )
+				local t, b, l, r = false, false, false, false
+
+				if y < height then
+					t = data[x][y+1]
+				end
+
+				if y > 1 then
+					b = data[x][y-1]
+				end
+
+				if x < width then
+					r = data[x+1][y]
+				end
+
+				if x > 1 then
+					l = data[x-1][y]
+				end
+
+				return t or b or l or r
+			end,
 		print =
 			function ()
 				for y = 1, height do

@@ -474,25 +474,27 @@ local function Theme( params )
 end
 
 local grid = roomgen.grid
+local walledgrid = roomgen.walledgrid
 local randgrid = roomgen.randgrid
 local browniangrid = roomgen.browniangrid
 local brownianhexgrid = roomgen.brownianhexgrid
 local cellulargrid = roomgen.cellulargrid
 local hexgrid = roomgen.hexgrid
+local enclose = roomgen.enclose
 
 local function choice( tbl )
 	return
-		function ( aabb, margin )
+		function ( aabb, margin, terrain, fringe )
 			local gen = tbl[math.random(1, #tbl)]
 
-			return gen(aabb, margin)
+			return gen(aabb, margin, terrain, fringe)
 		end
 end
 
 local function deck( tbl )
 	local index = #tbl + 1
 	return
-		function ( aabb, margin )
+		function ( aabb, margin, terrain, fringe )
 			if index > #tbl then
 				table.shuffle(tbl)
 				index = 1
@@ -501,7 +503,7 @@ local function deck( tbl )
 			local gen = tbl[index]
 			index = index + 1
 
-			return gen(aabb, margin)
+			return gen(aabb, margin, terrain, fringe)
 		end
 end
 
@@ -521,15 +523,16 @@ local base = {
 	maxDelta = 0.5,
 	convergenceDistance = 4,
 
+	-- NOTE: don't change this in other themes it's a pretty fundamental value.
 	margin = 50,
 	
 	minExtent = 3,
 	maxExtent = 12,
 	radiusFudge = 1,
-	-- roomgen = choice { browniangrid, grid, hexgrid, randgrid },
+	-- roomgen = deck { browniangrid, hexgrid, randgrid, enclose },
 	roomgen = brownianhexgrid,
 	terrain = terrains.floor,
-	-- This is used to set the terrain of any cells that don;t get their
+	-- This is used to set the terrain of any cells that don't get their
 	-- terrain set via either border, room, corridor or fringe.
 	filler = terrains.granite,
 	-- TODO: need to set corridor terrain and fringe using more expressive

@@ -437,4 +437,4 @@ subgraphs. A few issues then present themselves:
   - The inside should only be classified as such if entirely bounded by rooms
     and edges in the subgraph.
 - Should the 'global' concept of inside and outside still be usable?
-
+  - Inside a subgraph MUST be a global inside which might be a usable property.

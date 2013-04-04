@@ -339,7 +339,9 @@ function Level.newThemed( theme )
 				fringe = relPoint.fringe,
 				room = room,
 			}
-			skeleton[point] = true
+			if point.terrain ~= terrains.filler then
+				skeleton[point] = true
+			end
 			points[index] = point
 		end
 
