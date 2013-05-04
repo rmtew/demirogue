@@ -388,7 +388,7 @@ local function Theme( params )
 	checkf(_isPosInt(params.maxIterations), 'maxIterations should be > 0')
 	checkf(_isPosInt(params.minVertices), 'minVertices should be > 0')
 	checkf(_isPosInt(params.maxVertices), 'maxVertices should be > 0')
-	checkf(params.minVertices < params.maxVertices, 'minVertices should be < maxVertices')
+	checkf(params.minVertices <= params.maxVertices, 'minVertices should be < maxVertices')
 	checkf(_isPosInt(params.maxValence), 'maxValence should be > 0')
 
 	local metarules = params.metarules
@@ -415,7 +415,7 @@ local function Theme( params )
 	checkf(_isPosInt(params.margin), 'margin should be > 0')
 	checkf(_isPosInt(params.minExtent), 'minExtent should be > 0')
 	checkf(_isPosInt(params.maxExtent), 'maxExtent should be > 0')
-	checkf(params.minExtent < params.maxExtent, 'minExtent should be < maxExtent')
+	checkf(params.minExtent <= params.maxExtent, 'minExtent should be < maxExtent')
 	checkf(_isPosInt(params.radiusFudge), 'radiusFudge should be > 0')
 	checkf(type(params.roomgen) == 'function', 'roomgen should be a function')
 	checkf(isTerrain(params.terrain), 'terrain should be a valid terrain')
@@ -589,6 +589,11 @@ Theme {
 Theme {
 	template = base,
 	name = 'tree',
+
+	roomgen = grid,
+
+	minExtent = 8,
+	maxExtent = 8,
 }
 
 Theme {

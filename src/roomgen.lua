@@ -221,8 +221,8 @@ function roomgen.brownianhexgrid( bbox, margin, terrain, fringe )
 				local y = yoffset + ((y-1) * ymargin)
 
 				points[#points+1] = vertex(x, y, terrain, fringe)
-			elseif mask.anyFourwayNeighboursSet(x, y) then
-				points[#points+1] = vertex(x, y, terrains.filler, fringes.empty)
+			-- elseif mask.anyFourwayNeighboursSet(x, y) then
+			-- 	points[#points+1] = vertex(x, y, terrains.filler, fringes.empty)
 			end
 		end
 	end
