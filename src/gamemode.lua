@@ -857,7 +857,8 @@ function gamemode.draw()
 		love.graphics.setPixelEffect()
 
 		local linewidth = 2
-		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
+		love.graphics.setLineWidth(linewidth * 1/xform.scale)
+		love.graphics.setLineStyle('rough')
 
 		local colours = {
 			-- { 0, 0, 0, 255 },
@@ -908,7 +909,8 @@ function gamemode.draw()
 		love.graphics.setPixelEffect(fowColourEffect)
 
 		love.graphics.setColor(128, 128, 128, 255)
-		love.graphics.setLine(linewidth * 1/xform.scale, 'rough')
+		love.graphics.setLineWidth(linewidth * 1/xform.scale)
+		love.graphics.setLineStyle('rough')
 
 		-- local lines = {}
 
@@ -1143,9 +1145,9 @@ local function genvoronoi()
 			yb = level.aabb.ymax + 100,
 		}
 
-		local start = love.timer.getMicroTime()
+		local start = love.timer.getTime()
 		diagram = Voronoi:new():compute(sites, bbox)
-		local finish = love.timer.getMicroTime()
+		local finish = love.timer.getTime()
 
 		printf('Voronoi:compute(%d) %.3fs', #sites, finish - start)
 

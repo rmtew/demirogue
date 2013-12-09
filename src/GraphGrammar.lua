@@ -226,9 +226,9 @@ end
 
 function GraphGrammar.Rule:matches( graph, maxValence )
 	-- TODO: Probably need an edgeEq as well..
-	local start = love.timer.getMicroTime()
+	local start = love.timer.getTime()
 	local success, result = graph:matches(self.pattern, _vertexEq, _edgeEq)
-	local finish = love.timer.getMicroTime()
+	local finish = love.timer.getTime()
 	printf('    subgraph:%.4fs', finish-start)
 
 	-- If we have some matches we need to apply some more checks and reject
@@ -255,7 +255,7 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 	--
 	-- - TODO: need to add blocked neighbours checking.
 	if success then
-		local start = love.timer.getMicroTime()
+		local start = love.timer.getTime()
 		-- Iterate backwards because we may be removing matches.
 
 		local numFlipFails = 0
@@ -369,7 +369,7 @@ function GraphGrammar.Rule:matches( graph, maxValence )
 			end
 		end
 
-		local finish = love.timer.getMicroTime()
+		local finish = love.timer.getTime()
 		printf('    filter:%.4fs #flip:%d #:valence:%d', finish-start, numFlipFails, numValenceFails)
 
 		if #result == 0 then
@@ -383,7 +383,7 @@ end
 -- Match should be one of the members of a result array from the matches()
 -- method. If not, all bets are off and you better know what you're doing.
 function GraphGrammar.Rule:replace( graph, match, params )
-	local start = love.timer.getMicroTime()
+	local start = love.timer.getTime()
 
 	-- Calculate the mean length of the matched edges.
 	local totalHostEdgeLength = 0
@@ -675,7 +675,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		gProgress = false
 	end
 
-	local finish = love.timer.getMicroTime()
+	local finish = love.timer.getTime()
 	printf('    replace:%.4fs', finish-start)
 
 	-- Now make it pretty.
@@ -781,7 +781,7 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 	end
 
 	for iteration = 1, maxIterations do
-		local start = love.timer.getMicroTime()
+		local start = love.timer.getTime()
 		-- local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
 		
 		local rulesMatches = {}
@@ -850,7 +850,7 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 			numVertices = numVertices + ruleMatch.rule.vertexDelta
 		end
 
-		local finish = love.timer.getMicroTime()
+		local finish = love.timer.getTime()
 		local duration = finish - start
 		totalTime = totalTime + duration
 

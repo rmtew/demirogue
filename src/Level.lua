@@ -284,7 +284,7 @@ end
 function Level.newThemed( theme )
 	local useAStarConnect = false
 
-	local levelStart = love.timer.getMicroTime()
+	local levelStart = love.timer.getTime()
 
 	local ruleset = themes.loadRuleset(theme)
 	local rules = themes.rules(ruleset)
@@ -426,9 +426,9 @@ function Level.newThemed( theme )
 		yb = safe.ymax,
 	}
 
-	local voronoiStart = love.timer.getMicroTime()
+	local voronoiStart = love.timer.getTime()
 	diagram = Voronoi:new():compute(sites, bbox)
-	local voronoiFinish = love.timer.getMicroTime()
+	local voronoiFinish = love.timer.getTime()
 
 	printf('Voronoi:compute(%d) %.3fs', #sites, voronoiFinish - voronoiStart)
 
@@ -480,7 +480,7 @@ function Level.newThemed( theme )
 	end
 
 	-- Calculate fringes.
-	local fringeStart = love.timer.getMicroTime()
+	local fringeStart = love.timer.getTime()
 	
 	-- Skeleton and border cells can't be in a fringe.
 	local mask = table.copy(skeleton)
@@ -560,13 +560,13 @@ function Level.newThemed( theme )
 		end
 	end
 
-	local fringeFinish = love.timer.getMicroTime()
+	local fringeFinish = love.timer.getTime()
 	printf('fringes %.3fs', fringeFinish - fringeStart)
 
 
 	-- TEST: to save trying to write straight skeleton generating code.
 	-- RESULT: it works but is quite slow and only works for single cells.
-	local offsetStart = love.timer.getMicroTime()
+	local offsetStart = love.timer.getTime()
 
 	local offset = theme.margin * 0.2
 	local cores = {}
@@ -620,7 +620,7 @@ function Level.newThemed( theme )
 		end
 	end
 
-	local offsetFinish = love.timer.getMicroTime()
+	local offsetFinish = love.timer.getTime()
 
 	printf('cell offset %.3fs', offsetFinish - offsetStart)
 
@@ -639,7 +639,7 @@ function Level.newThemed( theme )
 		end
 	end
 
-	local levelFinish = love.timer.getMicroTime()
+	local levelFinish = love.timer.getTime()
 
 	printf('Level.new() %.3fs', levelFinish - levelStart)
 

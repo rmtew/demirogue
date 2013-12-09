@@ -3,16 +3,18 @@ return {
     ["rightGraph"] = {
       ["vertices"] = {
         {
-          665,
-          213,
+          599,
+          192,
           ["mapped"] = false,
+          ["cosmetic"] = false,
           ["side"] = "right",
           ["tag"] = "a",
         },
         {
-          599,
-          192,
+          665,
+          213,
           ["mapped"] = false,
+          ["cosmetic"] = false,
           ["side"] = "right",
           ["tag"] = "a",
         },
@@ -20,26 +22,27 @@ return {
           603,
           283,
           ["mapped"] = true,
+          ["cosmetic"] = false,
           ["side"] = "right",
           ["tag"] = "a",
         },
       },
       ["edges"] = {
         {
-          3,
+          2,
           1,
           ["subdivide"] = false,
           ["cosmetic"] = false,
         },
         {
           1,
-          2,
+          3,
           ["subdivide"] = false,
           ["cosmetic"] = false,
         },
         {
-          2,
           3,
+          2,
           ["subdivide"] = false,
           ["cosmetic"] = false,
         },
@@ -58,6 +61,7 @@ return {
           },
           ["lock"] = false,
           ["side"] = "left",
+          ["cosmetic"] = false,
         },
       },
       ["edges"] = {},
@@ -65,13 +69,88 @@ return {
     },
     {
     ["rightGraph"] = {
-      ["vertices"] = {},
-      ["edges"] = {},
+      ["vertices"] = {
+        {
+          559,
+          298,
+          ["mapped"] = true,
+          ["cosmetic"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          648,
+          249,
+          ["mapped"] = true,
+          ["cosmetic"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+        {
+          579,
+          222,
+          ["mapped"] = false,
+          ["cosmetic"] = false,
+          ["side"] = "right",
+          ["tag"] = "a",
+        },
+      },
+      ["edges"] = {
+        {
+          1,
+          2,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          1,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+        {
+          2,
+          3,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
     },
-    ["map"] = {},
+    ["map"] = {
+      2,
+      1,
+    },
     ["leftGraph"] = {
-      ["vertices"] = {},
-      ["edges"] = {},
+      ["vertices"] = {
+        {
+          248,
+          249,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+          ["cosmetic"] = false,
+        },
+        {
+          159,
+          298,
+          ["tags"] = {
+            ["a"] = true,
+          },
+          ["lock"] = false,
+          ["side"] = "left",
+          ["cosmetic"] = false,
+        },
+      },
+      ["edges"] = {
+        {
+          2,
+          1,
+          ["subdivide"] = false,
+          ["cosmetic"] = false,
+        },
+      },
     },
     },
     {

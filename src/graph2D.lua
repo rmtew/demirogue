@@ -194,7 +194,7 @@ function graph2D.forceDraw(
 	convergenceDistance,
 	yield )
 
-	local start = love.timer.getMicroTime()
+	local start = love.timer.getTime()
 
 	local forces = {}
 	local vertices = {}
@@ -383,7 +383,7 @@ function graph2D.forceDraw(
 		end
 	end
 
-	local finish = love.timer.getMicroTime()
+	local finish = love.timer.getTime()
 	local delta = finish-start
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f conv:%.2f', delta, count, count / delta, convergenceDistance)
 end
@@ -402,7 +402,7 @@ function graph2D.forceDrawRelax(
 
 	-- assert(convergenceDistance < maxDelta)
 
-	local start = love.timer.getMicroTime()
+	local start = love.timer.getTime()
 
 	local forces = {}
 	local blockers = {}

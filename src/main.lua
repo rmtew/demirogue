@@ -62,15 +62,8 @@ function love.mousereleased( x, y, button )
 	mode.mousereleased(x, y, button)
 end
 
-function love.keypressed( key, unicode )
-	-- Printable ASCII is enough for now.
-	local ascii = nil
-	if unicode >= 32 and unicode <= 126 then
-		ascii = string.char(unicode)
-	end
-
-	printf('love.keypressed %s %d ascii:%s => %s', key, unicode, ascii or '', ascii or key)
-
+function love.keypressed( key, isrepeat )
+	printf('love.keypressed %s %s', key, tostring(isrepeat))
 
 	if key == 'escape' then
 		love.event.push('quit')
@@ -81,7 +74,7 @@ function love.keypressed( key, unicode )
 			mode = voronoimode
 		end
 	else
-		mode.keypressed(ascii or key)
+		mode.keypressed(key)
 	end
 end
 

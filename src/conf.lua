@@ -3,7 +3,7 @@ function love.conf( t )
 	t.author = 'naughty'
 	-- t.url = nil
 	t.identity = 'demirogue' -- save game directory name
-	t.version = '0.8.0'      -- love version
+	t.version = '0.9.0'      -- love version
 	
 	t.console = true
 	-- t.release = false

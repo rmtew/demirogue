@@ -222,7 +222,8 @@ function graphmode.draw()
 
 		-- Dividing line.
 		love.graphics.setColor(255, 255, 255, 255)
-		love.graphics.setLine(1, 'rough')
+		love.graphics.setLineWidth(1)
+		love.graphics.setLineStyle('rough')
 		love.graphics.line(hw, 0, hw, h)
 
 		local level = state.stack[state.index]
@@ -234,7 +235,8 @@ function graphmode.draw()
 			love.graphics.setColor(255, 255, 0, 255)
 
 			if selection.type == 'vertex' then
-				love.graphics.setLine(3, 'rough')
+				love.graphics.setLineWidth(3)
+				love.graphics.setLineStyle('rough')
 				local radius = 10
 				love.graphics.circle('line', selection.vertex[1], selection.vertex[2], radius)
 			end
@@ -243,7 +245,8 @@ function graphmode.draw()
 				local graph = (selection.edge.side == 'left') and level.leftGraph or level.rightGraph
 				local endverts = graph.edges[selection.edge]
 
-				love.graphics.setLine(10, 'rough')
+				love.graphics.setLineWidth(10)
+				love.graphics.setLineStyle('rough')
 				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
 			end
 		end
@@ -251,7 +254,8 @@ function graphmode.draw()
 		-- Now the vertices and edges.
 		local radius = 5
 
-		love.graphics.setLine(3, 'rough')
+		love.graphics.setLineWidth(3)
+		love.graphics.setLineStyle('rough')
 		love.graphics.setColor(255, 0, 0, 255)
 
 		for vertex, _ in pairs(level.leftGraph.vertices) do
@@ -380,8 +384,10 @@ function graphmode.draw()
 		aabb:similarise(screen)
 
 		love.graphics.setColor(0, 255, 0, 255)
-		love.graphics.setLine(3, 'rough')
-		love.graphics.setPoint(3, 'rough')
+		love.graphics.setLineWidth(3)
+		love.graphics.setLineStyle('rough')
+		love.graphics.setPointSize(3)
+		love.graphics.setPointStyle('rough')
 		local radius = 5
 
 		for vertex, _ in pairs(state.graph.vertices) do
@@ -483,7 +489,8 @@ function graphmode.draw()
 		_shadowf(gFont15, 0, 15, 'ok: %s - %s', tostring(not failed), msg or '')
 
 		love.graphics.setColor(255, 0, 255, 255)
-		love.graphics.setLine(1, 'rough')
+		love.graphics.setLineWidth(1)
+		love.graphics.setLineStyle('rough')
 
 		for vertex, _  in pairs(state.graph.vertices) do
 			local blockers = vertex.blockers
@@ -511,7 +518,8 @@ function graphmode.draw()
 				local pos1 = aabb:lerpTo(vertex, screen)
 				local pos2 = aabb:lerpTo(dir, screen)
 
-				love.graphics.setLine(3, 'rough')
+				love.graphics.setLineWidth(3)
+				love.graphics.setLineStyle('rough')
 				love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
 			end
 
@@ -837,14 +845,14 @@ function graphmode.keypressed( key )
 					local numSucceesses = 0
 					local stats = {}
 					while true do
-						local start = love.timer.getMicroTime()
+						local start = love.timer.getTime()
 						local graph = grammar:build(maxIterations, minVertices, maxVertices, maxValence, metarules)
 
 						local yield = false
 						local _, stat = graph2D.assignRoomsAndRelax(state.graph, theme, yield)
 
 						local failed, msg = graph2D.isSelfIntersecting(graph)
-						local finish = love.timer.getMicroTime()
+						local finish = love.timer.getTime()
 
 						if failed then
 							numFailures = numFailures + 1

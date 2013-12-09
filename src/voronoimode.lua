@@ -9,7 +9,6 @@ require 'Actor'
 require 'Scheduler'
 require 'behaviour'
 require 'action'
-require 'metalines'
 require 'texture'
 require 'Voronoi'
 require 'Viewport'
@@ -119,7 +118,8 @@ function voronoimode.draw()
 	if drawVoronoi then
 		local linewidth = 2 * scaler
 
-		love.graphics.setLine(linewidth, 'rough')
+		love.graphics.setLineWidth(linewidth)
+		love.graphics.setLineStyle('rough')
 
 		local colours = {
 			-- { 0, 0, 0, 255 },
@@ -244,7 +244,8 @@ function voronoimode.draw()
 	if drawEdgesIndex ~= 1 then
 		love.graphics.setColor(0, 0, 255, 255)
 		local linewidth = 3 * scaler
-		love.graphics.setLine(linewidth * viewport:getZoom(), 'rough')
+		love.graphics.setLineWidth(linewidth * viewport:getZoom())
+		love.graphics.setLineStyle('rough')
 
 		local drawUnwalkableEdges = drawEdgesOptions[drawEdgesIndex] == 'all'
 		
