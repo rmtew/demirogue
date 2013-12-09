@@ -12,6 +12,8 @@
 
 # Sublime
 *.sublime-workspace
+# These aren't cross platform safe.
+*.sublime-project
 
 # Generated debugging files.
 src/dots/*.png
