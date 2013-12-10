@@ -2,7 +2,6 @@ require 'AABB'
 require 'Graph'
 require 'Vector'
 require 'graph2D'
-require 'Quadtree'
 require 'Voronoi'
 require 'geometry'
 require 'terrains'
@@ -65,8 +64,8 @@ local function _corridors( graph, margin, terrain, fringe )
 					end
 
 					local point = {
-						near1[1] + (i * segLength * normal[1]),
-						near1[2] + (i * segLength * normal[2]),
+						x = near1.x + (i * segLength * normal.x),
+						y = near1.y + (i * segLength * normal.y),
 						terrain = terrain,
 						fringe = fringe,
 						corridor = {
@@ -161,8 +160,8 @@ local function _enclose( points, aabb, margin, terrain )
 	local grid = newgrid(width, height, false)
 
 	for _, point in pairs(points) do
-		local x = math.round((point[1] - aabb.xmin) / margin)
-		local y = math.round((point[2] - aabb.ymin) / margin)
+		local x = math.round((point.x - aabb.xmin) / margin)
+		local y = math.round((point.y - aabb.ymin) / margin)
 
 		assert(x ~= 1 and x ~= width)
 		assert(y ~= 1 and y ~= height)
@@ -190,8 +189,8 @@ local function _enclose( points, aabb, margin, terrain )
 
 		local mx = aabb.xmin + ((x-1) * margin) + (margin * 0.5)
 
-		local topBorder = { mx, aabb.ymin + (margin * 0.5), terrain = border }
-		local bottomBorder = { mx, aabb.ymax - (margin * 0.5), terrain = border }
+		local topBorder = { x = mx, y = aabb.ymin + (margin * 0.5), terrain = border }
+		local bottomBorder = { x = mx, y = aabb.ymax - (margin * 0.5), terrain = border }
 
 		grid.set(x, 1, { topBorder })
 		grid.set(x, height, { bottomBorder })
@@ -209,8 +208,8 @@ local function _enclose( points, aabb, margin, terrain )
 
 		local my = aabb.ymin + ((y-1) * margin) + (margin * 0.5)
 
-		local leftWall = { aabb.xmin + (margin * 0.5), my, terrain = border }
-		local rightWall = { aabb.xmax - (margin * 0.5), my, terrain = border }
+		local leftWall = { x = aabb.xmin + (margin * 0.5), y = my, terrain = border }
+		local rightWall = { x = aabb.xmax - (margin * 0.5), y = my, terrain = border }
 
 		grid.set(1, y, { leftWall })
 		grid.set(width, y, { rightWall })
@@ -241,7 +240,7 @@ local function _enclose( points, aabb, margin, terrain )
 				local rx = aabb.xmin + ((x-1) * margin) + (margin * math.random())
 				local ry = aabb.ymin + ((y-1) * margin) + (margin * math.random())
 
-				local candidate = { rx, ry, terrain = terrain }
+				local candidate = { x = rx, y = ry, terrain = terrain }
 				local empty = {}
 				local accepted = true
 
@@ -333,8 +332,8 @@ function Level.newThemed( theme )
 		for index, relPoint in ipairs(vertex.points) do
 			assert(relPoint.terrain)
 			local point = {
-				vertex[1] + relPoint[1],
-				vertex[2] + relPoint[2],
+				x = vertex.x + relPoint.x,
+				y = vertex.y + relPoint.y,
 				terrain = relPoint.terrain,
 				fringe = relPoint.fringe,
 				room = room,
@@ -410,8 +409,8 @@ function Level.newThemed( theme )
 
 	for index, point in ipairs(all) do
 		local site = {
-			x = point[1],
-			y = point[2],
+			x = point.x,
+			y = point.y,
 			vertex = point,
 			index = index,
 		}
@@ -584,13 +583,13 @@ function Level.newThemed( theme )
 			end
 
 			local centre = points[1]
-			local sites = { { x = centre[1], y = centre[2], centre = true } }
+			local sites = { { x = centre.x, y = centre.y, centre = true } }
 
 			for i = 2, #points do
 				local point = points[i]
 				Vector.advance(point, centre, offset * 2)
 
-				sites[#sites+1] = { x = point[1], y = point[2] }
+				sites[#sites+1] = { x = point.x, y = point.y }
 			end
 
 			local diagram = voronoi:compute(sites, bbox)
@@ -674,8 +673,8 @@ function Level:points()
 
 		for edge, endverts in pairs(self.graph.edges) do
 			local vertex1, vertex2 = endverts[1], endverts[2]
-			point1s[#point1s+1] = { vertex1[1], vertex1[2] }
-			point2s[#point2s+1] = { vertex2[1], vertex2[2] }
+			point1s[#point1s+1] = { vertex1.x, vertex1.y }
+			point2s[#point2s+1] = { vertex2.x, vertex2.y }
 		end
 
 		self.point1s, self.point2s = point1s, point2s

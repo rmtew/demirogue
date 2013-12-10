@@ -249,8 +249,8 @@ end
 
 function Dampener.newv( value, target, bias )
 	local result = {
-		value = { value[1], value[2] },
-		target = { target[1], target[2] },
+		value = { x = value.x, y = value.y },
+		target = { x = target.x, y = target.y },
 		bias = bias,
 	}
 
@@ -273,8 +273,8 @@ function Dampener:updatev( target )
 	local vtot = Vector.to(self.value, target)
 	Vector.scale(vtot, self.bias)
 
-	self.value[1] = self.value[1] + vtot[1]
-	self.value[2] = self.value[2] + vtot[2]
+	self.value.x = self.value.x + vtot.x
+	self.value.y = self.value.y + vtot.y
 
 	return self.value
 end

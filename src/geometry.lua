@@ -18,16 +18,16 @@ function geometry.convexHull( points )
 
 	table.sort(points,
 		function ( lhs, rhs )
-			if lhs[1] == rhs[1] then
-				return lhs[2] < rhs[2]
+			if lhs.x == rhs.x then
+				return lhs.y < rhs.y
 			else
-				return lhs[1] < rhs[1]
+				return lhs.x < rhs.x
 			end
 		end)
 
 	if #points == 3 then
 		-- Ensure clockwise ordering.
-		if points[2][2] < points[3][2] then
+		if points[2].y < points[3].y then
 			points[2], points[3] = points[3], points[2]
 		end
 
@@ -64,14 +64,14 @@ end
 
 -- NOTE: counts a point on the edge of the hull as being inside.
 function geometry.isPointInHull( point, hull )
-	local x, y = point[1], point[2]
+	local x, y = point.x, point.y
 
 	for index = 1, #hull do
 		local point1 = hull[index]
 		local point2 = hull[(index < #hull) and index + 1 or 1]
 
-		local x1, y1 = point1[1], point1[2]
-		local x2, y2 = point2[1], point2[2]
+		local x1, y1 = point1.x, point1.y
+		local x2, y2 = point2.x, point2.y
 
 		local r = (y-y1)*(x2-x1)-(x-x1)*(y2-y1)
 		
@@ -93,7 +93,7 @@ function geometry.convexHullSignedArea( hull )
 	for i = 1, #hull do
 		local p1 = hull[i]
 		local p2 = hull[(i < #hull) and i+1 or 1]
-		result = result + ((p1[1] * p2[2]) - (p2[1] * p1[2]))
+		result = result + ((p1.x * p2.y) - (p2.x * p1.y))
 	end
 
 	return 0.5 * result
@@ -108,17 +108,17 @@ function geometry.convexHullCentroid( hull )
 		local p1 = hull[i]
 		local p2 = hull[(i < #hull) and i+1 or 1]
 
-		local a = (p1[1] * p2[2]) - (p2[1] * p1[2])
+		local a = (p1.x * p2.y) - (p2.x * p1.y)
 		signedArea = signedArea + a
 		
-		cx = cx + (p1[1] + p2[1]) * a
-		cy = cy + (p1[2] + p2[2]) * a
+		cx = cx + (p1.x + p2.x) * a
+		cy = cy + (p1.y + p2.y) * a
 	end
 	
 	signedArea = 0.5 * signedArea
 	local factor = 1 / (6 * signedArea)
 
-	return Vector.new { factor * cx, factor * cy }
+	return Vector.new { x = factor * cx, y = factor * cy }
 end
 
 function geometry.furthestPointFrom( centre, points )
@@ -151,8 +151,8 @@ function geometry.closestPointOnLine( lineA, lineB, point )
     end
 
     return Vector.new {
-    	lineA[1] + aToB[1] * t,
-    	lineA[2] + aToB[2] * t,
+    	x = lineA.x + aToB.x * t,
+    	y = lineA.y + aToB.y * t,
 	}
 end
 
@@ -194,8 +194,8 @@ function geometry.lineLineIntersection( p1, p2, q1, q2 )
 	end
 
 	return true, Vector.new {
-		p1[1] + (r[1] * t),
-		p1[2] + (r[2] * t),
+		x = p1.x + (r.x * t),
+		y = p1.y + (r.y * t),
 	}
 end
 

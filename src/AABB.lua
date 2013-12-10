@@ -32,8 +32,8 @@ function AABB:area()
 end
 
 function AABB:diagonal()
-	local min = Vector.new { xmin, ymin }
-	local max = Vector.new { xmax, ymax }
+	local min = Vector.new { x = xmin, y = ymin }
+	local max = Vector.new { x = xmax, y = ymax }
 
 	return Vector.toLength(min, max)
 end
@@ -51,7 +51,7 @@ function AABB:originate()
 end
 
 function AABB:moveTo( point )
-	local x, y = point[1], point[2]
+	local x, y = point.x, point.y
 	local hw = 0.5 * self:width()
 	local hh = 0.5 * self:height()
 
@@ -129,8 +129,8 @@ end
 
 function AABB:centre()
 	return Vector.new {
-		self.xmin + self:width() * 0.5,
-		self.ymin + self:height() * 0.5,
+		x = self.xmin + self:width() * 0.5,
+		y = self.ymin + self:height() * 0.5,
 	}
 end
 
@@ -163,7 +163,7 @@ function AABB:square()
 end
 
 function AABB:contains( point )
-	local x, y = point[1], point[2]
+	local x, y = point.x, point.y
 
 	return self.xmin <= x and x <= self.xmax and self.ymin <= y and y <= self.ymax
 end
@@ -172,22 +172,22 @@ end
 -- place in the other AABB.
 function AABB:lerpTo( point, other )
 	return Vector.new {
-		lerpf(point[1], self.xmin, self.xmax, other.xmin, other.xmax),
-		lerpf(point[2], self.ymin, self.ymax, other.ymin, other.ymax),
+		x = lerpf(point.x, self.xmin, self.xmax, other.xmin, other.xmax),
+		y = lerpf(point.y, self.ymin, self.ymax, other.ymin, other.ymax),
 	}
 end
 
 -- Englarge the AABB to be able to fit the AABB at any possible rotation.
 function AABB:rotationSafe()
-	local diagonal = Vector.new { self:width(), self:height() }
+	local diagonal = Vector.new { x = self:width(), y = self:height() }
 	local halfDiagonalLength = diagonal:length() * 0.5
 
 	local centre = self:centre()
 
-	self.xmin = centre[1] - halfDiagonalLength
-	self.xmax = centre[1] + halfDiagonalLength
-	self.ymin = centre[2] - halfDiagonalLength
-	self.ymax = centre[2] + halfDiagonalLength
+	self.xmin = centre.x - halfDiagonalLength
+	self.xmax = centre.x + halfDiagonalLength
+	self.ymin = centre.y - halfDiagonalLength
+	self.ymax = centre.y + halfDiagonalLength
 end
 
 -- Grow self to have the same proportions as other.
@@ -206,8 +206,8 @@ function AABB:similarise( other )
 		-- print('taller', factor)
 		local offset = w * 0.5 * factor
 
-		self.xmin = centre[1] - offset
-		self.xmax = centre[1] + offset
+		self.xmin = centre.x - offset
+		self.xmax = centre.x + offset
 	else
 		-- So self is wider, make it taller.
 		-- local factor = aspect / otherAspect
@@ -215,8 +215,8 @@ function AABB:similarise( other )
 		-- print('wider', factor)
 		local offset = h * 0.5 * factor
 
-		self.ymin = centre[2] - offset
-		self.ymax = centre[2] + offset
+		self.ymin = centre.y - offset
+		self.ymax = centre.y + offset
 	end
 
 	-- assert(self:width() > w or self:height() > h)

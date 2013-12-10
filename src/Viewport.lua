@@ -42,8 +42,8 @@ function Viewport:_constrain()
 	local centre = bounds:centre()
 
 	if wide then
-		portal.xmin = math.round(centre[1] - portalWidth * 0.5)
-		portal.xmax = math.round(centre[1] + portalWidth * 0.5)
+		portal.xmin = math.round(centre.x - portalWidth * 0.5)
+		portal.xmax = math.round(centre.x + portalWidth * 0.5)
 	else
 		-- The portal is smaller than the screen so just move it.
 		
@@ -59,8 +59,8 @@ function Viewport:_constrain()
 	end
 
 	if tall then
-		portal.ymin = math.round(centre[2] - portalHeight * 0.5)
-		portal.ymax = math.round(centre[2] + portalHeight * 0.5)
+		portal.ymin = math.round(centre.y - portalHeight * 0.5)
+		portal.ymax = math.round(centre.y + portalHeight * 0.5)
 	else
 		-- Portal is below the bounds.
 		if portal.ymin < bounds.ymin then
@@ -102,10 +102,10 @@ function Viewport:screenToWorld( point )
 	local windowWidth = love.graphics.getWidth()
 	local windowHeight = love.graphics.getHeight()
 
-	local x = lerpf(point[1], 0, windowWidth, portal.xmin, portal.xmax)
-	local y = lerpf(point[2], 0, windowHeight, portal.ymin, portal.ymax)
+	local x = lerpf(point.x, 0, windowWidth, portal.xmin, portal.xmax)
+	local y = lerpf(point.y, 0, windowHeight, portal.ymin, portal.ymax)
 
-	return Vector.new { math.round(x), math.round(y) }
+	return Vector.new { x = math.round(x), y = math.round(y) }
 end
 
 function Viewport:worldToScreen( point )
@@ -114,8 +114,8 @@ function Viewport:worldToScreen( point )
 	local windowWidth = love.graphics.getWidth()
 	local windowHeight = love.graphics.getHeight()
 
-	local x = lerpf(point[1], portal.xmin, portal.xmax, 0, windowWidth)
-	local y = lerpf(point[2], portal.ymin, portal.ymax, 0, windowHeight)
+	local x = lerpf(point.x, portal.xmin, portal.xmax, 0, windowWidth)
+	local y = lerpf(point.y, portal.ymin, portal.ymax, 0, windowHeight)
 
 	return Vector.new { math.round(x), math.round(y) }
 end
@@ -125,10 +125,10 @@ function Viewport:_setCentre( centre )
 	local halfWidth = portal:width() * 0.5
 	local halfHeight = portal:height() * 0.5
 
-	portal.xmin = math.round(centre[1] - halfWidth)
-	portal.xmax = math.round(centre[1] + halfWidth)
-	portal.ymin = math.round(centre[2] - halfHeight)
-	portal.ymax = math.round(centre[2] + halfHeight)
+	portal.xmin = math.round(centre.x - halfWidth)
+	portal.xmax = math.round(centre.x + halfWidth)
+	portal.ymin = math.round(centre.y - halfHeight)
+	portal.ymax = math.round(centre.y + halfHeight)
 
 	self:_constrain()
 end
@@ -146,10 +146,10 @@ function Viewport:_setZoom( zoom )
 	local portal = self.portal
 	local centre = portal:centre()
 
-	portal.xmin = math.round(centre[1] - (halfWindowWidth / zoom))
-	portal.xmax = math.round(centre[1] + (halfWindowWidth / zoom))
-	portal.ymin = math.round(centre[2] - (halfWindowHeight / zoom))
-	portal.ymax = math.round(centre[2] + (halfWindowHeight / zoom))
+	portal.xmin = math.round(centre.x - (halfWindowWidth / zoom))
+	portal.xmax = math.round(centre.x + (halfWindowWidth / zoom))
+	portal.ymin = math.round(centre.y - (halfWindowHeight / zoom))
+	portal.ymax = math.round(centre.y + (halfWindowHeight / zoom))
 
 	self.zoom = zoom
 

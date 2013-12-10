@@ -43,10 +43,12 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 	-- Check that the pattern and substitute graphs have tags.
 	for vertex, _ in pairs(pattern.vertices) do
 		assert(vertex.tags, 'no tags for pattern vertex')
-		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1], 'pattern vertex has no X value')
-		assert(vertex[1] == vertex[1], 'pattern vertex X value is NaN')
-		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'pattern vertex has no Y value')
-		assert(vertex[2] == vertex[2], 'pattern vertex Y value is NaN')
+		assert(type(vertex.x) == 'number' and math.floor(vertex.x) == vertex.x, 'pattern vertex has no X value')
+		-- TODO: should use math.finite
+		assert(vertex.x == vertex.x, 'pattern vertex X value is NaN')
+		assert(type(vertex.y) == 'number' and math.floor(vertex.y) == vertex.y, 'pattern vertex has no Y value')
+		-- TODO: should use math.finite
+		assert(vertex.y == vertex.y, 'pattern vertex Y value is NaN')
 
 		local numPositive = 0
 
@@ -65,10 +67,12 @@ function GraphGrammar.Rule.new( pattern, substitute, map )
 
 	for vertex, _ in pairs(substitute.vertices) do
 		assert(vertex.tag, ' no tag for substitute vertex')
-		assert(type(vertex[1]) == 'number' and math.floor(vertex[1]) == vertex[1], 'substitute vertex has no X value')
-		assert(vertex[1] == vertex[1], 'substitute vertex X value is NaN')
-		assert(type(vertex[2]) == 'number' and math.floor(vertex[2]) == vertex[2], 'substitute vertex has no X value')
-		assert(vertex[2] == vertex[2], 'substitute vertex Y value is NaN')
+		assert(type(vertex.x) == 'number' and math.floor(vertex.x) == vertex.x, 'substitute vertex has no X value')
+		-- TODO: Use math.finite
+		assert(vertex.x == vertex.x, 'substitute vertex X value is NaN')
+		assert(type(vertex.y) == 'number' and math.floor(vertex.y) == vertex.y, 'substitute vertex has no X value')
+		-- TODO: Use math.finite
+		assert(vertex.y == vertex.y, 'substitute vertex Y value is NaN')
 
 		if vertex.tag ~= '-' then
 			tags[vertex.tag] = true
@@ -424,6 +428,9 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		inverseMatch[graphVertex] = patternVertex
 	end
 
+	print('DEBUG')
+	table.print(match)
+
 	local matchAABB = graph2D.matchAABB(match)
 
 	-- If the AABB of the matched part of the host graph is too small enlarge.
@@ -497,7 +504,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		local projected = false
 		local draw = nil
 		if position then
-			clone[1], clone[2] = position[1], position[2]
+			clone.x, clone.y = position.x, position.y
 		else
 			-- The substitute vertex is not replacing a current graph vertex
 			-- so we need to create the position.
@@ -507,9 +514,10 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				-- to graph space.
 				local coord = substituteAABB:lerpTo(substituteVertex, matchAABB)
 				-- NaN checks.
-				assert(coord[1] == coord[1])
-				assert(coord[2] == coord[2])
-				clone[1], clone[2] = coord[1], coord[2]
+				-- TODO: Use math.finite
+				assert(coord.x == coord.x)
+				assert(coord.y == coord.y)
+				clone.x, clone.y = coord.x, coord.y
 			else
 				-- For non-start rules we must take rotation into account.
 				-- Luckily all non-start rules must have at least one edge in
@@ -550,34 +558,34 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				graphBasisY:scale(normedYProj)
 
 				local coord = Vector.new {
-					graphOrigin[1] + graphBasisX[1] + graphBasisY[1],
-					graphOrigin[2] + graphBasisX[2] + graphBasisY[2],
+					x = graphOrigin.x + graphBasisX.x + graphBasisY.x,
+					y = graphOrigin.y + graphBasisX.y + graphBasisY.y,
 				}
 
 				projected = true
 
 				if params.replaceYield then
-					local x11, y11 = graphOrigin[1], graphOrigin[2]
-					local x12, y12 = x11 + graphBasisXDir[1], y11 + graphBasisXDir[2]
+					local x11, y11 = graphOrigin.x, graphOrigin.y
+					local x12, y12 = x11 + graphBasisXDir.x, y11 + graphBasisXDir.y
 
-					local x21, y21 = graphOrigin[1], graphOrigin[2]
-					local x22, y22 = x21 + graphBasisX[1], y21 + graphBasisX[2]
+					local x21, y21 = graphOrigin.x, graphOrigin.y
+					local x22, y22 = x21 + graphBasisX.x, y21 + graphBasisX.y
 
-					local x31, y31 = graphOrigin[1], graphOrigin[2]
-					local x32, y32 = x31 + graphBasisY[1], y31 + graphBasisY[2]
+					local x31, y31 = graphOrigin.x, graphOrigin.y
+					local x32, y32 = x31 + graphBasisY.x, y31 + graphBasisY.y
 
-					local x41, y41 = graphOrigin[1], graphOrigin[2]
-					local x42, y42 = coord[1], coord[2]
+					local x41, y41 = graphOrigin.x, graphOrigin.y
+					local x42, y42 = coord.x, coord.y
 
 					local lines = {
-						{ x11, y11 },
-						{ x12, y12 },
-						{ x21, y21 },
-						{ x22, y22 },
-						{ x31, y31 },
-						{ x32, y32 },
-						{ x11, y41 },
-						{ x42, y42 },
+						{ x = x11, y = y11 },
+						{ x = x12, y = y12 },
+						{ x = x21, y = y21 },
+						{ x = x22, y = y22 },
+						{ x = x31, y = y31 },
+						{ x = x32, y = y32 },
+						{ x = x11, y = y41 },
+						{ x = x42, y = y42 },
 					}
 
 					local dummy = next(graph.vertices)
@@ -599,7 +607,7 @@ function GraphGrammar.Rule:replace( graph, match, params )
 				-- -- NaN checks.
 				-- assert(coord[1] == coord[1])
 				-- assert(coord[2] == coord[2])
-				clone[1], clone[2] = coord[1], coord[2]
+				clone.x, clone.y = coord.x, coord.y
 			end
 		end
 
@@ -691,8 +699,8 @@ end
 -- TODO: this is only used on substitute vertices, rename to highlight that.
 local function _defaultCloneVertex( vertex )
 	return {
-		vertex[1],
-		vertex[2],
+		x = vertex.x,
+		y = vertex.y,
 		tag = vertex.tag
 	}
 end
@@ -766,7 +774,7 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 	}
 
 	local graph = Graph.new()
-	graph:addVertex { 0, 0, tag = 's' }
+	graph:addVertex { x = 0, y = 0, tag = 's' }
 	local numVertices = 1
 
 	local rules = self.rules

@@ -18,10 +18,10 @@ function graph2D.aabb( graph )
 	local ymin, ymax = math.huge, -math.huge
 
 	for vertex, _ in pairs(graph.vertices) do
-		xmin = math.min(xmin, vertex[1])
-		xmax = math.max(xmax, vertex[1])
-		ymin = math.min(ymin, vertex[2])
-		ymax = math.max(ymax, vertex[2])
+		xmin = math.min(xmin, vertex.x)
+		xmax = math.max(xmax, vertex.x)
+		ymin = math.min(ymin, vertex.y)
+		ymax = math.max(ymax, vertex.y)
 	end
 
 	return AABB.new {
@@ -37,10 +37,10 @@ function graph2D.matchAABB( match )
 	local ymin, ymax = math.huge, -math.huge
 
 	for _, vertex in pairs(match) do
-		xmin = math.min(xmin, vertex[1])
-		xmax = math.max(xmax, vertex[1])
-		ymin = math.min(ymin, vertex[2])
-		ymax = math.max(ymax, vertex[2])
+		xmin = math.min(xmin, vertex.x)
+		xmax = math.max(xmax, vertex.x)
+		ymin = math.min(ymin, vertex.y)
+		ymax = math.max(ymax, vertex.y)
 	end
 
 	return AABB.new {
@@ -104,7 +104,7 @@ function graph2D.spurs( graph )
 
 		for other, edge in pairs(peers) do
 			local to = Vector.to(vertex, other)
-			local angle = math.atan2(to[2], to[1])
+			local angle = math.atan2(to.y, to.x)
 			winding[#winding+1] = { angle = angle, edge = edge, to = to }
 		end
 
@@ -155,8 +155,8 @@ function graph2D.subdivide( graph, margin )
 
 			for i = 1, numpoints do
 				local vertex = Vector.new {
-					start[1] + (i * length * normal[1]),
-					start[2] + (i * length * normal[2]),
+					x = start.x + (i * length * normal.x),
+					y = start.y + (i * length * normal.y),
 				}
 
 				vertex.subdivide = true
@@ -200,8 +200,8 @@ function graph2D.forceDraw(
 	local vertices = {}
 
 	for vertex, _ in pairs(graph.vertices) do
-		forces[vertex] = Vector.new { 0, 0 }
-		vertex.force = forces[vertex]
+		forces[vertex] = Vector.new { x = 0, y = 0 }
+		-- vertex.force = forces[vertex]
 		vertices[#vertices+1] = vertex
 	end
 
@@ -243,11 +243,11 @@ function graph2D.forceDraw(
 					local vforce = forces[vertex]
 					local oforce = forces[other]
 
-					vforce[1] = vforce[1] - (to[1] * f)
-					vforce[2] = vforce[2] - (to[2] * f)
+					vforce.x = vforce.x - (to.x * f)
+					vforce.y = vforce.y - (to.y * f)
 
-					oforce[1] = oforce[1] + (to[1] * f)
-					oforce[2] = oforce[2] + (to[2] * f)
+					oforce.x = oforce.x + (to.x * f)
+					oforce.y = oforce.y + (to.y * f)
 				else
 					local to = Vector.to(vertex, other)
 					local d = to:length()
@@ -276,11 +276,11 @@ function graph2D.forceDraw(
 						local vforce = forces[vertex]
 						local oforce = forces[other]
 
-						vforce[1] = vforce[1] - (to[1] * f)
-						vforce[2] = vforce[2] - (to[2] * f)
+						vforce.x = vforce.x - (to.x * f)
+						vforce.y = vforce.y - (to.y * f)
 
-						oforce[1] = oforce[1] + (to[1] * f)
-						oforce[2] = oforce[2] + (to[2] * f)
+						oforce.x = oforce.x + (to.x * f)
+						oforce.y = oforce.y + (to.y * f)
 					end
 				end
 			end
@@ -292,7 +292,7 @@ function graph2D.forceDraw(
 				local edges = {}
 				for other, edge in pairs(peers) do
 					local to = Vector.to(vertex, other)
-					local angle = math.atan2(to[2], to[1])
+					local angle = math.atan2(to.y, to.x)
 
 					edges[#edges+1] = { angle, edge, other, to }
 				end
@@ -325,11 +325,11 @@ function graph2D.forceDraw(
 							local dir1 = to1:antiPerp()
 							local dir2 = to2:perp()
 
-							o1force[1] = o1force[1] + (dir1[1] * f)
-							o1force[2] = o1force[2] + (dir1[2] * f)
+							o1force.x = o1force.x + (dir1.x * f)
+							o1force.y = o1force.y + (dir1.y * f)
 
-							o2force[1] = o2force[1] + (dir2[1] * f)
-							o2force[2] = o2force[2] + (dir2[2] * f)
+							o2force.x = o2force.x + (dir2.x * f)
+							o2force.y = o2force.y + (dir2.y * f)
 						end
 					end
 				end
@@ -356,8 +356,8 @@ function graph2D.forceDraw(
 				force:scale(maxDelta/l)
 			end
 
-			vertex[1] = vertex[1] + force[1]
-			vertex[2] = vertex[2] + force[2]
+			vertex.x = vertex.x + force.x
+			vertex.y = vertex.y + force.y
 		end
 
 		-- printf('maxForce:%.2f conv:%.2f', maxForce, convergenceDistance)
@@ -386,437 +386,6 @@ function graph2D.forceDraw(
 	local finish = love.timer.getTime()
 	local delta = finish-start
 	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f conv:%.2f', delta, count, count / delta, convergenceDistance)
-end
-
--- Modified version of the above force based graph drawing algorithm.
--- TODO: better explanation.
--- NOTE: this is a bit of a failed experiment.
-function graph2D.forceDrawRelax(
-	graph,
-	springStrength,
-	edgeLength,
-	repulsion,
-	maxDelta,
-	convergenceDistance,
-	yield )
-
-	-- assert(convergenceDistance < maxDelta)
-
-	local start = love.timer.getTime()
-
-	local forces = {}
-	local blockers = {}
-	local vertices = {}
-
-	for vertex, _ in pairs(graph.vertices) do
-		assert(vertex.radius > 0)
-
-		forces[vertex] = Vector.new { 0, 0 }
-		blockers[vertex] = {}
-		vertex.blockers = blockers[vertex]
-		vertices[#vertices+1] = vertex
-	end
-
-	local edges = {}
-
-	for edge, endverts in pairs(graph.edges) do
-		assert(edge.length > 0)
-
-		if not edge.cosmetic then
-			edges[#edges+1] = {
-				vertex1 = endverts[1],
-				vertex2 = endverts[2],
-			}
-		end
-	end
-
-	local function block( vertex, force )
-		local blockers = blockers[vertex]
-
-		local blocked = false
-
-		for _, blocker in ipairs(blockers) do
-			if blocker:dot(force) > 0 then
-				local blength = blocker:length()
-				local flength = force:length()
-
-				local epsilon = 1/256
-				if blength < epsilon then
-					force[1], force[2] = 0, 0
-					break
-				end
-
-				if flength > blength then
-					force:scale(blength/flength)				
-				end
-			end
-		end
-
-		-- if blocked then
-		-- 	-- print('BLOCKED')
-		-- 	force[1], force[2] = 0, 0
-		-- end
-
-		-- return force
-	end
-
-	-- local paths = graph:allPairsShortestPaths()
-
-	local converged = false
-	local edgeForces = false
-	local count = 0
-
-	while not converged do
-		-- First off let's recalc the blockers.
-
-		-- Clear any previous blockers.
-		for vertex, array in pairs(blockers) do
-			for i = 1, #array do
-				array[i] = nil
-			end
-		end
-
-		for i = 1, #vertices-1 do
-			local vertex = vertices[i]
-			local peers = graph.vertices[vertex]
-
-			for j = i+1, #vertices do
-				local other = vertices[j]
-				assert(vertex ~= other)
-				local edge = peers[other]
-
-				if edge then
-					local desiredLength = edge.length 
-					local lengthFactor = edge.lengthFactor or 1
-					if lengthFactor > 1 then
-						desiredLength = desiredLength * lengthFactor
-					end
-
-					local to = Vector.to(vertex, other)
-					local d = to:length()
-
-					assert(desiredLength < d)
-
-					local spare = d - desiredLength
-					spare = spare * 0.9
-
-					to:normalise():scale(spare * 0.5)
-
-					local from = to:clone()
-					from:scale(-1)
-
-					push(blockers[vertex], to)
-					push(blockers[other], from)
-				else
-					-- TODO: May need specific value for this.
-					local desiredLength = vertex.radius + other.radius + (maxDelta * 0.5)
-
-					local to = Vector.to(vertex, other)
-					local d = to:length()
-
-					assert(desiredLength < d)
-
-					local spare = desiredLength - (vertex.radius + other.radius)
-					spare = math.max(0, spare - (5 * maxDelta))
-
-					to:normalise():scale(spare * 0.5)
-
-					local from = to:clone()
-					from:scale(-1)
-
-					push(blockers[vertex], to)
-					push(blockers[other], from)
-				end
-			end
-		end
-
-		local first = true
-		for i = 1, #vertices do
-			local vertex = vertices[i]
-
-			for j = 1, #edges do
-				local edge = edges[j]
-				local other1 = edge.vertex1
-				local other2 = edge.vertex2
-
-				-- I think this is wrong...
-				if vertex ~= other1 and vertex ~= other2 then
-					local closest = geometry.closestPointOnLine(other1, other2, vertex)
-
-					local to = Vector.to(vertex, closest)
-					local d = to:length()
-
-					assert(d > vertex.radius)
-
-					local spare = math.max(0, d - (vertex.radius + (2.0 * maxDelta)))
-					to:normalise():scale(spare)
-
-					push(blockers[vertex], to)
-
-					local a = geometry.closestPointOnLine(other1, other2, vertex)
-					local b = geometry.closestPointOnLine(vertex, other1, other2)
-					local c = geometry.closestPointOnLine(vertex, other2, other1)
-
-					-- if first then
-					-- 	push(blockers[vertex], Vector.to(vertex, a))
-					-- 	push(blockers[vertex], Vector.to(vertex, b))
-					-- 	push(blockers[vertex], Vector.to(vertex, c))
-					-- 	first = false
-					-- end
-				end
-
-				if vertex ~= other1 and vertex ~= other2 then
-					local a = geometry.closestPointOnLine(other1, other2, vertex)
-					local b = geometry.closestPointOnLine(vertex, other1, other2)
-					local c = geometry.closestPointOnLine(vertex, other2, other1)
-
-					if first then
-						vertex.lines = {
-							Vector.new(vertex),
-							Vector.new(a),
-							Vector.new(b),
-							Vector.new(c),
-						}
-						first = false
-					end
-
-
-					print('inscribed', vertex[1], vertex[2], a, b, c)
-
-					local status, intersection = geometry.lineLineIntersection2(vertex, a, b, c)
-					assertf(status, '%s %s', tostring(status), tostring(intersection))
-
-					if status then
-
-						local to = Vector.to(vertex, intersection)
-						local d = to:length()
-
-						assert(d > vertex.radius)
-
-						to:normalise():scale(d - vertex.radius)
-
-						push(blockers[vertex], to)
-					end
-				end
-			end
-		end
-
-		-- Now try and contract the size of the graph but respect the blockers.
-		local force1 = Vector.new { 0, 0 }
-		local force2 = Vector.new { 0, 0 }
-		for i = 1, #vertices-1 do
-			local vertex = vertices[i]
-			local peers = graph.vertices[vertex]
-
-			-- Vertex-vertex forces.
-			for j = i+1, #vertices do
-				local other = vertices[j]
-				assert(vertex ~= other)
-				local edge = peers[other]
-
-				if edge then
-					local desiredLength = edge.length 
-					local lengthFactor = edge.lengthFactor or 1
-					if lengthFactor > 1 then
-						desiredLength = desiredLength * lengthFactor
-					end
-
-					local to = Vector.to(vertex, other)
-					local d = to:length()
-
-					if d > desiredLength then
-						-- assertf(d >= desiredLength, '%.2f %.2f %d', d, desiredLength, count)
-
-						-- Try and move the maximum amount.
-						-- local f = (d > desiredLength) and maxDelta * 0.5 or -maxDelta * 0.5
-						local f = clampf(0.1 * (d - desiredLength), -maxDelta * 0.5, maxDelta * 0.5)
-						-- local f = sigmoid(d - desiredLength)
-
-						local f = d - desiredLength
-
-						force1:set(to):scale(f)
-						force2:set(to):scale(-f)
-
-						block(vertex, force1)
-						block(other, force2)
-
-						local vforce = forces[vertex]
-						local oforce = forces[other]
-
-						vforce[1] = vforce[1] + force1[1]
-						vforce[2] = vforce[2] + force1[2]
-
-						oforce[1] = oforce[1] + force2[1]
-						oforce[2] = oforce[2] + force2[2]
-					end
-				else
-					local desiredLength = vertex.radius + other.radius + maxDelta
-					
-					local to = Vector.to(vertex, other)
-					local d = to:length()
-
-					if d < desiredLength then
-						local f = 5
-						force1:set(to):scale(-f)
-						force2:set(to):scale(f)
-
-						block(vertex, force1)
-						block(other, force2)
-
-						local vforce = forces[vertex]
-						local oforce = forces[other]
-
-						vforce[1] = vforce[1] + force1[1]
-						vforce[2] = vforce[2] + force1[2]
-
-						oforce[1] = oforce[1] + force2[1]
-						oforce[2] = oforce[2] + force2[2]
-					end
-				end
-			end
-		end
-
-		for i = 1, #vertices do
-			local vertex = vertices[i]
-
-			for j = 1, #edges do
-				local edge = edges[j]
-				local other1 = edge.vertex1
-				local other2 = edge.vertex2
-
-				if vertex ~= other1 and vertex ~= other2 then
-					local closest = geometry.closestPointOnLine(other1, other2, vertex)
-
-					local to = Vector.to(vertex, closest)
-					local d = to:length()
-
-					-- Is the edge getting too close to the vertex?
-					if d < vertex.radius + maxDelta then
-						local to1 = Vector.to(vertex, other1):normalise()
-						local to2 = Vector.to(vertex, other2):normalise()
-
-						to1:scale(10)
-						to2:scale(10)
-
-						block(other1, to1)
-						block(other2, to2)
-
-						local o1force = forces[other1]
-						local o2force = forces[other2]
-
-						o1force[1] = o1force[1] + to1[1]
-						o1force[2] = o1force[2] + to1[2]
-
-						o2force[1] = o2force[1] + to2[1]
-						o2force[2] = o2force[2] + to2[2]
-
-						local vto = Vector.new { to1[1] + to2[1], to1[2] + to2[2] }
-						vto:normalise():scale(-10)
-
-						block(vertex, vto)
-
-						local vforce = forces[vertex]
-
-						vforce[1] = vforce[1] + vto[1]
-						vforce[2] = vforce[2] + vto[2]
-					end
-				end
-			end
-		end
-
-		converged = true
-
-		local maxForce = 0
-
-		local edgeLengths = {}
-		local totalEdgeLength = 0
-
-		for edge, endverts in pairs(graph.edges) do
-			local length = Vector.toLength(endverts[1], endverts[2])
-			edgeLengths[edge] = length
-			totalEdgeLength = totalEdgeLength + length
-		end
-
-		for _, vertex in ipairs(vertices) do
-			local force = forces[vertex]
-			block(vertex, force)
-
-			local l = force:length()
-
-			maxForce = math.max(l, maxForce)
-
-			-- Are we there yet?
-			if l > convergenceDistance then
-				-- No...
-				converged = false
-			end
-
-			-- Don't allow too much movement.
-			if l > maxDelta then
-				local factor = 0.1
-				force:scale(factor)
-			end
-
-
-			vertex[1] = vertex[1] + force[1]
-			vertex[2] = vertex[2] + force[2]
-		end
-
-		local numShorter = 0
-		local numLonger = 0
-		local newTotalEdgeLength = 0
-		for edge, endverts in pairs(graph.edges) do
-			local oldLength = edgeLengths[edge]
-			local newLength = Vector.toLength(endverts[1], endverts[2])
-
-			newTotalEdgeLength = newTotalEdgeLength + newLength
-
-			if oldLength < newLength then
-				numLonger = numLonger + 1
-			else
-				numShorter = numShorter + 1
-			end
-		end
-
-		if yield or true then
-			printf('  #%d maxForce:%.2f short:%d long:%d l:%.2f n:%.2f %s',
-				count,
-				maxForce,
-				numShorter,
-				numLonger,
-				totalEdgeLength,
-				newTotalEdgeLength,
-				tostring(newTotalEdgeLength < totalEdgeLength))
-			while not gProgress do
-				coroutine.yield(graph)
-			end
-			gProgress = false
-		end
-
-		count = count + 1
-
-		-- if numShorter < numLonger then
-		-- 	converged = true
-		-- end
-
-		-- if totalEdgeLength < newTotalEdgeLength and not graph2D.isSelfIntersecting(graph) then
-		-- 	converged = true
-		-- end
-
-		if count % 100 == 0 then
-			-- TODO: maybe make this a parameter.
-			-- TEST: I've noticed that when this takes a long time to converge
-			--       the output is still pretty good a long time before it
-			--       converges so let's step up the convergence distance.
-			convergenceDistance = convergenceDistance * 1.5
-			--repulsion = repulsion * 0.5
-			printf('  #%d maxForce:%.2f conv:%.2f', count, maxForce, convergenceDistance)
-		end
-	end
-
-	local finish = love.timer.getMicroTime()
-	local delta = finish-start
-	printf('  forceDraw:%.2fs runs:%d runs/s:%.3f', delta, count, count / delta)
 end
 
 -- TODO: circles aren't very flexible, maybe axis aligned elipses or just use
@@ -861,7 +430,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 				centroid = geometry.convexHullCentroid(hull)
 
 				-- NaN check.
-				finiteCentroid = math.finite(centroid[1]) and math.finite(centroid[2])
+				finiteCentroid = math.finite(centroid.x) and math.finite(centroid.y)
 			end
 		until enoughPoints and finiteCentroid
 
@@ -871,8 +440,8 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		-- This moves the hull as well becuase the points aren't copied by
 		-- geometry.convexHull().
 		for _, point in ipairs(points) do
-			point[1] = point[1] - centroid[1]
-			point[2] = point[2] - centroid[2]
+			point.x = point.x - centroid.x
+			point.y = point.y - centroid.y
 		end
 
 		-- Recalc the AABB from the actual points.
@@ -881,7 +450,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		vertex.aabb = aabb
 		vertex.points = points
 		vertex.hull = hull
-		vertex.centroid = Vector.new { 0, 0 }
+		vertex.centroid = Vector.new { x = 0, y = 0 }
 		vertex.fringe = params.fringe
 
 		-- forceDraw() knows about the radius and treats it properly-ish.
@@ -916,7 +485,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		local disp = Vector.to(centre, vertex)
 		disp:scale(maxScale)
 
-		vertex[1], vertex[2] = centre[1] + disp[1], centre[2] + disp[2]
+		vertex.x, vertex.y = centre.x + disp.x, centre.y + disp.y
 	end
 
 	local preScaleSelfIntersect = graph2D.isSelfIntersecting(graph)
@@ -933,12 +502,12 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 
 	-- Now we set all the vertices and points to integer coordinates.
 	for vertex, _ in pairs(graph.vertices) do
-		vertex[1] = math.round(vertex[1])
-		vertex[2] = math.round(vertex[2])
+		vertex.x = math.round(vertex.x)
+		vertex.y = math.round(vertex.y)
 
 		for _, point in ipairs(vertex.points) do
-			point[1] = math.round(point[1])
-			point[2] = math.round(point[2])
+			point.x = math.round(point.x)
+			point.y = math.round(point.y)
 		end
 	end
 

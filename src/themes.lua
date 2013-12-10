@@ -97,17 +97,17 @@ function themes.saveRuleset( theme, stack )
 	local function _vertex( vertex )
 		if vertex.side == 'left' then
 			return {
-				vertex[1],
-				vertex[2],
+				x = vertex.x,
+				y = vertex.y,
 				side = 'left',
 				tags = table.copy(vertex.tags),
 				lock = vertex.lock and true or false,
 				cosmetic = vertex.cosmetic and true or false,
 			}
 		else
-			return { 
-				vertex[1],
-				vertex[2],
+			return {
+				x = vertex.x,
+				y = vertex.y,
 				side = 'right',
 				tag = vertex.tag,
 				mapped = vertex.mapped and true or false,
@@ -191,8 +191,8 @@ function themes.loadRuleset( theme )
 	local function _vertex( vertex )
 		if vertex.side == 'left' then
 			return {
-				vertex[1],
-				vertex[2],
+				x = vertex.x,
+				y = vertex.y,
 				side = 'left',
 				tags = table.copy(vertex.tags),
 				lock = vertex.lock and true or false,
@@ -200,8 +200,8 @@ function themes.loadRuleset( theme )
 			}
 		else
 			return { 
-				vertex[1],
-				vertex[2],
+				x = vertex.x,
+				y = vertex.y,
 				side = 'right',
 				tag = vertex.tag,
 				mapped = vertex.mapped and true or false,

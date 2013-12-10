@@ -5,10 +5,6 @@ require 'graphgen'
 require 'layoutgen'
 require 'roomgen'
 require 'Level'
-require 'Actor'
-require 'Scheduler'
-require 'behaviour'
-require 'action'
 require 'texture'
 require 'Voronoi'
 require 'Viewport'
@@ -233,8 +229,8 @@ function voronoimode.draw()
 			local vertices = {}
 
 			for _, point in ipairs(room.hull) do
-				vertices[#vertices+1] = point[1]
-				vertices[#vertices+1] = point[2]
+				vertices[#vertices+1] = point.x
+				vertices[#vertices+1] = point.y
 			end
 
 			love.graphics.polygon('line', vertices)
@@ -253,7 +249,7 @@ function voronoimode.draw()
 			local walkable = endverts[1].terrain.walkable and endverts[2].terrain.walkable
 
 			if drawUnwalkableEdges or walkable then
-				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+				love.graphics.line(endverts[1].x, endverts[1].y, endverts[2].x, endverts[2].y)
 			end
 		end
 
@@ -261,7 +257,7 @@ function voronoimode.draw()
 
 		for vertex, _ in pairs(level.graph.vertices) do
 			if drawUnwalkableEdges or vertex.terrain.walkable then
-				love.graphics.circle('fill', vertex[1], vertex[2], radius)
+				love.graphics.circle('fill', vertex.x, vertex.y, radius)
 			end
 		end
 	end
@@ -272,7 +268,7 @@ function voronoimode.draw()
 		for index, room in ipairs(level.rooms) do
 			for _, point in ipairs(room.points) do
 				local radius = 2
-				love.graphics.circle('fill', point[1], point[2], radius)
+				love.graphics.circle('fill', point.x, point.y, radius)
 			end
 		end
 
@@ -280,7 +276,7 @@ function voronoimode.draw()
 
 		for index, point in ipairs(level.corridors) do
 			local radius = 3
-			love.graphics.circle('fill', point[1], point[2], radius)
+			love.graphics.circle('fill', point.x, point.y, radius)
 		end
 
 		if drawNonSkeleton then
@@ -288,7 +284,7 @@ function voronoimode.draw()
 
 			for index, point in ipairs(level.walls) do
 				local radius = 3
-				love.graphics.circle('fill', point[1], point[2], radius)
+				love.graphics.circle('fill', point.x, point.y, radius)
 			end
 		end
 
@@ -307,7 +303,7 @@ function voronoimode.draw()
 			end
 
 			if text then
-				shadowf(vertex[1], vertex[2], text)
+				shadowf(vertex.x, vertex.y, text)
 			end
 		end
 	end
@@ -327,7 +323,7 @@ function voronoimode.draw()
 			if table.count(peers) > 8 then
 				love.graphics.setColor(0, 0, 0, 128)
 				local radius = 10
-				love.graphics.circle('fill', vertex[1], vertex[2], radius)
+				love.graphics.circle('fill', vertex.x, vertex.y, radius)
 			end
 		end
 	end
@@ -356,7 +352,7 @@ function voronoimode.draw()
 end
 
 function voronoimode.mousepressed( x, y, button )
-	local screen = Vector.new { x, y }
+	local screen = Vector.new { x = x, y = y }
 	local world = viewport:screenToWorld(screen)
 
 	viewport:setCentre(world)

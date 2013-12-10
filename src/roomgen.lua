@@ -20,7 +20,8 @@ local function vertex( x, y, terrain, fringe )
 	assert(fringe ~= nil or terrain == terrains.filler)
 
 	return {
-		x, y,
+		x = x,
+		y = y,
 		terrain = terrain,
 		fringe = fringe,
 		room = nil, -- This is set in Level.lua.

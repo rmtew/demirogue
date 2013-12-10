@@ -106,7 +106,7 @@ function graphmode.update()
 
 	local level = state.stack[state.index]
 	local mx, my = love.mouse.getX(), love.mouse.getY()
-	local coord = Vector.new { mx, my }
+	local coord = Vector.new { x = mx, y = my }
 
 	local distance = math.huge
 	local selection = nil
@@ -238,7 +238,7 @@ function graphmode.draw()
 				love.graphics.setLineWidth(3)
 				love.graphics.setLineStyle('rough')
 				local radius = 10
-				love.graphics.circle('line', selection.vertex[1], selection.vertex[2], radius)
+				love.graphics.circle('line', selection.vertex.x, selection.vertex.y, radius)
 			end
 
 			if selection.type == 'edge' then
@@ -247,7 +247,7 @@ function graphmode.draw()
 
 				love.graphics.setLineWidth(10)
 				love.graphics.setLineStyle('rough')
-				love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+				love.graphics.line(endverts[1].x, endverts[1].y, endverts[2].x, endverts[2].y)
 			end
 		end
 
@@ -259,12 +259,12 @@ function graphmode.draw()
 		love.graphics.setColor(255, 0, 0, 255)
 
 		for vertex, _ in pairs(level.leftGraph.vertices) do
-			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+			love.graphics.circle('fill', vertex.x, vertex.y, radius)
 
 			if vertex.lock then
 				local extent = 15
 				local halfExtent = extent * 0.5
-				love.graphics.rectangle('line', vertex[1] - halfExtent, vertex[2] - halfExtent, extent, extent)
+				love.graphics.rectangle('line', vertex.x - halfExtent, vertex.y - halfExtent, extent, extent)
 			end
 		end
 
@@ -274,7 +274,7 @@ function graphmode.draw()
 			else
 				love.graphics.setColor(255, 0, 0, 255)
 			end
-			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			love.graphics.line(endverts[1].x, endverts[1].y, endverts[2].x, endverts[2].y)
 		end
 
 		
@@ -286,12 +286,12 @@ function graphmode.draw()
 				love.graphics.setColor(0, 0, 255, 255)
 			end
 
-			love.graphics.circle('fill', vertex[1], vertex[2], radius)
+			love.graphics.circle('fill', vertex.x, vertex.y, radius)
 
 			if vertex.lock then
 				local extent = 10
 				local halfExtent = extent * 0.5
-				love.graphics.rectangle('line', vertex[1] - halfExtent, vertex[2] - halfExtent, extent, extent)
+				love.graphics.rectangle('line', vertex.x - halfExtent, vertex.y - halfExtent, extent, extent)
 			end
 		end
 
@@ -307,27 +307,27 @@ function graphmode.draw()
 			else
 				love.graphics.setColor(0, 0, 255, 255)
 			end
-			love.graphics.line(endverts[1][1], endverts[1][2], endverts[2][1], endverts[2][2])
+			love.graphics.line(endverts[1].x, endverts[1].y, endverts[2].x, endverts[2].y)
 		end
 
 		love.graphics.setColor(255, 255, 255, 255)
 
 		-- Now draw the tags.
 		for vertex, _ in pairs(level.leftGraph.vertices) do
-			_shadowf(gFont30, vertex[1], vertex[2], '%s', _tags(vertex))
+			_shadowf(gFont30, vertex.x, vertex.y, '%s', _tags(vertex))
 		end
 
 		for vertex, _ in pairs(level.rightGraph.vertices) do
-			_shadowf(gFont30, vertex[1], vertex[2], '%s', vertex.tag)
+			_shadowf(gFont30, vertex.x, vertex.y, '%s', vertex.tag)
 		end
 
 		-- If we're in edge mode draw a line to help.
 		if state.edge then
 			local vertex = state.selection.vertex
 			local mx, my = love.mouse.getX(), love.mouse.getY()
-			local coord = Vector.new { mx, my }
+			local coord = Vector.new { x = mx, y = my }
 
-			love.graphics.line(vertex[1], vertex[2], coord[1], coord[2])
+			love.graphics.line(vertex.x, vertex.y, coord.x, coord.y)
 		end
 
 		-- TODO: got to try and build a GraphGrammar Rule and tell the user if
@@ -396,28 +396,28 @@ function graphmode.draw()
 			if vertex.radius then
 				local scale = screen:width() / aabb:width()
 				local scaledRadius = scale * vertex.radius
-				love.graphics.circle('line', pos[1], pos[2], scaledRadius)
+				love.graphics.circle('line', pos.x, pos.y, scaledRadius)
 
 				-- local extent = math.sqrt((scaledRadius^2) * 0.5)
-				-- love.graphics.rectangle('line', pos[1] - extent, pos[2] - extent, 2 * extent, 2 * extent)
+				-- love.graphics.rectangle('line', pos[.x - extent, pos.y - extent, 2 * extent, 2 * extent)
 			else
-				love.graphics.circle('fill', pos[1], pos[2], radius)
+				love.graphics.circle('fill', pos.x, pos.y, radius)
 			end
 
 			local points = vertex.points
 			local hull = vertex.hull
 			local centroid = vertex.centroid
 			if points then
-				local offset = Vector.new { 0, 0 }
+				local offset = Vector.new { x = 0, y = 0 }
 
 				local poly = {}
 				for _, point in ipairs(hull) do
-					offset[1] = vertex[1] + point[1]
-					offset[2] = vertex[2] + point[2]
+					offset.x = vertex.x + point.x
+					offset.y = vertex.y + point.y
 
 					local pos = aabb:lerpTo(offset, screen)
-					poly[#poly+1] = pos[1]
-					poly[#poly+1] = pos[2]
+					poly[#poly+1] = pos.x
+					poly[#poly+1] = pos.y
 				end
 				
 				love.graphics.polygon('line', poly)
@@ -425,11 +425,11 @@ function graphmode.draw()
 				love.graphics.setColor(0, 255, 255, 255)
 
 				for _, point in pairs(points) do
-					offset[1] = vertex[1] + point[1]
-					offset[2] = vertex[2] + point[2]
+					offset.x = vertex.x + point.x
+					offset.y = vertex.y + point.y
 
 					local pos = aabb:lerpTo(offset, screen)
-					love.graphics.point(pos[1], pos[2])
+					love.graphics.point(pos.x, pos.y)
 				end
 
 				love.graphics.setColor(0, 255, 0, 255)
@@ -463,15 +463,15 @@ function graphmode.draw()
 				love.graphics.setColor(0, 0, 255, 255)
 			end
 
-			love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+			love.graphics.line(pos1.x, pos1.y, pos2.x, pos2.y)
 
 			if showLengthFactors then
 				local mid = Vector.to(pos1, pos2)
 				mid:scale(0.5)
-				mid[1] = mid[1] + pos1[1]
-				mid[2] = mid[2] + pos1[2]
+				mid.x = mid.x + pos1.x
+				mid.y = mid.y + pos1.y
 				local scale = length / desiredLength
-				_shadowf(gFont15, mid[1], mid[2], '%.3f x%.2f', lengthFactor, scale)
+				_shadowf(gFont15, mid.x, mid.y, '%.3f x%.2f', lengthFactor, scale)
 			end
 		end
 
@@ -479,7 +479,7 @@ function graphmode.draw()
 
 		for vertex, _ in pairs(state.graph.vertices) do
 			local pos = aabb:lerpTo(vertex, screen)
-			_shadowf(gFont30, pos[1], pos[2], '%s', vertex.tag)
+			_shadowf(gFont30, pos.x, pos.y, '%s', vertex.tag)
 		end
 
 		_shadowf(gFont15, 0, 0, 'w:%d h:%d', width, height)
@@ -499,19 +499,19 @@ function graphmode.draw()
 			if blockers then
 				for _, blocker in ipairs(blockers) do
 					local dir = Vector.new {
-						(vertex[1] + blocker[1]),
-						(vertex[2] + blocker[2]),
+						x = (vertex.x + blocker.x),
+						y = (vertex.y + blocker.y),
 					}
 
 					local pos1 = aabb:lerpTo(vertex, screen)
 					local pos2 = aabb:lerpTo(dir, screen)
 
-					love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+					love.graphics.line(pos1.x, pos1.y, pos2.x, pos2.y)
 				end
 			elseif force then
 				local dir = Vector.new {
-					(vertex[1] + force[1]),
-					(vertex[2] + force[2]),
+					x = (vertex.x + force.x),
+					y = (vertex.y + force.y),
 				}
 				-- dir:scale(1)
 
@@ -520,7 +520,7 @@ function graphmode.draw()
 
 				love.graphics.setLineWidth(3)
 				love.graphics.setLineStyle('rough')
-				love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+				love.graphics.line(pos1.x, pos1.y, pos2.x, pos2.y)
 			end
 
 			local lines = vertex.lines
@@ -530,7 +530,7 @@ function graphmode.draw()
 					local pos1 = aabb:lerpTo(lines[i], screen)
 					local pos2 = aabb:lerpTo(lines[i+1], screen)
 
-					love.graphics.line(pos1[1], pos1[2], pos2[1], pos2[2])
+					love.graphics.line(pos1.x, pos1.y, pos2.x, pos2.y)
 				end
 			end
 		end
@@ -560,6 +560,8 @@ function graphmode.mousepressed( x, y, button )
 		local leftVertex = {
 			x,
 			y,
+			x = x,
+			y = y,
 			side = 'left',
 			tags = { a = true },
 			lock = false,
@@ -569,6 +571,8 @@ function graphmode.mousepressed( x, y, button )
 		local rightVertex = {
 			x + hw,
 			y,
+			x = x,
+			y = y,
 			side = 'right',
 			mapped = true,
 			tag = 'a',
@@ -586,6 +590,8 @@ function graphmode.mousepressed( x, y, button )
 		local rightVertex = {
 			x,
 			y,
+			x = x,
+			y = y,
 			side = 'right',
 			mapped = false,
 			tag = 'a',
@@ -949,12 +955,12 @@ function graphmode.keypressed( key )
 		local graph = state.graph
 		if graph then 
 			for vertex, _ in pairs(graph.vertices) do
-				vertex[1] = math.round(vertex[1])
-				vertex[2] = math.round(vertex[2])
+				vertex.x = math.round(vertex.x)
+				vertex.y = math.round(vertex.y)
 
 				for _, point in ipairs(vertex.points or {}) do
-					point[1] = math.round(point[1])
-					point[2] = math.round(point[2])
+					point.x = math.round(point.x)
+					point.y = math.round(point.y)
 				end
 			end
 		end
