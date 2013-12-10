@@ -440,15 +440,18 @@ function Level.newThemed( theme )
 
 		-- { x1, y1, x2, y2, ..., xN, yN }
 		local poly = {}
+		local hull = {}
 
 		for _, halfedge in ipairs(cell.halfedges) do
 			local startpoint = halfedge:getStartpoint()
 
 			poly[#poly+1] = startpoint.x
 			poly[#poly+1] = startpoint.y
+			hull[#hull+1] = Vector.new(startpoint)
 		end
 
 		vertex.poly = poly
+		vertex.hull = hull
 
 		if #poly >= 6 then
 			graph:addVertex(vertex)

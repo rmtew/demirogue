@@ -24,9 +24,11 @@ local viewport = Viewport.new(bounds)
 local minZoom = 1
 local maxZoom = 1
 local roomColours = nil
+local mesh = nil
 
 local function _gen()
 	roomColours = nil
+	mesh = nil
 
 	local level = Level.newThemed(theme)
 
@@ -86,6 +88,7 @@ local drawCore = false
 local drawFringes = false
 local drawRims = false
 local drawNonHJKLYUBNCells = false
+local drawMesh = false
 
 function shadowf( x, y, ... )
 	love.graphics.setColor(0, 0, 0, 255)
@@ -110,6 +113,74 @@ function voronoimode.draw()
 	local scaler = (zoom <  1) and 1/zoom or 1
 
 	love.graphics.setLineStyle('rough')
+
+	if drawMesh then
+		if not mesh then
+			local start = love.timer.getTime()
+
+			local vertices = {}
+
+			for vertex, _ in pairs(level.graph.vertices) do
+				local hull = vertex.hull
+				local u, v = 0, 0
+				local terrain = vertex.terrain
+				local colour = terrain.colour
+				local r, g, b, a = colour[1], colour[2], colour[3], colour[4]
+
+				for i = 1, #hull do
+					-- vertices[#vertices+1] = vertex.x
+					-- vertices[#vertices+1] = vertex.y
+					-- vertices[#vertices+1] = u
+					-- vertices[#vertices+1] = v
+					-- vertices[#vertices+1] = r
+					-- vertices[#vertices+1] = g
+					-- vertices[#vertices+1] = b
+					-- vertices[#vertices+1] = a
+
+					-- vertices[#vertices+1] = hull[i].x
+					-- vertices[#vertices+1] = hull[i].y
+					-- vertices[#vertices+1] = u
+					-- vertices[#vertices+1] = v
+					-- vertices[#vertices+1] = r
+					-- vertices[#vertices+1] = g
+					-- vertices[#vertices+1] = b
+					-- vertices[#vertices+1] = a
+
+					-- local j = i + 1
+					-- if j > #hull then
+					-- 	j = 1
+					-- end
+
+					-- vertices[#vertices+1] = hull[j].x
+					-- vertices[#vertices+1] = hull[j].y
+					-- vertices[#vertices+1] = u
+					-- vertices[#vertices+1] = v
+					-- vertices[#vertices+1] = r
+					-- vertices[#vertices+1] = g
+					-- vertices[#vertices+1] = b
+					-- vertices[#vertices+1] = a
+
+					vertices[#vertices+1] = { vertex.x, vertex.y, u, v, r, g, b, a }
+					vertices[#vertices+1] = { hull[i].x, hull[i].y, u, v, r, g, b, a }
+
+					local j = i + 1
+					if j > #hull then
+						j = 1
+					end
+
+					vertices[#vertices+1] = { hull[j].x, hull[j].y, u, v, r, g, b, a }
+				end
+			end
+
+			mesh = love.graphics.newMesh(vertices, nil, 'triangles')
+
+			local finish = love.timer.getTime()
+
+			printf('mesh %.2fs', finish - start)
+		end
+
+		love.graphics.draw(mesh, 0, 0)
+	end
 
 	if drawVoronoi then
 		local linewidth = 2 * scaler
@@ -427,6 +498,8 @@ function voronoimode.keypressed( key )
 	elseif key == 'right' then
 		theme = themes.db[theme.nextTheme]
 		level = _gen()
+	elseif key == 'm' then
+		drawMesh = not drawMesh
 	end
 end
 
