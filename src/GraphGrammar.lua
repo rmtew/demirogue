@@ -428,9 +428,6 @@ function GraphGrammar.Rule:replace( graph, match, params )
 		inverseMatch[graphVertex] = patternVertex
 	end
 
-	print('DEBUG')
-	table.print(match)
-
 	local matchAABB = graph2D.matchAABB(match)
 
 	-- If the AABB of the matched part of the host graph is too small enlarge.
