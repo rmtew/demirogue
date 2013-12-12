@@ -128,38 +128,6 @@ function voronoimode.draw()
 				local r, g, b, a = colour[1], colour[2], colour[3], colour[4]
 
 				for i = 1, #hull do
-					-- vertices[#vertices+1] = vertex.x
-					-- vertices[#vertices+1] = vertex.y
-					-- vertices[#vertices+1] = u
-					-- vertices[#vertices+1] = v
-					-- vertices[#vertices+1] = r
-					-- vertices[#vertices+1] = g
-					-- vertices[#vertices+1] = b
-					-- vertices[#vertices+1] = a
-
-					-- vertices[#vertices+1] = hull[i].x
-					-- vertices[#vertices+1] = hull[i].y
-					-- vertices[#vertices+1] = u
-					-- vertices[#vertices+1] = v
-					-- vertices[#vertices+1] = r
-					-- vertices[#vertices+1] = g
-					-- vertices[#vertices+1] = b
-					-- vertices[#vertices+1] = a
-
-					-- local j = i + 1
-					-- if j > #hull then
-					-- 	j = 1
-					-- end
-
-					-- vertices[#vertices+1] = hull[j].x
-					-- vertices[#vertices+1] = hull[j].y
-					-- vertices[#vertices+1] = u
-					-- vertices[#vertices+1] = v
-					-- vertices[#vertices+1] = r
-					-- vertices[#vertices+1] = g
-					-- vertices[#vertices+1] = b
-					-- vertices[#vertices+1] = a
-
 					vertices[#vertices+1] = { vertex.x, vertex.y, u, v, r, g, b, a }
 					vertices[#vertices+1] = { hull[i].x, hull[i].y, u, v, r, g, b, a }
 

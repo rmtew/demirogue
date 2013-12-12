@@ -11,6 +11,8 @@ Vector = {}
 Vector.__index = Vector
 
 function Vector.new( tbl )
+	-- TODO: this is probably slow but keeping it for the moment to ensure the
+	--       change from { x, y } to { x = x, y = y } works.
 	assert(type(tbl.x) == 'number')
 	assert(type(tbl.y) == 'number')
 

@@ -89,3 +89,34 @@ TODO
   be worth 'normalising' them to a some specific bounds.
 - Also might be worth running a force draw on the pattern and subsititute.
 
+
+PENDING
+
+- Use neighbour instead of peer in graph usages.
+- Need high-level state system
+  - I think a stacked statemachine should be enough.
+  - For modes I need standard love events like keypressed, mousepressed, update, draw
+
+- Trim old code
+- Need nicer persistence, maybe...
+
+- There's to much cheaky table building in the code base, e.g.
+  - Pattern and substitute vertices
+  - Vertices, points and sites at several stages in the Level generation.
+  - Need some form of structure for them that's at least documented.
+
+- Orgranise code into dirs.
+
+  - src/
+      misc/
+         table.lua
+         math.lua
+         ...
+      modes | states/
+
+
+DONE
+- Change Vector to use { x = ..., y = ... }.
+
+
+
