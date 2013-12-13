@@ -1,44 +1,12 @@
 --
 -- state.lua
 --
--- A stack based state machine library intended for high-level control of
--- program flow in a love game. As such all states have default handlers
--- for the top-level love callbacks:
+-- A stack based state machine library.
 --
---   draw()
---   focus( isfocussed )
---   keypressed( key, isrepeat )
---   keyreleased( key )
---   mousepressed( x, y, button )
---   mousereleased( x, y, button )
---   quit()
---   update( dt )
---   textinput( unicode )
---   joystickpressed( joystick, button )
---   joystickreleased( joystick, button )
---
--- There is no support for run(), errhand() or quit().
---
--- Potential Love 0.9.0 callbacks to add support for.
--- 
---   joystickaxis(j,a,v)
---   joystickhat(j,h,v)
---   gamepadpressed(j,b)
---   gamepadreleased(j,b)
---   gamepadaxis(j,a,v)
---   joystickadded(j)
---   joystickremoved(j)
---   mousefocus(f)
---   visible(v)
---
--- There are two extra methods you can
--- enter( arg )
--- exit()
--- become(name, arg)
--- push(name, arg)
--- pop()
 
--- 
+-- - Cannot call become(), push() or kill() in an exit()
+-- - enter() and exit() should only be called by this library if possible.
+-- - become() and kill() should be tail called
 
 --[[
 
@@ -78,99 +46,219 @@ local bar = state.machine(<init-state>, <args>)
 
 --]]
 
-state = {
-	new = nil,
-	machine = nil,
-}
+--[[
 
-local function _process( stack, i, response )
-	if response == nil or response == 'break' then
-		return response
-	end
+ Implementation
+================
 
-	assert(type(response) == 'function', "response should be nil, 'break' or a function")
+ instance --mt-->  instancemt  --mt-->  state  ---mt---> statemt
+----------        ------------         ---------        ---------
+ <state>           machine              name             <nop-event>
+                   level                <event>          __index=self
+                   exiting              __index=self
+ 			       __index=state
 
-	return response(stack, i)
+ machine --mt-->  machinemt
+---------        -----------
+  stack           schema
+                  __index=self
+
+
+]]
+
+local function _newinstance( machine, level, state )
+	assert(machine.schema.states[state.name] == state, 'state not in schema')
+	local stack = machine.stack
+	assert(1 <= level and level <= #stack+1, 'out of bounds level for new instance')
+
+	local instancemt = {
+		machine = machine,
+		level = level,
+		exiting = false,
+		__index = state
+	}
+
+	local instance = setmetatable({}, instancemt)
+	stack[level] = instance
+
+	return instance
 end
 
--- { [name] = statemt }
-local _statemts = {}
+local function _become( instance, state, ... )
+	local info = debug.getinfo(1)
+	for k, v in pairs(info) do print('info', k, v) end
+	local instancemt = getmetatable(instance)
+	if instancemt.exiting then
+		error('become called while exiting state', 2)
+	end
 
-local _statemtmt = {
-	__index = nil,
+	instancemt.exiting = true
+	instance:exit()
+	instancemt.exiting = false
 
-	enter = function ( self ) end,
-	exit = function ( self ) end,
-	become =
-		function ( self, name, param )
-			local statemt = _statemts[name]
-			assert(statemt, 'invalid state')
+	local machine = instancemt.machine
+	local level = instancemt.level
+	local newinstance = _newinstance(machine, level, state)
 
-			return
-				function ( stack, i )
-					assert(rawequal(stack[i], self), 'become called on incorrect state')
+	newinstance:enter(...)
+end
 
-					local instance = setmetatable({}, statemt)
-					local response = stack[i]:exit()
-					assert(response == nil, "state exit shouldn't return anything")
-					stack[i] = instance
+local function _push( instance, state, ... )
+	local instancemt = getmetatable(instance)
+	if instancemt.exiting then
+		error('push called while exiting state', 2)
+	end
 
-					return _process(stack, i, instance:enter(param))
-				end
-		end,
-	push =
-		function ( self, name, param )
-			local statemt = _statemts[name]
-			assert(statemt, 'invalid state')
+	local machine = instancemt.machine
+	local stack = machine.stack
+	local newinstance = _newinstance(machine, #stack+1, state)
 
-			return
-				function ( stack, i )
-					assert(rawequal(stack[i], self), 'push called on incorrect state')
+	newinstance:enter(...)
+end
 
-					local instance = setmetatable({}, statemt)
-					local top = #stack+1
-					stack[top] = instance
-					return _process(stack, top, instance:enter(param)) 
-				end
-		end,
-	pop = 
-		function ( self )
-			return
-				function ( stack, i )
-					assert(rawequal(stack[i], self), 'state pop called on wrong state')
-					local response = stack[i]:exit()
-					assert(response == nil, "state exit shouldn't return anything")
-					table.remove(stack, i)
+local function _kill( instance )
+	local instancemt = getmetatable(instance)
+	if not instancemt.exiting then
+		error('kill called while exiting state', 2)
+	end
 
-					assert(#stack > 0, 'state machine is empty')
-				end
-		end,
+	instancemt.exiting = true
+	instance:exit()
+	instancemt.exiting = false
 
-	draw = function( self ) end,
-	focus = function( self, bool ) end,
-	keypressed = function( self, key, isrepeat ) end,
-	keyreleased = function( self, key ) end,
-	mousepressed = function( self, x, y, button ) end,
-	mousereleased = function( self, x, y, button ) end,
-	quit = function( self ) end,
-	update = function( self, dt ) end,
-	textinput = function( self, unicode ) end,
-	joystickpressed = function( self, joystick, button ) end,
-	joystickreleased = function( self, joystick, button ) end,
+	local stack = instancemt.machine.stack
+	local level = instancemt.level
+
+	table.remove(stack, level)
+
+	for i = level, #stack do
+		local instancemt = getmetatable(stack[level])
+		assert(instancemt.level == i+1, 'instance level corrupted')
+		instancemt.level = i
+	end
+end
+
+
+local _schemas = {}
+
+-- A set of banned event names.
+-- TODO: is this overly conservative?
+local _banned = {
+	__index = true,
+	enter = true,
+	exit = true,
+	become = true,
+	push = true,
+	kill = true,
+	machine = true,
+	exiting = true,
+	schema = true,
 }
-_statemtmt.__index = _statemtmt
 
-function state.new( name )
-	assert(_statemts[name] == nil, 'attempted state redefinition.')
+local function _handler( event )
+	assert(not _banned[event], 'banned event')
+	return
+		function ( machine, ... )
+			local stack = machine.stack
+			for i = #stack, 1, -1 do
+				local instance = stack[i]
+
+				-- TODO: error if more than one state gets killed.
+				
+				if instance[event](instance, ...) == 'break' then
+					break
+				end
+			end
+		end
+end
+
+local _nop = function () end
+
+local function _newschema( events )
+	assert(type(events) == 'table', 'schema should be a table')
+
+	local statemt = {
+		enter = _nop,
+		exit = _nop,
+		become = _become,
+		push = _push,
+		kill = _kill,
+		__index = nil
+	}
+	statemt.__index = statemt
 	
-	local result = setmetatable({ _name = name, __index = nil }, _statemtmt)
-	result.__index = result
-	_statemts[name] = result
+	local machinemt = { __index = nil }
+	machinemt.__index = machinemt
+
+	for event, v in pairs(events) do
+		assert(type(event) == 'string', 'schema key must be a string')
+		local s, f = event:find('[_%a][_%w]+')
+		assert(s == 1 and f == #event, 'schema key is not a valid lua identifier')
+		assert(not _banned[event], 'schema key is banned')
+
+		assert(v == true or type(v) == 'function', 'schema value should be true or a function')
+
+		statemt[event] = (type(v) == 'function') and v or _nop
+		machinemt[event] = _handler(event)
+	end
+
+	local result = {
+		states = {},
+		statemt = statemt,
+		machinemt = machinemt
+	}
+
+	machinemt.schema = result
+
+	_schemas[result] = true
 
 	return result
 end
 
-local _events = {
+function _newstate( schema, name )
+	assert(_schemas[schema], 'undefined schema')
+	assert(schema.states[name] == nil, 'state redefinition detected')
+
+	local state = {
+		name = name,
+		__index = nil
+	}
+	state.__index = state
+	setmetatable(state, schema.statemt)
+
+	schema.states[name] = state
+
+	return state
+end
+
+function _newmachine( schema, state, ... )
+	assert(_schemas[schema], 'undefined schema')
+	print(state.name)
+	for k, v in pairs(schema.states) do print(k,v) end
+	assert(schema.states[state.name] == state, 'state not in schema')
+
+	local machine = {
+		stack = {},
+		schema = schema
+	}
+	setmetatable(machine, schema.machinemt)
+
+	local instance = _newinstance(machine, 1, state)
+
+	instance:enter(...)
+
+	return machine
+end
+
+state = {
+	schema = _newschema,
+	state = _newstate,
+	machine = _newmachine
+}
+
+-- test
+
+local schema = state.schema {
 	draw = true,
 	focus = true,
 	keypressed = true,
@@ -184,71 +272,23 @@ local _events = {
 	joystickreleased = true,
 }
 
-local function _handler( event )
-	assert(_events[event], 'invalid state event')
-	return
-		function ( self, ... )
-			local stack = self.stack
-			for i = #stack, 1, -1 do
-				local instance = stack[i]
-				
-				if _process(stack, i, instance[event](instance, ...)) == 'break' then
-					break
-				end
-			end
-		end
-end
+local test1 = state.state(schema, 'test1')
+local test2 = state.state(schema, 'test2')
+local test3 = state.state(schema, 'test3')
 
-local _machinemt = {
-	__index = nil,
+-- test1
 
-	-- TODO: draw maybe a special case and need to access parent state handlers.
-	draw = _handler('draw'),
-	focus = _handler('focus'),
-	keypressed = _handler('keypressed'),
-	keyreleased = _handler('keyreleased'),
-	mousepressed = _handler('mousepressed'),
-	mousereleased = _handler('mousereleased'),
-	quit = _handler('quit'),
-	update = _handler('update'),
-	textinput = _handler('textinput'),
-	joystickpressed = _handler('joystickpressed'),
-	joystickreleased = _handler('joystickreleased'),
-}
-_machinemt.__index = _machinemt
-
-function state.machine( name, param )
-	local result = {
-		stack = {},
-	}
-
-	setmetatable(result, _machinemt)
-
-	local statemt = _statemts[name]
-	assert(statemt, 'invalid start state')
-
-	local instance = setmetatable({}, statemt)
-	result.stack[1] = instance
-
-	print('#stack', #result.stack)
-
-	_process(result.stack, 1, instance:enter(param))
-
-	return result
-end
-
-
-local test1 = state.new('test1')
 function test1:enter(arg)
 	print(arg, arg)
-	return self:become('test2', 'bar')
+	return self:become(test2, 'bar')
 end
 
 function test1:exit()
 	print('test1:exit()')
 end
 
-local test2 = state.new('test2')
+-- test2
+
 function test2:enter(arg)
 	print('test2', arg)
 end
@@ -259,10 +299,11 @@ end
 
 function test2:update(dt)
 	print('test2:update', dt)
-	return self:push('test3', 'baz')
+	return self:push(test3, 'baz')
 end
 
-local test3 = state.new('test3')
+-- test3
+
 function test3:enter(arg)
 	print('test3', arg)
 end
@@ -271,15 +312,15 @@ function test3:exit(arg)
 end
 function test3:update(dt)
 	print('test3:update', dt)
-	return self:pop()
+	return self:kill()
 end
-local testMachine = state.machine('test1', 'foo')
+local machine = state.machine(schema, test1, 'foo')
 
 function printf( ... ) print(string.format(...)) end
 
-printf('#stack %d', #testMachine.stack)
-testMachine:update(1/30)
-printf('#stack %d', #testMachine.stack)
-testMachine:update(1/30)
-printf('#stack %d', #testMachine.stack)
-testMachine:draw()
+printf('#stack %d', #machine.stack)
+machine:update(1/30)
+printf('#stack %d', #machine.stack)
+print(machine.update)
+printf('#stack %d', #machine.stack)
+machine:draw()
