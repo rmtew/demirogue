@@ -1,4 +1,3 @@
-require 'misc'
 require 'Vector'
 require 'AABB'
 require 'graphgen'

@@ -28,14 +28,14 @@ return {
 ]]
 
 function themes.load()
-	if not love.filesystem.isDirectory('rulesets') then
-		love.filesystem.mkdir('rulesets')
+	if not love.filesystem.isDirectory('ruleset') then
+		love.filesystem.createDirectory('ruleset')
 	end
 
 	for name, theme in pairs(themes.db) do
 		-- Now we find the ruleset data.
-		local userRulesetPath = string.format("rulesets/%s", name)
-		local packageRulesetPath = string.format("resources/rulesets/%s", name)
+		local userRulesetPath = string.format("ruleset/%s", name)
+		local packageRulesetPath = string.format("resource/ruleset/%s", name)
 		theme.path = userRulesetPath
 
 		local readPath = userRulesetPath

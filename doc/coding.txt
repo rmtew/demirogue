@@ -1,0 +1,13 @@
+coding.txt
+----------
+
+* Directory names are singular, e.g.
+	resources -> resource
+	docs      -> doc
+	scripts   -> script
+
+
+
+src/
+	main.lua
+	conf.lua

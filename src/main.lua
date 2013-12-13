@@ -1,5 +1,5 @@
 -- All other lua files assume this is loaded before they are.
-require 'misc/misc'
+require 'prelude/prelude'
 
 require 'themes'
 
@@ -37,8 +37,8 @@ local modes = {
 local mode = voronoimode
 
 function love.load()
-	gFont30 = love.graphics.newFont('resources/inconsolata.otf', 30)
-	gFont15 = love.graphics.newFont('resources/inconsolata.otf', 15)
+	gFont30 = love.graphics.newFont('resource/inconsolata.otf', 30)
+	gFont15 = love.graphics.newFont('resource/inconsolata.otf', 15)
 	love.graphics.setFont(gFont30)
 
 	themes.load()

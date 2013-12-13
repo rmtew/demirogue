@@ -1,7 +1,3 @@
--- Don't normally do this (all lua file can assume misc is already loaded) but
--- the tests at the bottom of the file can be run outside of Love.
-require 'misc'
-
 
 --
 -- Graph.lua

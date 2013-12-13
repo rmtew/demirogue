@@ -1,7 +1,7 @@
 require 'Vector'
 require 'AABB'
 
-local Dampener = require 'misc/dampener'
+local Dampener = require 'prelude/dampener'
 
 Viewport = {}
 Viewport.__index = Viewport

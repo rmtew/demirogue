@@ -104,6 +104,7 @@ PENDING
   - Some form of persistence library or a def based solution a la NetLib
 
 - There's to much cheaky table building in the code base, e.g.
+
   - Pattern and substitute vertices
   - Vertices, points and sites at several stages in the Level generation.
   - Need some form of structure for them that's at least documented.
@@ -115,7 +116,8 @@ PENDING
          table.lua
          math.lua
          ...
-      modes | states/
+      state/
+      mode/
 
 
 DONE

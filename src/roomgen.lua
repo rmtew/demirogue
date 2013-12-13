@@ -10,7 +10,7 @@
 
 -- Causes loop.
 require 'terrains'
-local newgrid = require 'misc/newgrid'
+local newgrid = require 'prelude/newgrid'
 
 roomgen = {
 	grid = nil,

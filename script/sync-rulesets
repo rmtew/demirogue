@@ -1,3 +1,3 @@
 #! /bin/bash
-rsync -aurp --exclude='.DS_Store' ~/Library/Application\ Support/LOVE/demirogue/rulesets ~/demirogue/src/resources
-rsync -aurp --exclude='.DS_Store' ~/demirogue/src/resources/rulesets ~/Library/Application\ Support/LOVE/demirogue
+rsync -aurp --exclude='.DS_Store' ~/Library/Application\ Support/LOVE/demirogue/ruleset ~/demirogue/src/resource
+rsync -aurp --exclude='.DS_Store' ~/demirogue/src/resource/ruleset ~/Library/Application\ Support/LOVE/demirogue
