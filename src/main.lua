@@ -1,9 +1,9 @@
--- All other lua files assume this is loaded before they are.
-require 'prelude/prelude'
+-- All other lua files assume this is required before they are.
+require 'prelude'
 
 require 'themes'
 
-require 'mode/mode'
+local schema = require 'lib/mode' {}
 
 -- require 'gamemode'
 require 'voronoimode'

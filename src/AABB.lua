@@ -81,12 +81,12 @@ function AABB:scale( factor )
 end
 
 local _axes = {
-	horz = 'horz',
-	vert = 'vert',
+	horz = true,
+	vert = true,
 }
 
 function AABB:split( axis, coord )
-	assert(_axes[axis])
+	assert(_axes[axis], "axis 'horz' or 'vert' expected")
 
 	if axis == 'horz' then
 		assert(self.xmin < coord and coord < self.xmax)
@@ -112,8 +112,8 @@ function AABB:split( axis, coord )
 end
 
 function AABB:shrink( amount )
-	assert(amount < self:width() * 0.5)
-	assert(amount < self:height() * 0.5)
+	assert(amount <= self:width() * 0.5)
+	assert(amount <= self:height() * 0.5)
 
 	return AABB.new {
 		xmin = self.xmin + amount,
@@ -124,7 +124,14 @@ function AABB:shrink( amount )
 end
 
 function AABB:expand( amount )
-	return self:shrink(-amount)
+	assert(amount >= 0)
+
+	return AABB.new {
+		xmin = self.xmin - amount,
+		xmax = self.xmax + amount,
+		ymin = self.ymin - amount,
+		ymax = self.ymax + amount,
+	}
 end
 
 function AABB:centre()

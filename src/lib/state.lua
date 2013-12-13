@@ -1,14 +1,16 @@
 --
--- state.lua
+-- lib/state.lua
 --
 -- A stack based state machine library.
 --
 
--- - Cannot call become(), push() or kill() in an exit()
+-- - Cannot call become(), push() or kill() in a state's exit handler.
 -- - enter() and exit() should only be called by this library if possible.
--- - become() and kill() should be tail called
+-- - become() and kill() should be tail called but I can't really ensure it.
 
 --[[
+
+require state = 'lib/state'
 
 local foo = state.new(<name>)
 
@@ -250,7 +252,7 @@ function _newmachine( schema, state, ... )
 	return machine
 end
 
-state = {
+local state = {
 	schema = _newschema,
 	state = _newstate,
 	machine = _newmachine
@@ -324,3 +326,5 @@ printf('#stack %d', #machine.stack)
 print(machine.update)
 printf('#stack %d', #machine.stack)
 machine:draw()
+
+return state

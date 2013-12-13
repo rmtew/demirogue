@@ -1,33 +1,40 @@
+--
+-- lib/Dampener.lua
+--
+-- Simple object for interpolating scalar or vector values.
+-- Charles Machin is the inspiration for it.
+--
+
 require 'Vector'
 
-local dampener = {}
-dampener.__index = dampener
+local Dampener = {}
+Dampener.__index = Dampener
 
-function dampener.newf( value, target, bias )
+function Dampener.newf( value, target, bias )
 	local result = {
 		value = value,
 		target = target,
 		bias = bias,
 	}
 
-	setmetatable(result, dampener)
+	setmetatable(result, Dampener)
 
 	return result
 end
 
-function dampener.newv( value, target, bias )
+function Dampener.newv( value, target, bias )
 	local result = {
 		value = { x = value.x, y = value.y },
 		target = { x = target.x, y = target.y },
 		bias = bias,
 	}
 
-	setmetatable(result, dampener)
+	setmetatable(result, Dampener)
 
 	return result
 end
 
-function dampener:updatef( target )
+function Dampener:updatef( target )
 	target = target or self.target
 
 	self.value = self.value + self.bias * (target - self.value)
@@ -35,7 +42,7 @@ function dampener:updatef( target )
 	return self.value
 end
 
-function dampener:updatev( target )
+function Dampener:updatev( target )
 	target = target or self.target
 
 	local vtot = Vector.to(self.value, target)
@@ -47,4 +54,4 @@ function dampener:updatev( target )
 	return self.value
 end
 
-return dampener
+return Dampener

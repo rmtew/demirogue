@@ -1,5 +1,5 @@
 --
--- roomgen/lua
+-- roomgen.lua
 --
 -- The roomgen table contained function with the following signature:
 --
@@ -10,7 +10,7 @@
 
 -- Causes loop.
 require 'terrains'
-local newgrid = require 'prelude/newgrid'
+local newgrid = require 'lib/newgrid'
 
 roomgen = {
 	grid = nil,
