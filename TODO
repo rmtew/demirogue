@@ -96,9 +96,12 @@ PENDING
 - Need high-level state system
   - I think a stacked statemachine should be enough.
   - For modes I need standard love events like keypressed, mousepressed, update, draw
+  - enter(...) exit(), update(dt), draw(), keypressed(), keyreleased() etc...
+  -  
 
 - Trim old code
 - Need nicer persistence, maybe...
+  - Some form of persistence library or a def based solution a la NetLib
 
 - There's to much cheaky table building in the code base, e.g.
   - Pattern and substitute vertices

@@ -6,6 +6,8 @@ require 'Voronoi'
 require 'geometry'
 require 'terrains'
 
+local newgrid = require 'misc/newgrid'
+
 local V = Vector.new
 local VN = Vector.normal
 

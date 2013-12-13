@@ -232,7 +232,7 @@ function graph2D.forceDraw(
 
 					-- Use log with base sqrt(2) so that overly long edges pull
 					-- together a bit more.
-					local f = -springStrength * math.logb(d/desiredLength, math.sqrt(2))
+					local f = -springStrength * math.log(d/desiredLength, math.sqrt(2))
 
 					-- If you specify a length we ensure it is never less that
 					-- what is provided.

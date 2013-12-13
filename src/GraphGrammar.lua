@@ -787,7 +787,6 @@ function GraphGrammar:build( maxIterations, minVertices, maxVertices, maxValence
 
 	for iteration = 1, maxIterations do
 		local start = love.timer.getTime()
-		-- local f = fopen(string.format('graph-%03d.dot', iteration), 'w')
 		
 		local rulesMatches = {}
 

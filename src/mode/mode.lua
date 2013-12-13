@@ -6,7 +6,7 @@
 
 require 'state/state'
 
-mode = state.schema {
+local mode = state.schema {
 	draw = true,
 	focus = true,
 	keypressed = true,
@@ -28,3 +28,5 @@ mode = state.schema {
 	mousefocus = true,
 	visible = true,
 }
+
+return mode
