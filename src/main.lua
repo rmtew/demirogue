@@ -3,6 +3,8 @@ require 'misc'
 
 require 'themes'
 
+require 'mode/mode'
+
 -- require 'gamemode'
 require 'voronoimode'
 require 'graphmode'

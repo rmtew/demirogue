@@ -1,0 +1,13 @@
+MUST
+
+- Short play time: full play time shouldn't be more than roughly an hour.
+- No grind.
+- Simple inventory: managing a large inventory isn't really fun for me.
+- Simple, clean and consistent UI.
+- No no-brainers.
+- No insta-death.
+- Optimal play is not drudgery: so traditional roguelike traps are out.
+- Classless but still have build agency: Shiren and Brogue are classless but builds can be too random.
+- Replayable:
+  - Fixed branch structure (a la crawl) is boring.
+  - Fixed level themes (Shiren, Binding of Isaac) is also boring.
