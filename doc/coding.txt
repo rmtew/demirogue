@@ -6,6 +6,25 @@ coding.txt
 	docs      -> doc
 	scripts   -> script
 
+* globals start with g.
+* Classes have PascalCase names, function libraries have camelCase
+* Class methods and fields have camelCase names.
+* Class methods and fields meant to be private start with _, e.g.
+     
+     {
+     	hammerTime = true,
+     	_private = "you can't touch this"
+     }
+
+* Acronyms and Initialisms follow C# rules, e.g.
+  * Two letter acronyms and initialisms like so: DBFettle, dbFettle
+  * Three or more letter acronyms and initialisms like so: XmlEater, xmlEater
+  * Abbreviations of hyphenated words are treated as Three or more letter words: Vec2d.
+
+* Ideally only main.lua and conf.lua should be in the root of the game source tree.
+* src/prelude
+    code that is always assumed loaded by the other source files so they
+    don't have to require it.
 
 
 src/
