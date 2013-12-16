@@ -7,13 +7,13 @@ require 'graph2D'
 
 require 'themes'
 
+local schema, GraphMode, VoronoiMode = require 'lib/mode' { 'GraphMode', 'VoronoiMode' }
+
 -- Basic graph editing for making grammar rule sets.
 --
 -- The screen is split into two panes, left and right.
 -- The left pane holds the pattern graph.
 -- THe right pane holds the substitute graph.
-
-graphmode = {}
 
 local config = {
 	tolerance = 20,
@@ -61,8 +61,8 @@ end
 local state = nil
 local time = 0
 
-function graphmode.update()
-	time = time + love.timer.getDelta()
+function GraphMode:update( dt )
+	time = time + dt
 
 	if not state then
 		local w, h = love.graphics.getWidth(), love.graphics.getHeight()
@@ -208,7 +208,7 @@ local function _tags( vertex )
 	return table.concat(posParts, ',')
 end
 
-function graphmode.draw()
+function GraphMode:draw()
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 	local screen = AABB.new {
 		xmin = 0,
@@ -537,7 +537,7 @@ function graphmode.draw()
 	end
 end
 
-function graphmode.mousepressed( x, y, button )
+function GraphMode:mousepressed( x, y, button )
 	if button ~= 'l' then
 		return
 	end
@@ -547,7 +547,7 @@ function graphmode.mousepressed( x, y, button )
 		return
 	end
 
-	local coord = { x, y }
+	local coord = Vector.new { x = x, y = y }
 	local w, h = love.graphics.getWidth(), love.graphics.getHeight()
 	local hw = w * 0.5
 
@@ -603,9 +603,6 @@ function graphmode.mousepressed( x, y, button )
 	end
 end
 
-function graphmode.mousereleased( x, y, button )
-end
-
 -- A cosmetic vertex cannot have any non-cosmetic edges.
 -- A non-cosmetic vertex must have at least one non-cosmetic edge.
 local function _ensureCosmeticInvariants( graph )
@@ -630,10 +627,12 @@ local function _ensureCosmeticInvariants( graph )
 	end
 end
 
-function graphmode.keypressed( key )
+function GraphMode:keypressed( key )
 	key = key:lower()
 
-	if key == 'lshift' or key == 'rshift' then
+	if key == '0' then
+		return self:become(VoronoiMode)
+	elseif key == 'lshift' or key == 'rshift' then
 		if state.selection and state.selection.type == 'vertex' then
 			state.edge = true
 		end
@@ -967,7 +966,7 @@ function graphmode.keypressed( key )
 	end
 end
 
-function graphmode.keyreleased( key )
+function GraphMode:keyreleased( key )
 	if key == 'lshift' or key == 'rshift' then
 		state.edge = false
 	end

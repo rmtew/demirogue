@@ -1,15 +1,13 @@
 require 'Vector'
 require 'AABB'
-require 'graphgen'
-require 'layoutgen'
-require 'roomgen'
 require 'Level'
-require 'texture'
 require 'Voronoi'
 require 'Viewport'
 require 'themes'
 
-local w, h = love.graphics.getWidth(), love.graphics.getHeight()
+local schema, VoronoiMode, GraphMode = require 'lib/mode' { 'VoronoiMode', 'GraphMode' }
+
+local w, h = 808, 600
 
 local bounds = AABB.new {
 	xmin = 0,
@@ -57,10 +55,7 @@ end
 local level
 local time = 0
 
-voronoimode = {}
-
-function voronoimode.update()
-	local dt = love.timer.getDelta()
+function VoronoiMode:update( dt )
 	time = time + dt
 
 	if not level then
@@ -104,7 +99,7 @@ function shadowf( x, y, ... )
 	love.graphics.print(text, x, y)
 end
 
-function voronoimode.draw()
+function VoronoiMode:draw()
 	love.graphics.push()	
 	
 	viewport:setup()
@@ -117,6 +112,8 @@ function voronoimode.draw()
 		if not mesh then
 			local start = love.timer.getTime()
 
+			-- TODO: create a vertex map (indices) so we don't have to re-emit
+			--       the site vertex for each triangle.
 			local vertices = {}
 
 			for vertex, _ in pairs(level.graph.vertices) do
@@ -389,7 +386,7 @@ function voronoimode.draw()
 		table.count(level.graph.vertices))
 end
 
-function voronoimode.mousepressed( x, y, button )
+function VoronoiMode:mousepressed( x, y, button )
 	local screen = Vector.new { x = x, y = y }
 	local world = viewport:screenToWorld(screen)
 
@@ -412,12 +409,11 @@ function voronoimode.mousepressed( x, y, button )
 	end
 end
 
-function voronoimode.mousereleased( x, y, button )
-end
-
 -- TODO: need a proper declarative interface for setting up controls.
-function voronoimode.keypressed( key )
-	if key == 'a' then
+function VoronoiMode:keypressed( key )
+	if key == '0' then
+		return self:become(GraphMode)
+	elseif key == 'a' then
 		drawRoomAABBs = not drawRoomAABBs
 	elseif key == 's' then
 		drawNonSkeleton = not drawNonSkeleton
@@ -468,7 +464,4 @@ function voronoimode.keypressed( key )
 	elseif key == 'm' then
 		drawMesh = not drawMesh
 	end
-end
-
-function voronoimode.keyreleased( key )
 end

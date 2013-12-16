@@ -31,7 +31,6 @@ local schema = state.schema {
 	textinput = true,
 	joystickpressed = true,
 	joystickreleased = true,
-
 	joystickaxis = true,
 	joystickhat = true,
 	gamepadpressed = true,

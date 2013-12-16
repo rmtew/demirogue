@@ -2,7 +2,10 @@
 
 Voronoi.lua
 
-Based on Raymond Hill's excellent Javascript implementation.
+Lua port of Raymond Hill's excellent Javascript implementation. I've tried to
+keep this file as close to the original as possible, comments included.
+
+--------
 
 Author: Raymond Hill (rhill@raymondhill.net)
 Contributor: Jesse Morgan (morgajel@gmail.com)
