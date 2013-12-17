@@ -198,12 +198,3 @@ function geometry.lineLineIntersection( p1, p2, q1, q2 )
 		y = p1.y + (r.y * t),
 	}
 end
-
-function geometry.convexHullLineIntersection( p1, p2, hull )
-	for index = 1, #hull do
-		local q1 = hull[index]
-		local nextIndex = (index < #hull) and index+1 or 1
-		local q2 = hull[nextIndex]
-
-	end
-end

@@ -1,5 +1,5 @@
 require 'Vector'
-require 'AABB'
+local AABB = require 'lib/AABB'
 
 local Dampener = require 'lib/Dampener'
 

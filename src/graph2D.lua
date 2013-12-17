@@ -1,4 +1,4 @@
---
+	--
 -- graph2D.lua
 --
 -- Utility functions of graphs with vertices that're 2D vectors.
@@ -7,7 +7,7 @@
 require 'Graph'
 require 'Vector'
 require 'graphgen'
-require 'AABB'
+local AABB = require 'lib/AABB'
 
 graph2D = {}
 
@@ -445,7 +445,7 @@ function graph2D.assignRoomsAndRelax( graph, theme, yield )
 		end
 
 		-- Recalc the AABB from the actual points.
-		aabb = Vector.aabb(points)
+		aabb = AABB.newFromPoints(points)
 
 		vertex.aabb = aabb
 		vertex.points = points

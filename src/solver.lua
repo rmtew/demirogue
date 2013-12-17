@@ -835,7 +835,7 @@ local solver = newSolver {
 	},
 }
 
-enumerate2(solver)
+-- enumerate2(solver)
 
 local solver = newSolver {
 	vars = {
@@ -959,18 +959,21 @@ function enumeratemap( width, height, minf, maxf )
 	for solution in solver do
 		count = count + 1
 
-		printf('#%d', count)
+		--if count % 100 == 0 then
 
-		for y = 1, height do
-			local line = {}
-			for x = 1, width do
-				local var = string.format("%d_%d", x, y)
-				line[#line+1] = solution[var]
+			printf('#%d', count)
+
+			for y = 1, height do
+				local line = {}
+				for x = 1, width do
+					local var = string.format("%d_%d", x, y)
+					line[#line+1] = solution[var]
+				end
+				print(table.concat(line))
 			end
-			print(table.concat(line))
-		end
-		
-		print()
+			
+			print()
+		-- end
 	end
 
 	printf('%d solutions', count)
@@ -979,10 +982,10 @@ function enumeratemap( width, height, minf, maxf )
 	return count
 end
 
-for i = 6, 6 do
+for i = 8, 8 do
 	local min = 0.3
 	local max = 0.4
 	printf('enumeratemap(%d, %d, %f, %f)', i, i, min, max)
-	--enumeratemap(i, i, min, max)
+	enumeratemap(i, i, min, max)
 	print()
 end

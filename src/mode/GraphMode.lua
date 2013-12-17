@@ -1,6 +1,6 @@
 require 'Graph'
 require 'GraphGrammar'
-require 'AABB'
+local AABB = require 'lib/AABB'
 require 'Vector'
 require 'geometry'
 require 'graph2D'

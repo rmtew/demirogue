@@ -1,4 +1,3 @@
-require 'AABB'
 require 'Graph'
 require 'Vector'
 require 'graph2D'
@@ -6,6 +5,7 @@ require 'Voronoi'
 require 'geometry'
 require 'terrains'
 
+local AABB    = require 'lib/AABB'
 local newgrid = require 'lib/newgrid'
 
 local V = Vector.new
@@ -346,7 +346,7 @@ function Level.newThemed( theme )
 			points[index] = point
 		end
 
-		local aabb = Vector.aabb(points)
+		local aabb = AABB.newFromPoints(points)
 		local hull = geometry.convexHull(points)
 
 		room.points = points
@@ -399,7 +399,7 @@ function Level.newThemed( theme )
 	-- TODO: the safety margin is a bit of a magic number, may be worth
 	-- defining in the theme.
 	local safetyMargin = 3 * theme.margin
-	local safe = Vector.aabb(all):expand(safetyMargin)
+	local safe = AABB.newFromPoints(all):expand(safetyMargin)
 	local walls = _enclose(all, safe, theme.margin, terrains.filler)
 
 	for _, wall in ipairs(walls) do

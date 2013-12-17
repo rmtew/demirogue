@@ -1,5 +1,5 @@
 require 'Vector'
-require 'AABB'
+local AABB = require 'lib/AABB'
 require 'Level'
 require 'Voronoi'
 require 'Viewport'

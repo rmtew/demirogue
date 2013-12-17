@@ -5,8 +5,6 @@
 -- Vector metatable to allow for some flexibility.
 -- 
 
--- require 'AABB'
-
 Vector = {}
 Vector.__index = Vector
 
@@ -103,27 +101,6 @@ function Vector.advance( self, target, distance )
 
 	self.x = self.x - disp.x
 	self.y = self.y - disp.y
-end
-
--- AABB of an array of vectors.
-function Vector.aabb( vectors )
-	local xmin, xmax = math.huge, -math.huge
-	local ymin, ymax = math.huge, -math.huge
-
-	for i = 1, #vectors do
-		local vector  = vectors[i]
-		xmin = math.min(xmin, vector.x)
-		xmax = math.max(xmax, vector.x)
-		ymin = math.min(ymin, vector.y)
-		ymax = math.max(ymax, vector.y)
-	end
-
-	return AABB.new {
-		xmin = xmin,
-		xmax = xmax,
-		ymin = ymin,
-		ymax = ymax,
-	}
 end
 
 function Vector.nearest( vectors1, vectors2 )

@@ -1,6 +1,10 @@
+--
+-- lib/AABB.lua
+--
+
 require 'Vector'
 
-AABB = {}
+local AABB = {}
 AABB.__index = AABB
 
 function AABB.new( tbl )
@@ -17,6 +21,25 @@ function AABB.new( tbl )
 	setmetatable(result, AABB)
 
 	return result
+end
+
+function AABB.newFromPoints( points )
+	local xmin, xmax = math.huge, -math.huge
+	local ymin, ymax = math.huge, -math.huge
+
+	for _, point in ipairs(points) do
+		xmin = math.min(xmin, point.x)
+		xmax = math.max(xmax, point.x)
+		ymin = math.min(ymin, point.y)
+		ymax = math.max(ymax, point.y)
+	end
+
+	return AABB.new {
+		xmin = xmin,
+		xmax = xmax,
+		ymin = ymin,
+		ymax = ymax,
+	}
 end
 
 function AABB:width()
@@ -273,3 +296,6 @@ print(test1:width(), test1:height())
 print(test2:width(), test2:height())
 test1:similarise(test2)
 print(test1:width(), test1:height())
+
+
+return AABB

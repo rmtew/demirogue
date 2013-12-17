@@ -1,4 +1,4 @@
-require 'AABB'
+local AABB = require 'lib/AABB'
 
 layoutgen = {}
 

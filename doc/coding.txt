@@ -30,3 +30,6 @@ coding.txt
 src/
 	main.lua
 	conf.lua
+	lib/
+	prelude/
+  mode/
