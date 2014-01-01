@@ -318,7 +318,7 @@ function test3:update(dt)
 end
 local machine = state.machine(schema, test1, 'foo')
 
-function printf( ... ) print(string.format(...)) end
+local function printf( ... ) print(string.format(...)) end
 
 printf('#stack %d', #machine.stack)
 machine:update(1/30)

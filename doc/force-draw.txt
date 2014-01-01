@@ -1,0 +1,47 @@
+force-draw.txt
+==============
+
+Need to be a bit more methodical in our approach to the force drawing
+algorithm.
+
+- We have a cutoff for repulsive vertex-vertex forces:
+  - Reduces the 'scared' graph look where periphery vertices are
+    pointing away from the centre of the graph.
+  - Not sure if there's a sound a priori value for the cutoff but
+    expriments make 3 (in edgeLength units) seem good.
+
+- I've had to keep increasing the convergence distance to stop the algorithm
+  in reasonable time and also stop pathelogical scaling.
+  - I've not seen this in any force draw algorithm so something must be
+    going wrong.
+
+- The edgeLengthFactor logic doesn't work very well:
+  - I think this is because the repulsive force totally overpowers the
+    stronger spring forces.
+    - Using graph distance modulated by edgeLength factors may help.
+
+- I use a maxDelta instead of a proportional movement value because it
+  it seems to give better results.
+  - It does lead to more interations though.
+  - Might it be possible to calculate isome form of constraints and only
+    move within them?
+
+- There is too much
+
+- Need a force draw debugging mode.
+  - Basic graph editing like the graph mode.
+  - Ideally save, load graph.
+  - Stepped and progressing force draw.
+  - Need to be able to undo the force draw changes.  
+  - Need to be able to visualise the forces.
+
+- Should try the ImPrEd drawing algorithm.
+  - Looks slow but stops edge crossing if there no edge crosses in the
+    graph.
+  - The connected components optimisation can be replaced with a spatial
+    partition and force cutoffs.
+    - Spatial hash might be a good idea.
+      - Doesn't require bounds like a quadtree although there are limits due
+        to cell size and the numbers of bits availible.
+    - BIH if I can find a good explanation.
+      

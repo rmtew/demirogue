@@ -837,6 +837,27 @@ function Graph:matches( pattern, vertexEq, edgeEq )
 	end
 end
 
+function Graph:toarrays()
+	local varray = {}
+	local vmap = {}
+
+	for vertex, _ in pairs(self.vertices) do
+		varray[#varray+1] = vertex
+		vmap[vertex] = #varray
+	end
+
+	local earray = {}
+	for edge, endverts in pairs(self.edges) do
+		earray[#earray+1] = {
+			edge = edge,
+			vmap[endverts[1]],
+			vmap[endverts[2]]
+		}
+	end
+
+	return varray, earray
+end
+
 function Graph:dotFile( name, vertexLabeller )
 	name = name or 'G'
 	local ids = {}

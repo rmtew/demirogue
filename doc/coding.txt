@@ -1,7 +1,7 @@
 coding.txt
 ----------
 
-* Directory names are singular, e.g.
+* To avoid potential confusion directory names are singular, e.g.
 	resources -> resource
 	docs      -> doc
 	scripts   -> script

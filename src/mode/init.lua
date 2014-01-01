@@ -5,10 +5,12 @@
 local state = require 'lib/state'
 require 'mode/VoronoiMode'
 require 'mode/GraphMode'
-local schema, VoronoiMode = require 'lib/mode' { 'VoronoiMode' }
+require 'mode/ForceDrawMode'
+local schema, init = require 'lib/mode' { 'VoronoiMode' }
+local schema, init = require 'lib/mode' { 'ForceDrawMode' }
 
 local function export()
-	return state.machine(schema, VoronoiMode)
+	return state.machine(schema, init)
 end
 
 return export

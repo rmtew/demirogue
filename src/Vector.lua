@@ -73,6 +73,79 @@ function Vector.to( self, other )
 	return Vector.new { x = other.x - self.x, y = other.y - self.y }
 end
 
+-- Arithmetic methods. We deviate from the standard naming conventions for
+-- brevity.
+
+function Vector.add( dest, vec1, vec2 )
+	dest.x = vec1.x + vec2.x
+	dest.y = vec1.y + vec2.y
+end
+
+function Vector.addvn( dest, vec, num )
+	dest.x = vec.x + num
+	dest.y = vec.y + num
+end
+
+function Vector.addnv( dest, num, vec )
+	dest.x = num + vec1.x
+	dest.y = num + vec1.y
+end
+
+function Vector.sub( dest, vec1, vec2 )
+	dest.x = vec1.x - vec2.x
+	dest.y = vec1.y - vec2.y
+end
+
+function Vector.subvn( dest, vec, num )
+	dest.x = vec.x - num
+	dest.y = vec.y - num
+end
+
+function Vector.subnv( dest, num, vec )
+	dest.x = num - vec1.x
+	dest.y = num - vec1.y
+end
+
+function Vector.mul( dest, vec1, vec2 )
+	dest.x = vec1.x * vec2.x
+	dest.y = vec1.y * vec2.y
+end
+
+function Vector.mulvn( dest, vec, num )
+	dest.x = vec.x * num
+	dest.y = vec.y * num
+end
+
+function Vector.mulnv( dest, num, vec )
+	dest.x = num * vec1.x
+	dest.y = num * vec1.y
+end
+
+function Vector.div( dest, vec1, vec2 )
+	dest.x = vec.x / vec2.x
+	dest.y = vec.y / vec2.y
+end
+
+function Vector.divvn( dest, vec, num )
+	dest.x = vec1.x / num
+	dest.y = vec1.y / num
+end
+
+function Vector.divnv( dest, num, vec )
+	dest.x = num / vec1.x
+	dest.y = num / vec1.y
+end
+
+function Vector.mad( dest, vec1, vec2, vec3 )
+	dest.x = (vec1.x * vec2.x) + vec3.x
+	dest.y = (vec1.y * vec2.y) + vec3.y
+end
+
+function Vector.madvnv( dest, vec1, num, vec2 )
+	dest.x = (vec1.x * num) + vec2.x
+	dest.y = (vec1.y * num) + vec2.y
+end
+
 function Vector.midpoint( self, other )
 	local dx = other.x - self.x
 	local dy = other.y - self.y
@@ -145,7 +218,7 @@ function Vector.signedAngle( self, other )
 end
 
 function Vector.__tostring( self )
-	return string.format("[%f, %f]", self.x, self.y)
+	return string.format("[%s, %sg]", self.x, self.y)
 end
 
 

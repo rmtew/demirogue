@@ -93,11 +93,6 @@ TODO
 PENDING
 
 - Use neighbour instead of peer in graph usages.
-- Need high-level state system
-  - I think a stacked statemachine should be enough.
-  - For modes I need standard love events like keypressed, mousepressed, update, draw
-  - enter(...) exit(), update(dt), draw(), keypressed(), keyreleased() etc...
-  -  
 
 - Trim old code
 - Need nicer persistence, maybe...
@@ -112,16 +107,48 @@ PENDING
 - Orgranise code into dirs.
 
   - src/
-      misc/
-         table.lua
-         math.lua
-         ...
-      lib/
-      mode/
+      prelude/         - code always assumed to be required
+        init.lua
+        ...
+      lib/            - code that doesn't need its own directory
+        AABB.lua
+        Vector.lua
+        state.lua
+        ...
+      mode/           - main states of the game
+        init.lua
+        XMode.lua
+        ...
 
+  - Ideally only main.lua and conf.lua should be in the root of src.
+
+- Use a more lua standard library scheme, e.g.:
+    local lib = require 'lib'
+    local Class = require 'Class'
+
+- Force drawing should take edgeLength factors into account for repulsion.
+  - I've had a persistant problem with edgeLengthFactor not really working
+    and I think it's due to repulsion not taking it into account and the
+    sping forces not being powerful enough to counter it.
+
+    If we used graph distance modulated by edgeLengthFactor into account it
+    might work.
+  - One issue is that in general there isn't a unique modulated desired
+    distance. Two paths between vertices could have different edgeLengthFactors
+    so we need to decide how to resolve the issue.
+- Force drawing should have vertex-edge forces as well.
+  - Will make it more expensive but should stop some issues.
+  - THis does mean we have vertex-vertex, edge-edge and vertex-edge forces.
+
+- Should graph2D and others assume vertex.x, vertex.y or vertex.position?
+  
 
 DONE
 - Change Vector to use { x = ..., y = ... }.
+- Need high-level state system
+  - I think a stacked statemachine should be enough.
+  - For modes I need standard love events like keypressed, mousepressed, update, draw
+  - enter(...) exit(), update(dt), draw(), keypressed(), keyreleased() etc...
 
 
 

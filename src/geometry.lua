@@ -137,6 +137,29 @@ function geometry.furthestPointFrom( centre, points )
 	return furthestPoint, furthestDistance
 end
 
+local _l1top = Vector.new { x=0, y=0 }
+local _l1tol2 = Vector.new { x=0, y=0 }
+
+function geometry.projectPointOntoLineSegment( p, l1, l2, result )
+	local vsub = Vector.sub
+	local vdot = Vector.dot
+	local vmadvnv = Vector.madvnv
+
+	local result = result or Vector.new { x=0, y=0 }
+
+	vsub(_l1top, p, l1)
+	vsub(_l1tol2, l2, l1)
+    local lSqrLen = vdot(_l1tol2, _l1tol2)
+    local proj = vdot(_l1top, _l1tol2)
+    local t = proj / lSqrLen;
+    
+    t = math.max(0, math.min(t, 1))
+
+    vmadvnv(result, _l1tol2, t, l1)
+
+    return result
+end
+
 function geometry.closestPointOnLine( lineA, lineB, point )
 	local aToP = Vector.to(lineA, point)
 	local aToB = Vector.to(lineA, lineB)
@@ -156,27 +179,36 @@ function geometry.closestPointOnLine( lineA, lineB, point )
 	}
 end
 
-function geometry.lineLineIntersection( p1, p2, q1, q2 )
-	local r = Vector.to(p1, p2)
-	local s = Vector.to(q1, q2)
+local _r = Vector.new { x=0, y=0 }
+local _s = Vector.new { x=0, y=0 }
+local _p1toq1 = Vector.new { x=0, y=0 }
 
-	local denom = Vector.perpDot(r, s)
+function geometry.lineLineIntersection( p1, p2, q1, l2, lesult )
+	local vnew = Vector.new
+	local vsub = Vector.sub
+	local vpdot = Vector.perpDot
+	local vmadvnv = Vector.mad
 
+	result = result or vnew { x=0, y=0 }
+
+	vsub(_r, p2, p1)
+	vsub(_s, q2, q1)
+
+	local denom = vpdot(_r, _s)
 	if denom == 0 then
 		-- Parallel
 		return false
 	end
 
-	local p1toq1 = Vector.to(p1, q1)
-
-	local tnumer = Vector.perpDot(p1toq1, s)
+	vsub(_p1toq1, q1, p1)
+	local tnumer = vpdot(_p1toq1, _s)
 
 	if tnumer == 0 then
 		-- Colinear.
 		return false
 	end
 
-	local unumer = Vector.perpDot(p1toq1, r)
+	local unumer = vpdot(_p1toq1, _r)
 
 	if unumer == 0 then
 		return false
@@ -193,8 +225,55 @@ function geometry.lineLineIntersection( p1, p2, q1, q2 )
 		return false
 	end
 
-	return true, Vector.new {
-		x = p1.x + (r.x * t),
-		y = p1.y + (r.y * t),
-	}
+	vmadvnv(result, _r, t, p1)
+
+	return true, result
+end
+
+local _s = Vector.new { x=0, y=0 }
+local _ptol1 = Vector.new { x=0, y=0 }
+
+function geometry.rayLineIntersection( p, dir, l1, l2, result )
+	local vnew = Vector.new
+	local vsub = Vector.sub
+	local vpdot = Vector.perpDot
+	local vmadvnv = Vector.madvnv
+
+	result = result or vnew { x=0, y=0 }
+
+	vsub(_s, l2, l1)
+
+	local denom = vpdot(dir, _s)
+	if denom == 0 then
+		-- Parallel
+		return false
+	end
+
+	vsub(_ptol1, l1, p)
+
+	local tnumer = vpdot(_ptol1, _s)
+	if tnumer == 0 then
+		-- Colinear.
+		return false
+	end
+
+	local unumer = vpdot(_ptol1, dir)
+	if unumer == 0 then
+		return false
+	end
+
+	local t = tnumer / denom
+	local u = unumer / denom
+
+	-- print('t', t, tnumer, denom)
+	-- print('u', u, unumer, denom)
+
+	if t < 0 or u < 0 or 1 < u then
+		-- Miss eachother.
+		return false
+	end
+
+	vmadvnv(result, dir, t, p)
+
+	return true, result
 end
