@@ -7,7 +7,6 @@
 require 'Vector'
 require 'Graph'
 require 'geometry'
-local fun = require 'lib/fun'
 
 --
 -- Based on the PrEd algorithm in 'A force-directed algorithm that preserves
@@ -24,7 +23,12 @@ local fun = require 'lib/fun'
 --
 -- graph: the graph to draw
 -- edgeLength: the desired length of each edges
--- 
+-- repulsion: the strength of the vertex-vertex repulsive force.
+-- repulsionCutoff: the distance (in edgeLength units) that repulsion ceases to take effect.
+-- springStrength: the power of the push and pull forces trying to keep edges at edgeLength
+-- vertexEdgeForce: the power of the vertex to edge repulsive force
+-- vertexEdgeSafetyFactor: a vertex cannot get closer to a non-incident edge than this
+-- maxDelta: maximum vertex movement allowed per iteration
 
 -- local function demipred( graph, delta, gamma, repulsion, repulsionCutoff, gammaCutoff, , gamma, epsilon, logging )
 
@@ -80,7 +84,7 @@ local function demipred( graph, delta, gamma, epsilon, logging )
             local dot = vdot(dirs[i], s)
             local hyp = (l/dot)*l
 
-            printf('#%d |s|:%.2f %d dot:%.2f', i, l, 45*(i-1), dot)
+            -- printf('#%d |s|:%.2f %d dot:%.2f', i, l, 45*(i-1), dot)
             
             if dot/l > limit then
             	sector[i] = math.min(l, sector[i])
@@ -300,17 +304,19 @@ local function demipred( graph, delta, gamma, epsilon, logging )
 		end
 
 		local limit = math.cos(math.pi/8)
+		local maxf = -math.huge
 		for i = 1, #varray do
 			local v = varray[i]
 			local force = farray[i]
 			local f = vlen(force)
+			maxf = math.max(maxf, f)
 			local sector = vsectors[i]
 
 			for j = 1, #dirs do
 				local dot  = vdot(force, dirs[j])
 				local angle = dot/f
 
-				if angle > limit then
+				if angle >= limit then
 					-- local bound = math.min(delta, sector[j])
 					-- local bound = math.min(delta*0.1, sector[j])
 					local bound = math.min(2, sector[j])
@@ -328,6 +334,8 @@ local function demipred( graph, delta, gamma, epsilon, logging )
 				end
 			end
 		end
+
+		printf('max f:%.2f', maxf)
 
 		-- now clip the forces and apply them.
 		-- for i = 1, #varray do
