@@ -218,7 +218,7 @@ function Vector.signedAngle( self, other )
 end
 
 function Vector.__tostring( self )
-	return string.format("[%s, %sg]", self.x, self.y)
+	return string.format("[%s, %s]", self.x, self.y)
 end
 
 
