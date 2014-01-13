@@ -15,20 +15,25 @@ require 'geometry'
 -- Prevents Nodes from Crossing Edges' but none of the improvements have been
 -- implemented yet.
 --
--- delta: desired edge length
--- gamma: desired vertex-edge distance
+-- There are three forces at play:
+-- - Vertex-vertex repulsion: all vertices push each other away.
+-- - Edge spring forces: edges try and maintain the specified edge length.
+-- - Vertex-edge repulsion: vertices push away from non-incident edges.
 --
--- TODO: need to limit movement via a param.
--- TODO: need control params for forces.
+-- To control the process there are quite a few parameters.
 --
 -- graph: the graph to draw
--- edgeLength: the desired length of each edges
+-- edgeLength: the desired length of each edges.
 -- repulsion: the strength of the vertex-vertex repulsive force.
 -- repulsionCutoff: the distance (in edgeLength units) that repulsion ceases to take effect.
 -- springStrength: the power of the push and pull forces trying to keep edges at edgeLength
 -- vertexEdgeForce: the power of the vertex to edge repulsive force
 -- vertexEdgeSafetyFactor: a vertex cannot get closer to a non-incident edge than this
 -- maxDelta: maximum vertex movement allowed per iteration
+
+-- local function demipred( graph, edgeLength, repulsion, repulsionCutoff, springStrength, crossDistance, crossForce, crossLimit, convergenceFactor )
+
+-- delta, rf, rc, spring, 
 
 -- local function demipred( graph, delta, gamma, repulsion, repulsionCutoff, gammaCutoff, , gamma, epsilon, logging )
 
@@ -77,17 +82,15 @@ local function demipred( graph, delta, gamma, epsilon, logging )
 
     local limit = math.cos(math.pi/2 + math.pi/8)
 
-    local function constrain( vidx, s )
+    local function constrain( vidx, s, override )
     	local sector = vsectors[vidx]
     	local l = vlen(s)
         for i = 1, #dirs do
             local dot = vdot(dirs[i], s)
-            local hyp = (l/dot)*l
-
-            -- printf('#%d |s|:%.2f %d dot:%.2f', i, l, 45*(i-1), dot)
+            local angle = dot/l
             
-            if dot/l > limit then
-            	sector[i] = math.min(l, sector[i])
+            if angle > limit then
+            	sector[i] = math.min(override or l, sector[i])
             end
         end
     end
