@@ -1,0 +1,14 @@
+Constraint Propagation Solver (CPS)
+-----------------------------------
+
+- Domains
+- Variables
+- Constraints
+- Solver
+
+The high-level solver loop needs the following from variables:
+- Size or some other value to prioritise variable sort order.
+- Ordered or random iteration of the variables domain.
+- Narrow with whatever the iteration returns.
+- Needs to know if the variable is singular/unique.
+
