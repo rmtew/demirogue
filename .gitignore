@@ -18,3 +18,4 @@
 # Generated debugging files.
 src/dots/*.png
 src/dots/*.dot
+*.log
