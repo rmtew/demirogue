@@ -1,3 +1,6 @@
+require 'jit'
+print(jit.version)
+
 -- All other lua files assume this is required before they are.
 require 'prelude'
 
