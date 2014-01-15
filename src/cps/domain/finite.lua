@@ -35,7 +35,7 @@ function Variable:unique()
 	return value ~= 0 and bit.band(value, value-1) == 0
 end
 
-function Variable:narrow( value )
+function Variable:narrow( value, depth )
 	local newvalue = bit.band(value, self.value)
 
 	if newvalue == 0 then
@@ -48,7 +48,7 @@ function Variable:narrow( value )
 
 		local constraints = self.constraints
 		for index = 1, #constraints do
-			if not constraints[index](self) then
+			if not constraints[index](self, depth) then
 				return false
 			end
 		end
@@ -57,7 +57,7 @@ function Variable:narrow( value )
 	return true
 end
 
-function Variable:each( option )
+function Variable:each( order )
 	local values = {}
 	local value = self.value
 	local array = self.domain.array
@@ -66,13 +66,13 @@ function Variable:each( option )
 		local candidate = array[i]
 
 		-- Only use values that haven't been ruled out.
-		if bit.band(value, candidate) then
+		if bit.band(value, candidate) ~= 0 then
 			values[#values+1] = candidate
 		end
 	end
 
-	if option == 'random' then
-		table.shuffle(values)
+	if order == 'random' then
+		--table.shuffle(values)
 	end
 
 	return ipairs(values)
@@ -119,13 +119,13 @@ local function neq( variables, args )
 	local var1, var2 = variables[1], variables[2]
 
 	return
-		function ( var )
+		function ( var, depth )
 			assert(var == var1 or var == var2)
 			local other = (var == var1) and var2 or var1
 
 			if var:unique() then
 				local newvalue = bit.band(other.value, bit.bnot(var.value))
-				return other:narrow(newvalue)
+				return other:narrow(newvalue, depth+1)
 			end
 
 			return true
@@ -142,7 +142,7 @@ local function distinct( variables, args )
 	end
 
 	return
-		function ( var )
+		function ( var, depth )
 			assert(varset[var])
 
 			if var:unique() then
@@ -151,9 +151,7 @@ local function distinct( variables, args )
 					local other = variables[i]
 					if var ~= other then
 						local newvalue = bit.band(other.value, mask)
-						local result = other:narrow(newvalue)
-
-						if not result then
+						if not other:narrow(newvalue, depth+1) then
 							return false
 						end
 					end
@@ -171,12 +169,12 @@ local function eq( variables, args )
 	local var1, var2 = vars[1], vars[2]
 
 	return
-		function ( var )
+		function ( var, depth )
 			assert(var == var1 or var == var2)
 			local other = (var == var1) and var2 or var1
 
 			if var:unique() then
-				return other:narrow(var.value)
+				return other:narrow(var.value, depth+1)
 			end
 
 			return true
@@ -205,7 +203,7 @@ local function cardinality( variables, args )
 	end
 
 	return
-		function ( var )
+		function ( var, depth )
 			assert(varset[var] ~= nil)
 
 			local possible = {}
@@ -232,7 +230,7 @@ local function cardinality( variables, args )
 			-- them definite to be sure.
 			if #possible == min then
 				for i = 1, #possible do
-					local result = possible[i]:narrow(value)
+					local result = possible[i]:narrow(value, depth+1)
 
 					if not result then
 						return false
@@ -250,7 +248,7 @@ local function cardinality( variables, args )
 					local variable = possible[i]
 					if not definite[i] then
 						local newvalue = bit.band(variable.value, mask)
-						local result = variable:narrow(newvalue)
+						local result = variable:narrow(newvalue, depth+1)
 
 						if not result then
 							return false
@@ -275,6 +273,10 @@ local constraints = {
 function Domain:constraint( name, variables, args )
 	assert(constraints[name])
 	return constraints[name](variables, args)
+end
+
+function Domain:__tostring()
+	return string.format('{ %s }', table.concat(values))
 end
 
 local function new( values )

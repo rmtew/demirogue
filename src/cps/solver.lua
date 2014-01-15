@@ -21,7 +21,6 @@
 
 -- solver:
 -- - variables { name = variable }
--- - 
 
 local function newframe( solver )
 	local stack = solver.stack
@@ -42,41 +41,14 @@ local function unwind( solver )
 	local stack = solver.stack
 	local frame = stack[#stack]
 
-	for i = 1, #frame, 2 do
+	-- Go backwards because we want the first saved value and the same variable
+	-- may appear more than once in the frame.
+	for i = #frame-1, 1, -2 do
 		frame[i].value = frame[i+1]
 	end
 
 	stack[#stack] = nil
 end
-
---[[
-
--- These versions were causing NYI LuaJIT aborts because of the use of the
--- pairs iterator in unwind().
-
-local function save( solver, var )
-	local stack = solver.stack
-	local frame = stack[#stack]
-
-	if frame[var] ~= nil then
-		printf('overwrite %s', var.name)
-	end
-	
-	frame[var] = var.value
-end
-
-local function unwind( solver )
-	local stack = solver.stack
-	local frame = stack[#stack]
-
-	-- TODO: causing a NYI in LuaJIT becuase of pairs().
-	for variable, value in pairs(frame) do
-		variable.value = value
-	end
-
-	stack[#stack] = nil
-end
---]]
 
 local function solution( varsarray )
 	local result = {}
@@ -91,7 +63,10 @@ local function solution( varsarray )
 	return result
 end
 
-local function solve( solver, option )
+-- AC3 core solver algorithm. Assumes it is running in a coroutine so it can
+-- yield solutions.
+local function solve( solver )
+	local order = solver.order
 	-- check that we have no empty variables and build the varsarray
 	local varsarray  = {}
 
@@ -100,43 +75,39 @@ local function solve( solver, option )
 		varsarray[#varsarray+1] = variable
 	end
 
-	-- It is generally better to solve for 'smaller' variables first.
-	table.sort(varsarray,
-		function ( lhs, rhs )
-			local lsize = lhs:size()
-			local rsize = rhs:size()
+	if order ~= 'random' then
+		-- It is generally better to solve for 'smaller' variables first.
+		table.sort(varsarray,
+			function ( lhs, rhs )
+				local lsize = lhs:size()
+				local rsize = rhs:size()
 
-			if lsize ~= rsize then
-				return lsize < rsize
-			else
-				return lhs.name < rhs.name
-			end
-		end)
-
-	local iterate = solver.random and 'random'
+				if lsize ~= rsize then
+					return lsize < rsize
+				else
+					-- If the variables are the same size sort on name to
+					-- ensure deterministic ordering.
+					return lhs.name < rhs.name
+				end
+			end)
+	else
+		table.shuffle(varsarray)
+	end
 
 	local function aux( solver, index )
 		if index > #varsarray then
 			coroutine.yield(solution(varsarray))
-
 			return
 		end
 
 		local variable = varsarray[index]
 
-		-- If the variable is unique we just carry on.		
-		if variable:unique() then
-			aux(solver, index+1)
-		else
-			for _, value in variable:each(iterate) do
-				newframe(solver)
-				if variable:narrow(value) then
-					aux(solver, index+1)
-				end
-				
-				unwind(solver)
+		for _, value in variable:each(order) do
+			newframe(solver)
+			if variable:narrow(value, 1) then
+				aux(solver, index+1)
 			end
-			return
+			unwind(solver)
 		end
 	end
 
@@ -151,8 +122,15 @@ end
 --         op=<name>,
 --         variables={<variable-name>}+,
 --         args={...}*
+--     },
+--     order = 'deterministic' | 'random',
 -- }
 --
+
+local orders = {
+	deterministic = true,
+	random = true,
+}
 local function solver( params )
 	local dump = params.dump == true
 	local domains = params.domains
@@ -160,8 +138,10 @@ local function solver( params )
 	local result = {
 		variables = {},
 		stack = {},
-		random = params.random == true,
+		order = params.order or 'deterministic',
 	}
+
+	assert(orders[result.order])
 
 	local variables = result.variables
 	local saver = function ( var ) save(result, var) end
@@ -179,7 +159,7 @@ local function solver( params )
 		local domain = nil
 
 		for _, varname in ipairs(def.variables) do
-			assert(not used[varname])
+			assertf(not used[varname], 'variable %s is used more than once', varname)
 			used[varname] = true
 
 			local variable = variables[varname]

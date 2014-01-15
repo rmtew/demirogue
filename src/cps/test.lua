@@ -2,11 +2,26 @@ math.randomseed(os.time())
 
 assertf = function ( cond, ... ) if not cond then error(string.format(...), 2) end end
 printf = function ( ... ) print(string.format(...)) end
-table.shuffle = function( tbl )
+
+local function distinct( tbl )
 	for i = 1, #tbl-1 do
-		local index = math.random(i, #tbl)
-		tbl[i], tbl[index] = tbl[index], tbl[i]
+		for j = i+1, #tbl do
+			if i == j then
+				return false
+			end
+		end
 	end
+
+	return true
+end
+
+table.shuffle = function( tbl )
+	for i = #tbl, 1, -1 do
+		local j = math.random(1, i)
+		tbl[i], tbl[j] = tbl[j], tbl[i]
+	end
+
+	assert(distinct(tbl))
 end
 
 local solver = require 'solver'
@@ -23,7 +38,7 @@ local problem = solver {
 		d = 'bit',
 	},
 	constraints = {},
-	random = true,
+	order = 'deterministic'
 }
 
 function toline( tbl )
@@ -229,6 +244,7 @@ local problem = solver {
 	domains = { domain = domain },
 	variables = variables,
 	constraints = constraints,
+	order = 'random',
 }
 
 local count = 0
@@ -257,6 +273,8 @@ for index, solution in ipairs(solutions) do
 		print(table.concat(line, ' '))
 	end
 end
+
+assert(#solutions == 92)
 
 printf('%d %ss', #solutions, finish-start)
 
@@ -310,3 +328,219 @@ local finish = os.clock()
 printf('%d %ss', count, finish-start)
 assertf(count == 40320, 'expected 8! = 40,320 but got %d', count)
 print()
+
+-- Sudoku
+
+local all = {}
+local rows = { {}, {}, {}, {}, {}, {}, {}, {}, {} }
+local columns = { {}, {}, {}, {}, {}, {}, {}, {}, {} }
+local grid = {
+	cell11 = {},
+	cell12 = {},
+	cell13 = {},
+	cell21 = {},
+	cell22 = {},
+	cell23 = {},
+	cell31 = {},
+	cell32 = {},
+	cell33 = {},
+}
+
+for x = 1, 9 do
+	for y = 1, 9 do
+		local name = string.format('%d-%d', x, y)
+
+		all[name] = 'sudoku'
+		
+		local row = rows[y]
+		row[#row+1] = name
+		
+		local column = columns[x]
+		column[#column+1] = name
+
+		local cx = math.floor((x-1)/3)+1
+		local cy = math.floor((y-1)/3)+1
+		local cell = grid[string.format('cell%d%d', cx, cy)]
+		cell[#cell+1] = name
+	end
+end
+
+local constraints = {}
+
+for _, row in ipairs(rows) do
+	constraints[#constraints+1] = { op='distinct', variables = row }
+	print(table.concat(row, ' '))
+end
+
+for _, column in ipairs(columns) do
+	-- constraints[#constraints+1] = { op='distinct', variables = column }
+	print(table.concat(column, ' '))
+end
+
+local cells = { 'cell11', 'cell12', 'cell13', 'cell21', 'cell22', 'cell23', 'cell31', 'cell32', 'cell33' }
+
+for _, tag in ipairs(cells) do
+	cell = grid[tag]
+	-- constraints[#constraints+1] = { op='distinct', variables = cell }	
+	print(table.concat(cell, ' '))
+end
+
+for index, constraint in ipairs(constraints) do
+	local set = {}
+
+	for _, var in ipairs(constraint.variables) do
+		assert(set[var] == nil)
+		set[var] = true
+	end
+
+	local lines = { {}, {}, {}, {}, {}, {}, {}, {}, {} }
+
+	for x = 1, 9 do
+		for y = 1, 9 do
+			lines[y][x] = set[string.format('%d-%d', x, y)] and '#' or '.'
+		end
+	end
+
+	printf('constraint:%d', index)
+	for _, line in pairs(lines) do
+		print(table.concat(line, " "))
+	end
+	print()
+end
+
+local problem = solver {
+	domains = {
+		sudoku = finite { '1', '2', '3', '4', '5', '6', '7', '8', '9' }
+	},
+	variables = all,
+	constraints = constraints,
+	order = 'random',
+}
+
+local count = 0
+for solution in problem do
+	count = count + 1
+	printf('#%d', count)
+
+	local lines = { {}, {}, {}, {}, {}, {}, {}, {}, {} }
+
+	for y = 1, 9 do
+		for x = 1, 9 do
+			local var = string.format('%d-%d', x, y)
+			lines[y][x] = solution[var]
+		end
+	end
+
+	for _, line in ipairs(lines) do
+		print(table.concat(line, ' '))
+	end
+
+	if count == 10 then
+		break
+	end
+end
+
+print(count)
+
+-- Latin Squares
+
+function gen( dim )
+	local values = {}
+
+	for i = 1, dim do
+		values[#values+1] = tostring(i)
+	end
+
+	local domain = finite(values)
+
+	local variables = {}
+	local rows = {}
+	local columns = {}
+
+	for x = 1, dim do
+		local column = {}
+		for y = 1, dim do
+			local name = string.format('%d-%d', x, y)
+			variables[name] = 'domain'
+
+			local row = rows[y] or {}
+			row[x] = name
+			rows[y] = row
+
+			column[y] = name
+		end
+		columns[x] = column
+	end
+	
+	local constraints = {}
+
+	for _, row in ipairs(rows) do
+		constraints[#constraints+1] = { op='distinct', variables = row }
+	end
+
+	for _, column in ipairs(columns) do
+		constraints[#constraints+1] = { op='distinct', variables = column }
+	end
+
+	for index, constraint in ipairs(constraints) do
+		local set = {}
+
+		for _, var in ipairs(constraint.variables) do
+			assert(set[var] == nil)
+			set[var] = true
+		end
+
+		local lines = {}
+
+		for y = 1, dim do
+			lines[y] = {}
+			for x = 1, dim do
+				lines[y][x] = set[string.format('%d-%d', x, y)] and '#' or '.'
+			end
+		end
+
+		printf('constraint:%d', index)
+		for _, line in pairs(lines) do
+			print(table.concat(line, " "))
+		end
+		print()
+	end
+
+	return solver {
+		domains = {
+			domain = domain,
+		},
+		variables = variables,
+		constraints = constraints,
+		order = 'random',
+	}
+end
+
+local dim = 4
+local solutions = {}
+local start = os.clock()
+for solution in gen(dim) do
+	solutions[#solutions+1] = solution
+end
+local finish = os.clock()
+
+for index, solution in ipairs(solutions) do
+	printf('#%d', index)
+
+	local lines = {}
+
+	for y = 1, dim do
+		lines[y] = {}
+		for x = 1, dim do
+			local var = string.format('%d-%d', x, y)
+			lines[y][x] = solution[var]
+		end
+	end
+
+	for _, line in ipairs(lines) do
+		print(table.concat(line, ' '))
+	end
+end
+
+printf('dim:%d #:%d %.2fs', dim, #solutions, finish-start)
+
